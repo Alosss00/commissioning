@@ -1,4 +1,5 @@
 <?php
+// perubahan
 defined('BASEPATH') or exit('No direct script access allowed');
 class Pengajuan_model extends CI_Model
 {
