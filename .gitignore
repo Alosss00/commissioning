@@ -7,12 +7,6 @@ application/logs/*
 !application/logs/index.html
 
 !application/*/.htaccess
-# Upload & cache
-application/config/config.php
-application/config/database.php
-application/cache/*
-application/logs/*
-assets/uploads/*
 
 composer.lock
 tests/mocks/database/ci_test.sqlite
@@ -22,7 +16,7 @@ user_guide_src/cilexer/build/*
 user_guide_src/cilexer/dist/*
 user_guide_src/cilexer/pycilexer.egg-info/*
 /vendor/
-/database/
+
 # IDE Files
 #-------------------------
 /nbproject/

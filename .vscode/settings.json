@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^powershell -NoProfile -Command \"\\$lines = Get-Content database\\\\uji_kelayakan\\.sql -Encoding UTF8; for \\(\\$i=0; \\$i -lt \\$lines\\.Count; \\$i\\+\\+\\) \\{ if \\(\\$lines\\[\\$i\\] -match '\\^CREATE TABLE `users`'\\) \\{ Write-Host \\(\\$i\\+1\\); break \\} \\}\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd c:\\\\laragon\\\\www\\\\ujikelayakan; python - <<'PY'\nfrom pathlib import Path\np = Path\\('database/uji_kelayakan\\.sql'\\)\ntext = p\\.read_text\\(encoding='utf-8', errors='ignore'\\)\nfor m in \\['CREATE TABLE `users`','CREATE TABLE `kendaraan`','CREATE TABLE `pengajuan_uji`','CREATE TABLE `perusahaan`'\\]:\n    idx=text\\.find\\(m\\)\n    print\\(m, idx\\)\n    if idx!=-1:\n        start=text\\.rfind\\('\\\\n',0,idx\\)\\+1\n        end=text\\.find\\('\\\\n\\\\n',idx\\)\n        print\\(text\\[start:end\\]\\[:800\\]\\)\n        print\\('---'\\)\nPY$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

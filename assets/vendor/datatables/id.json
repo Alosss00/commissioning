@@ -1,0 +1,31 @@
+{
+  "decimal": ",",
+  "thousands": ".",
+  "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ entri",
+  "infoEmpty": "Menampilkan 0 sampai 0 dari 0 entri",
+  "infoFiltered": "(disaring dari _MAX_ entri keseluruhan)",
+  "infoPostFix": "",
+  "infoThousands": ".",
+  "lengthMenu": "Tampilkan _MENU_ entri",
+  "loadingRecords": "Memuat...",
+  "processing": "Memproses...",
+  "search": "Cari:",
+  "zeroRecords": "Tidak ditemukan data",
+  "paginate": {
+    "first": "Pertama",
+    "last": "Terakhir",
+    "next": "Berikutnya",
+    "previous": "Sebelumnya"
+  },
+  "aria": {
+    "sortAscending": ": aktifkan untuk mengurutkan kolom naik",
+    "sortDescending": ": aktifkan untuk mengurutkan kolom turun"
+  },
+  "select": {
+    "rows": {
+      "_": "%d baris dipilih",
+      "0": "Tidak ada baris yang dipilih",
+      "1": "1 baris dipilih"
+    }
+  }
+}
