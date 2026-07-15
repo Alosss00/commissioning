@@ -224,6 +224,7 @@
                     d.filter_jenis = $('#filterJenis').val();
                     d.filter_tgl_dari = $('#filterTglDari').val();
                     d.filter_tgl_sampai = $('#filterTglSampai').val();
+                    d['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
                 },
                 error: function() {
                     toastr.error('Gagal memuat data.');
