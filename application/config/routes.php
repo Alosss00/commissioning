@@ -134,7 +134,12 @@ $route['checklist/pdf/(:num)']    = 'Checklist/pdf/$1';
 // =========================
 // TIPE KENDARAAN
 // =========================
-$route['tipekendaraan'] = 'TipeKendaraan/index';
+$route['tipekendaraan']                 = 'TipeKendaraan/index';
+$route['tipekendaraan/get_data']        = 'TipeKendaraan/get_data';
+$route['tipekendaraan/save']            = 'TipeKendaraan/save';
+$route['tipekendaraan/toggle']          = 'TipeKendaraan/toggle';
+$route['tipekendaraan/delete']          = 'TipeKendaraan/delete';
+$route['tipekendaraan/get_dropdown']    = 'TipeKendaraan/get_dropdown';
 
 
 // =========================
