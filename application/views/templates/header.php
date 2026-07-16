@@ -51,14 +51,11 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
     <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
     <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
 
-    <script> // Setup global AJAX and Form CSRF protection
-        function getCsrfCookieValue() {
-            var m = document.cookie.match(/(?:^|; )csrf_cookie=([^;]*)/);
-            return m ? decodeURIComponent(m[1]) : null;
-        }
+    <script>
+        // Setup global AJAX and Form CSRF protection
         $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = getCsrfCookieValue() || $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
             
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
@@ -77,6 +74,115 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
             }
         });
 
+        // Automatically add CSRF token hidden inputs to all POST forms on document ready
+        $(function() {
+            var csrfName = $('meta[name="csrf-token-name"]').attr('content');
+            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            if (csrfName && csrfHash) {
+                // Attach to dynamic/future POST forms
+                $(document).on('submit', 'form', function() {
+                    var $form = $(this);
+                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST') {
+                        if ($form.find('input[name="' + csrfName + '"]').length === 0) {
+                            $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
+                        } else {
+                            $form.find('input[name="' + csrfName + '"]').val(csrfHash);
+                        }
+                    }
+                });
+                
+                // Add it immediately for elements parsed on load
+                $('form').each(function() {
+                    var $form = $(this);
+                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST') {
+                        if ($form.find('input[name="' + csrfName + '"]').length === 0) {
+                            $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
+ <!-- CSRF Token Meta Tags -->
+    <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
+    <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
+    <script>
+        // Setup global AJAX and Form CSRF protection
+        $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
+            var csrfName = $('meta[name="csrf-token-name"]').attr('content');
+            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            
+            if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
+                if (options.data instanceof FormData) {
+                    if (!options.data.has(csrfName)) {
+                        options.data.append(csrfName, csrfHash);
+                    }
+                } else if (typeof options.data === 'string') {
+                    if (options.data.indexOf(csrfName + '=') === -1) {
+                        options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
+                    }
+                } else if (typeof options.data === 'object' && options.data !== null) {
+                    options.data[csrfName] = csrfHash;
+                } else if (!options.data) {
+                    options.data = csrfName + '=' + encodeURIComponent(csrfHash);
+                }
+            }
+        });
+        // Automatically add CSRF token hidden inputs to all POST forms on document ready
+        $(function() {
+            var csrfName = $('meta[name="csrf-token-name"]').attr('content');
+            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            if (csrfName && csrfHash) {
+                // Attach to dynamic/future POST forms
+                $(document).on('submit', 'form', function() {
+                    var $form = $(this);
+                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST') {
+                        if ($form.find('input[name="' + csrfName + '"]').length === 0) {
+                            $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
+                        } else {
+                            $form.find('input[name="' + csrfName + '"]').val(csrfHash);
+                        }
+                    }
+                });
+                
+                // Add it immediately for elements parsed on load
+                $('form').each(function() {
+                    var $form = $(this);
+                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST') {
+                        if ($form.find('input[name="' + csrfName + '"]').length === 0) {
+                            $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+    <!-- CSRF Token Meta Tags -->
+    <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
+    <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
+    <script>
+        // Setup global AJAX and Form CSRF protection
+        $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
+            var csrfName = $('meta[name="csrf-token-name"]').attr('content');
+            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            
+            if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
+                if (options.data instanceof FormData) {
+                    if (!options.data.has(csrfName)) {
+                        options.data.append(csrfName, csrfHash);
+                    }
+                } else if (typeof options.data === 'string') {
+                    if (options.data.indexOf(csrfName + '=') === -1) {
+                        options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
+                    }
+                } else if (typeof options.data === 'object' && options.data !== null) {
+                    options.data[csrfName] = csrfHash;
+                } else if (!options.data) {
+                    options.data = csrfName + '=' + encodeURIComponent(csrfHash);
+                }
+            }
+        });
         // Automatically add CSRF token hidden inputs to all POST forms on document ready
         $(function() {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
