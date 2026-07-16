@@ -337,7 +337,7 @@ class Pengajuan extends CI_Controller
         $draw   = (int) $this->input->post('draw');
         $start  = max(0, (int) $this->input->post('start'));
         $length = (int) $this->input->post('length');
-        $length = ($length < 1) ? 10 : min($length, 10);
+        $length = ($length < 1) ? 10 : min($length, 100);
 
         $total    = $this->pengajuan_model->count_all($filters);
         $filtered = $this->pengajuan_model->count_filtered($filters);
