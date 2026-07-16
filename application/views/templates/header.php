@@ -80,7 +80,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
         // Automatically add CSRF token hidden inputs to all POST forms on document ready
         $(function() {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfHash = getCsrfCookieValue() || $('meta[name="csrf-token-hash"]').attr('content');
             if (csrfName && csrfHash) {
                 // Attach to dynamic/future POST forms
                 $(document).on('submit', 'form', function() {
@@ -114,7 +114,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
         // Setup global AJAX and Form CSRF protection
         $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfHash = getCsrfCookieValue() || $('meta[name="csrf-token-hash"]').attr('content');
             
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
@@ -168,7 +168,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
         // Setup global AJAX and Form CSRF protection
         $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfHash = getCsrfCookieValue() || $('meta[name="csrf-token-hash"]').attr('content');
             
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
@@ -189,7 +189,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
         // Automatically add CSRF token hidden inputs to all POST forms on document ready
         $(function() {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfHash = getCsrfCookieValue() || $('meta[name="csrf-token-hash"]').attr('content');
             if (csrfName && csrfHash) {
                 // Attach to dynamic/future POST forms
                 $(document).on('submit', 'form', function() {
