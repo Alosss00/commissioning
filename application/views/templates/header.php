@@ -51,11 +51,14 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
     <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
     <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
 
-    <script>
-        // Setup global AJAX and Form CSRF protection
+    <script> // Setup global AJAX and Form CSRF protection
+        function getCsrfCookieValue() {
+            var m = document.cookie.match(/(?:^|; )csrf_cookie=([^;]*)/);
+            return m ? decodeURIComponent(m[1]) : null;
+        }
         $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfHash = getCsrfCookieValue() || $('meta[name="csrf-token-hash"]').attr('content');
             
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
