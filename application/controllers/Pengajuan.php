@@ -332,9 +332,12 @@ class Pengajuan extends CI_Controller
             $filters['id_pemohon'] = (int) $this->session->userdata('id_user');
         }
 
-        $draw   = $this->input->post('draw');
-        $start  = $this->input->post('start');
-        $length = $this->input->post('length');
+        // Batasi start/length: cast ke int + clamp, jangan percaya nilai mentah dari client.
+        // lengthMenu di view cuma sampai 100, jadi DB tidak pernah perlu narik lebih dari itu per request.
+        $draw   = (int) $this->input->post('draw');
+        $start  = max(0, (int) $this->input->post('start'));
+        $length = (int) $this->input->post('length');
+        $length = ($length < 1) ? 10 : min($length, 100);
 
         $total    = $this->pengajuan_model->count_all($filters);
         $filtered = $this->pengajuan_model->count_filtered($filters);
@@ -356,8 +359,13 @@ class Pengajuan extends CI_Controller
             ];
         }
 
-        echo json_encode(['draw' => (int)$draw, 'recordsTotal' => $total, 'recordsFiltered' => $filtered, 'data' => $data_rows]);
-    }
+        echo json_encode([
+            'draw'            => (int)$draw,
+            'recordsTotal'    => $total,
+            'recordsFiltered' => $filtered,
+            'data'            => $data_rows,
+            $this->security->get_csrf_token_name() => $this->security->get_csrf_hash()
+        ]);
 
     public function detail($id = null)
     {
