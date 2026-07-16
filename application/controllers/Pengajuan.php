@@ -356,13 +356,8 @@ class Pengajuan extends CI_Controller
             ];
         }
 
-        echo json_encode([
-            'draw'            => (int)$draw,
-            'recordsTotal'    => $total,
-            'recordsFiltered' => $filtered,
-            'data'            => $data_rows,
-            $this->security->get_csrf_token_name() => $this->security->get_csrf_hash()
-        ]);
+        echo json_encode(['draw' => (int)$draw, 'recordsTotal' => $total, 'recordsFiltered' => $filtered, 'data' => $data_rows]);
+    }
 
     public function detail($id = null)
     {
