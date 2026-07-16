@@ -73,15 +73,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                 }
             }
         });
-        // Update token CSRF setiap kali server kirim hash baru (csrf_regenerate = TRUE)
-        $(document).ajaxSuccess(function(event, xhr, settings) {
-            try {
-                var res = xhr.responseJSON || JSON.parse(xhr.responseText);
-                if (res && res.csrfHash) {
-                    $('meta[name="csrf-token-hash"]').attr('content', res.csrfHash);
-                }
-            } catch (e) { /* response bukan JSON, abaikan */ }
-        });
+
         // Automatically add CSRF token hidden inputs to all POST forms on document ready
         $(function() {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
