@@ -50,20 +50,32 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
     <!-- CSRF Token Meta Tags -->
     <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
     <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
+    <meta name="csrf-cookie-name" content="<?= config_item('csrf_cookie_name'); ?>">
 
     <script>
         // Setup global AJAX and Form CSRF protection
         $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
+            var csrfCookieName = $('meta[name="csrf-cookie-name"]').attr('content') || 'csrf_cookie';
+            
+            // Helper function to read cookie value
+            function getCookie(name) {
+                var value = "; " + document.cookie;
+                var parts = value.split("; " + name + "=");
+                if (parts.length === 2) return parts.pop().split(";").shift();
+                return null;
+            }
+            
+            var csrfHash = getCookie(csrfCookieName);
             
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
-                    if (!options.data.has(csrfName)) {
-                        options.data.append(csrfName, csrfHash);
-                    }
+                    options.data.set(csrfName, csrfHash);
                 } else if (typeof options.data === 'string') {
-                    if (options.data.indexOf(csrfName + '=') === -1) {
+                    var regex = new RegExp('(^|&)' + csrfName + '=[^&]*');
+                    if (regex.test(options.data)) {
+                        options.data = options.data.replace(regex, '$1' + csrfName + '=' + encodeURIComponent(csrfHash));
+                    } else {
                         options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
                     }
                 } else if (typeof options.data === 'object' && options.data !== null) {
@@ -77,12 +89,21 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
         // Automatically add CSRF token hidden inputs to all POST forms on document ready
         $(function() {
             var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfHash = $('meta[name="csrf-token-hash"]').attr('content');
-            if (csrfName && csrfHash) {
+            var csrfCookieName = $('meta[name="csrf-cookie-name"]').attr('content') || 'csrf_cookie';
+            
+            function getCookie(name) {
+                var value = "; " + document.cookie;
+                var parts = value.split("; " + name + "=");
+                if (parts.length === 2) return parts.pop().split(";").shift();
+                return null;
+            }
+
+            if (csrfName) {
                 // Attach to dynamic/future POST forms
                 $(document).on('submit', 'form', function() {
                     var $form = $(this);
-                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST') {
+                    var csrfHash = getCookie(csrfCookieName);
+                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST' && csrfHash) {
                         if ($form.find('input[name="' + csrfName + '"]').length === 0) {
                             $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
                         } else {
@@ -94,9 +115,12 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                 // Add it immediately for elements parsed on load
                 $('form').each(function() {
                     var $form = $(this);
-                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST') {
+                    var csrfHash = getCookie(csrfCookieName);
+                    if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST' && csrfHash) {
                         if ($form.find('input[name="' + csrfName + '"]').length === 0) {
                             $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
+                        } else {
+                            $form.find('input[name="' + csrfName + '"]').val(csrfHash);
                         }
                     }
                 });
