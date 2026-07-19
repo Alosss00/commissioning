@@ -68,9 +68,16 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
             
             var csrfHash = getCookie(csrfCookieName);
             
+            // Debug CSRF Sync (feel free to remove after verifying)
+            console.groupCollapsed("TACTIC CSRF Sync [" + options.url + "]");
+            console.log("CSRF Name:", csrfName);
+            console.log("CSRF Cookie Name:", csrfCookieName);
+            console.log("CSRF Hash from Cookie:", csrfHash);
+            
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
                     options.data.set(csrfName, csrfHash);
+                    console.log("Injected into FormData.");
                 } else if (typeof options.data === 'string') {
                     // Check if it is a JSON string
                     var isJson = false;
@@ -85,20 +92,28 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                     if (isJson && jsonObj) {
                         jsonObj[csrfName] = csrfHash;
                         options.data = JSON.stringify(jsonObj);
+                        console.log("Injected into JSON string:", options.data);
                     } else {
                         var regex = new RegExp('(^|&)' + csrfName + '=[^&]*');
                         if (regex.test(options.data)) {
                             options.data = options.data.replace(regex, '$1' + csrfName + '=' + encodeURIComponent(csrfHash));
+                            console.log("Updated in urlencoded string:", options.data);
                         } else {
                             options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
+                            console.log("Appended to urlencoded string:", options.data);
                         }
                     }
                 } else if (typeof options.data === 'object' && options.data !== null) {
                     options.data[csrfName] = csrfHash;
+                    console.log("Injected into data object:", options.data);
                 } else if (!options.data) {
                     options.data = csrfName + '=' + encodeURIComponent(csrfHash);
+                    console.log("Created data query string:", options.data);
                 }
+            } else {
+                console.warn("CSRF injection skipped. POST:", options.type.toUpperCase() === 'POST', "Has Name:", !!csrfName, "Has Hash:", !!csrfHash);
             }
+            console.groupEnd();
         });
 
         // Automatically add CSRF token hidden inputs to all POST forms on document ready
