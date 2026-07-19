@@ -72,11 +72,26 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                 if (options.data instanceof FormData) {
                     options.data.set(csrfName, csrfHash);
                 } else if (typeof options.data === 'string') {
-                    var regex = new RegExp('(^|&)' + csrfName + '=[^&]*');
-                    if (regex.test(options.data)) {
-                        options.data = options.data.replace(regex, '$1' + csrfName + '=' + encodeURIComponent(csrfHash));
+                    // Check if it is a JSON string
+                    var isJson = false;
+                    var jsonObj = null;
+                    try {
+                        jsonObj = JSON.parse(options.data);
+                        if (typeof jsonObj === 'object' && jsonObj !== null) {
+                            isJson = true;
+                        }
+                    } catch (e) {}
+
+                    if (isJson && jsonObj) {
+                        jsonObj[csrfName] = csrfHash;
+                        options.data = JSON.stringify(jsonObj);
                     } else {
-                        options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
+                        var regex = new RegExp('(^|&)' + csrfName + '=[^&]*');
+                        if (regex.test(options.data)) {
+                            options.data = options.data.replace(regex, '$1' + csrfName + '=' + encodeURIComponent(csrfHash));
+                        } else {
+                            options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
+                        }
                     }
                 } else if (typeof options.data === 'object' && options.data !== null) {
                     options.data[csrfName] = csrfHash;
