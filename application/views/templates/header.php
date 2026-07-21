@@ -50,7 +50,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
     <!-- CSRF Token Meta Tags -->
     <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
     <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
-    <meta name="csrf-cookie-name" content="<?= config_item('csrf_cookie_name'); ?>">
+    <meta name="csrf-cookie-name" content="<?= config_item('cookie_prefix') . config_item('csrf_cookie_name'); ?>">
 
     <script>
         // Setup global AJAX and Form CSRF protection
