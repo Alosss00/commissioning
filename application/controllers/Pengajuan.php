@@ -361,7 +361,8 @@ class Pengajuan extends CI_Controller
             'recordsTotal'    => $total,
             'recordsFiltered' => $filtered,
             'data'            => $data_rows,
-            'csrfHash'        => $this->security->get_csrf_hash(), // ✅ token fresh utk request berikutnya (samakan dgn konvensi response lain)
+            'csrfHash'        => $this->security->get_csrf_hash(),
+            'csrf_hash'       => $this->security->get_csrf_hash(),
         ]);
     }
 

@@ -267,19 +267,55 @@
         
         if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
           if (options.data instanceof FormData) {
-            if (!options.data.has(csrfName)) {
-              options.data.append(csrfName, csrfHash);
-            }
+            options.data.set(csrfName, csrfHash);
           } else if (typeof options.data === 'string') {
-            if (options.data.indexOf(csrfName + '=') === -1) {
+            var regex = new RegExp('(^|&)' + csrfName + '=[^&]*');
+            if (regex.test(options.data)) {
+              options.data = options.data.replace(regex, '$1' + csrfName + '=' + encodeURIComponent(csrfHash));
+            } else {
               options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
             }
           } else if (typeof options.data === 'object' && options.data !== null) {
             options.data[csrfName] = csrfHash;
           } else if (!options.data) {
-            options.data = csrfName + '=' + encodeURIComponent(csrfHash);
+            options.data = {};
+            options.data[csrfName] = csrfHash;
           }
         }
+      });
+
+      // Update CSRF token on AJAX complete (for failure attempts)
+      $(document).ajaxComplete(function(event, xhr, settings) {
+        var csrfCookieName = 'csrf_cookie';
+        
+        function getCookie(name) {
+          var value = "; " + document.cookie;
+          var parts = value.split("; " + name + "=");
+          if (parts.length === 2) return parts.pop().split(";").shift();
+          return null;
+        }
+
+        var headerHash = xhr.getResponseHeader('X-CSRF-TOKEN');
+        if (headerHash) {
+          $('meta[name="csrf-token-hash"]').attr('content', headerHash);
+          return;
+        }
+
+        try {
+          var json = JSON.parse(xhr.responseText);
+          var hash = json.csrf_hash || json.csrfHash || json.csrf_token;
+          if (hash) {
+            $('meta[name="csrf-token-hash"]').attr('content', hash);
+            return;
+          }
+        } catch (e) {}
+
+        setTimeout(function() {
+          var cookieHash = getCookie(csrfCookieName);
+          if (cookieHash) {
+            $('meta[name="csrf-token-hash"]').attr('content', cookieHash);
+          }
+        }, 50);
       });
 
       // Toastr config

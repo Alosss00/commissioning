@@ -45,6 +45,10 @@ class MY_Security extends CI_Security {
             );
         }
 
+        if (!headers_sent()) {
+            header('X-CSRF-TOKEN: ' . $this->_csrf_hash);
+        }
+
         log_message('info', 'CSRF cookie sent (non-HttpOnly)');
         return $this;
     }

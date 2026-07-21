@@ -141,12 +141,14 @@ class Kendaraan extends CI_Controller
             ];
         }
 
-        echo json_encode([
+        $output = [
             'draw'            => (int) $draw,
             'recordsTotal'    => $total,
             'recordsFiltered' => $filtered,
             'data'            => $data,
-        ]);
+        ];
+        $output['csrf_hash'] = $this->security->get_csrf_hash();
+        echo json_encode($output);
     }
 
     // Helper render badge stiker

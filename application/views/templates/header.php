@@ -50,34 +50,45 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
     <!-- CSRF Token Meta Tags -->
     <meta name="csrf-token-name" content="<?= $this->security->get_csrf_token_name(); ?>">
     <meta name="csrf-token-hash" content="<?= $this->security->get_csrf_hash(); ?>">
+    <meta name="csrf-token" content="<?= $this->security->get_csrf_hash(); ?>">
     <meta name="csrf-cookie-name" content="<?= config_item('cookie_prefix') . config_item('csrf_cookie_name'); ?>">
 
     <script>
         // Setup global AJAX and Form CSRF protection
-        $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
-            var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfCookieName = $('meta[name="csrf-cookie-name"]').attr('content') || 'csrf_cookie';
-            
-            // Helper function to read cookie value
-            function getCookie(name) {
-                var value = "; " + document.cookie;
-                var parts = value.split("; " + name + "=");
-                if (parts.length === 2) return parts.pop().split(";").shift();
-                return null;
+        window.csrfTokenName = $('meta[name="csrf-token-name"]').attr('content');
+        window.csrfTokenHash = $('meta[name="csrf-token-hash"]').attr('content') || $('meta[name="csrf-token"]').attr('content');
+        var csrfCookieName = $('meta[name="csrf-cookie-name"]').attr('content') || 'csrf_cookie';
+
+        // Helper function to read cookie value
+        function getCookie(name) {
+            var value = "; " + document.cookie;
+            var parts = value.split("; " + name + "=");
+            if (parts.length === 2) return parts.pop().split(";").shift();
+            return null;
+        }
+
+        // Global function to update CSRF token in meta tags, forms, and memory
+        window.updateCsrfToken = function(newHash) {
+            if (newHash && newHash !== window.csrfTokenHash) {
+                window.csrfTokenHash = newHash;
+                $('meta[name="csrf-token-hash"]').attr('content', newHash);
+                $('meta[name="csrf-token"]').attr('content', newHash);
+                $('input[name="' + window.csrfTokenName + '"]').val(newHash);
+                console.log("[TACTIC CSRF] Token updated globally to:", newHash);
             }
-            
-            var csrfHash = getCookie(csrfCookieName);
-            
-            // Debug CSRF Sync (feel free to remove after verifying)
-            console.groupCollapsed("TACTIC CSRF Sync [" + options.url + "]");
-            console.log("CSRF Name:", csrfName);
-            console.log("CSRF Cookie Name:", csrfCookieName);
-            console.log("CSRF Hash from Cookie:", csrfHash);
-            
+        };
+
+        // Inject the fresh token into all outgoing POST requests
+        $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
+            var csrfName = window.csrfTokenName;
+            var csrfHash = window.csrfTokenHash || getCookie(csrfCookieName);
+
+            // Debug CSRF Sync (optional, prints compact log)
+            console.log("[TACTIC CSRF Send]", options.type.toUpperCase(), options.url, "Hash:", csrfHash);
+
             if (options.type.toUpperCase() === 'POST' && csrfName && csrfHash) {
                 if (options.data instanceof FormData) {
                     options.data.set(csrfName, csrfHash);
-                    console.log("Injected into FormData.");
                 } else if (typeof options.data === 'string') {
                     // Check if it is a JSON string
                     var isJson = false;
@@ -92,47 +103,68 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                     if (isJson && jsonObj) {
                         jsonObj[csrfName] = csrfHash;
                         options.data = JSON.stringify(jsonObj);
-                        console.log("Injected into JSON string:", options.data);
                     } else {
                         var regex = new RegExp('(^|&)' + csrfName + '=[^&]*');
                         if (regex.test(options.data)) {
                             options.data = options.data.replace(regex, '$1' + csrfName + '=' + encodeURIComponent(csrfHash));
-                            console.log("Updated in urlencoded string:", options.data);
                         } else {
                             options.data += (options.data ? '&' : '') + csrfName + '=' + encodeURIComponent(csrfHash);
-                            console.log("Appended to urlencoded string:", options.data);
                         }
                     }
                 } else if (typeof options.data === 'object' && options.data !== null) {
                     options.data[csrfName] = csrfHash;
-                    console.log("Injected into data object:", options.data);
                 } else if (!options.data) {
-                    options.data = csrfName + '=' + encodeURIComponent(csrfHash);
-                    console.log("Created data query string:", options.data);
+                    options.data = {};
+                    options.data[csrfName] = csrfHash;
                 }
-            } else {
-                console.warn("CSRF injection skipped. POST:", options.type.toUpperCase() === 'POST', "Has Name:", !!csrfName, "Has Hash:", !!csrfHash);
             }
-            console.groupEnd();
         });
 
-        // Automatically add CSRF token hidden inputs to all POST forms on document ready
-        $(function() {
-            var csrfName = $('meta[name="csrf-token-name"]').attr('content');
-            var csrfCookieName = $('meta[name="csrf-cookie-name"]').attr('content') || 'csrf_cookie';
-            
-            function getCookie(name) {
-                var value = "; " + document.cookie;
-                var parts = value.split("; " + name + "=");
-                if (parts.length === 2) return parts.pop().split(";").shift();
-                return null;
+        // Capture new token from completed AJAX responses
+        $(document).ajaxComplete(function(event, xhr, settings) {
+            var csrfName = window.csrfTokenName;
+
+            // 1. Try to read from custom header (sent by MY_Security.php)
+            var headerHash = xhr.getResponseHeader('X-CSRF-TOKEN');
+            if (headerHash) {
+                window.updateCsrfToken(headerHash);
+                return;
             }
 
+            // 2. Try to read from JSON response body
+            try {
+                var contentType = xhr.getResponseHeader("content-type") || "";
+                if (contentType.indexOf("application/json") !== -1 || settings.dataType === "json") {
+                    var json = JSON.parse(xhr.responseText);
+                    if (json) {
+                        var hash = json.csrf_hash || json.csrfHash || json.csrf_token;
+                        if (hash) {
+                            window.updateCsrfToken(hash);
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Not JSON or parse failed
+            }
+
+            // 3. Fallback to cookie (with slight delay so browser has stored the cookie)
+            setTimeout(function() {
+                var cookieHash = getCookie(csrfCookieName);
+                if (cookieHash) {
+                    window.updateCsrfToken(cookieHash);
+                }
+            }, 50);
+        });
+
+        // Automatically update CSRF token hidden inputs to all POST forms on submit
+        $(function() {
+            var csrfName = window.csrfTokenName;
+            
             if (csrfName) {
-                // Attach to dynamic/future POST forms
                 $(document).on('submit', 'form', function() {
                     var $form = $(this);
-                    var csrfHash = getCookie(csrfCookieName);
+                    var csrfHash = window.csrfTokenHash || getCookie(csrfCookieName);
                     if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST' && csrfHash) {
                         if ($form.find('input[name="' + csrfName + '"]').length === 0) {
                             $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');
@@ -141,11 +173,11 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                         }
                     }
                 });
-                
-                // Add it immediately for elements parsed on load
+
+                // Add to already rendered forms immediately on load
                 $('form').each(function() {
                     var $form = $(this);
-                    var csrfHash = getCookie(csrfCookieName);
+                    var csrfHash = window.csrfTokenHash || getCookie(csrfCookieName);
                     if ($form.attr('method') && $form.attr('method').toUpperCase() === 'POST' && csrfHash) {
                         if ($form.find('input[name="' + csrfName + '"]').length === 0) {
                             $form.append('<input type="hidden" name="' + csrfName + '" value="' + csrfHash + '">');

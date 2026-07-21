@@ -81,7 +81,9 @@ class UserManagement extends CI_Controller
                 'aksi'     => $aksi,
             ];
         }
-        echo json_encode(['data' => $rows]);
+        $output = ['data' => $rows];
+        $output['csrf_hash'] = $this->security->get_csrf_hash();
+        echo json_encode($output);
     }
 
     // ── AJAX: get detail user (untuk modal edit) ──────────────

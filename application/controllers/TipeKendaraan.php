@@ -111,7 +111,9 @@ class TipeKendaraan extends CI_Controller
             ];
         }
 
-        echo json_encode(['data' => $data]);
+        $output = ['data' => $data];
+        $output['csrf_hash'] = $this->security->get_csrf_hash();
+        echo json_encode($output);
     }
 
     // ── AJAX: simpan (insert / update) ─────────────────────────────────────────
