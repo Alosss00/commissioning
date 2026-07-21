@@ -9,7 +9,7 @@ class Pengajuan_model extends CI_Model
         $this->load->database();
     }
 
-    private function _base_query($filters = [])
+    private function _base_query($filter = [])
     {
         $this->db->select(
             'pu.*, '
@@ -22,15 +22,15 @@ class Pengajuan_model extends CI_Model
         $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan',     'left'); // ← tambah ini
         $this->db->join('users u',            'u.id_user = pu.id_pemohon',                     'left');
 
-        if (!empty($filters['status']))      $this->db->where('pu.status', $filters['status']);
-        if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']); // ← ganti k.jenis_kendaraan
-        if (!empty($filters['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filters['tgl_dari']);
-        if (!empty($filters['tgl_sampai'])) $this->db->where('DATE(pu.tanggal_pengajuan) <=', $filters['tgl_sampai']);
-        if (!empty($filters['id_pemohon'])) $this->db->where('pu.id_pemohon', $filters['id_pemohon']);
-        if (!empty($filters['departemen']))  $this->db->where('k.perusahaan', $filters['departemen']);
+        if (!empty($filter['status']))      $this->db->where('pu.status', $filter['status']);
+        if (!empty($filter['jenis']))       $this->db->where('t.nama_tipe', $filter['jenis']); // ← ganti k.jenis_kendaraan
+        if (!empty($filter['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filter['tgl_dari']);
+        if (!empty($filter['tgl_sampai'])) $this->db->where('DATE(pu.tanggal_pengajuan) <=', $filter['tgl_sampai']);
+        if (!empty($filter['id_pemohon'])) $this->db->where('pu.id_pemohon', $filter['id_pemohon']);
+        if (!empty($filter['departemen']))  $this->db->where('k.perusahaan', $filter['departemen']);
 
-        if (!empty($filters['search'])) {
-            $kw = $filters['search'];
+        if (!empty($filter['search'])) {
+            $kw = $filter['search'];
             $this->db->group_start();
             $this->db->like('k.no_polisi',       $kw);
             $this->db->or_like('u.nama',          $kw);
@@ -40,27 +40,27 @@ class Pengajuan_model extends CI_Model
             $this->db->group_end();
         }
     }
-    public function count_all($filters = [])
+    public function count_all($filter = [])
     {
-        $this->_base_query($filters);
+        $this->_base_query($filter);
         return $this->db->count_all_results();
     }
 
-    public function count_filtered($filters = [])
+    public function count_filtered($filter = [])
     {
-        $this->_base_query($filters);
+        $this->_base_query($filter);
         return $this->db->count_all_results();
     }
 
-    public function get_datatable($start, $length, $filters = [])
+    public function get_datatable($start, $length, $filter = [])
     {
-        $this->_base_query($filters);
+        $this->_base_query($filter);
         $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
         $this->db->limit($length, $start);
         return $this->db->get()->result();
     }
 
-    public function get_detail($id, $filters = [])
+    public function get_detail($id, $filter = [])
     {
         $this->db->select(
             'pu.*, '
@@ -74,11 +74,11 @@ class Pengajuan_model extends CI_Model
         $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
         $this->db->where('pu.id_pengajuan', $id);
-        if (!empty($filters['departemen'])) {
-            $this->db->where('k.perusahaan', $filters['departemen']);
+        if (!empty($filter['departemen'])) {
+            $this->db->where('k.perusahaan', $filter['departemen']);
         }
-        if (!empty($filters['id_pemohon'])) {
-            $this->db->where('pu.id_pemohon', $filters['id_pemohon']);
+        if (!empty($filter['id_pemohon'])) {
+            $this->db->where('pu.id_pemohon', $filter['id_pemohon']);
         }
         return $this->db->get()->row();
     }
