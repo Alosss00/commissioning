@@ -40,7 +40,7 @@ class Kendaraan_model extends CI_Model
     // ─────────────────────────────────────────────────────────────────────────
     // Base Query — JOIN tipe_kendaraan, SEMUA kendaraan
     // ─────────────────────────────────────────────────────────────────────────
-    private function _base_query($filters = [])
+    private function _base_query($filter = [])
     {
         $this->db
             ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe,
@@ -50,7 +50,7 @@ class Kendaraan_model extends CI_Model
             ->join('pengajuan_uji pu',  'pu.id_kendaraan = k.id_kendaraan',          'left')
             ->group_by('k.id_kendaraan');
 
-        $this->_apply_filters($filters);
+        $this->_apply_filter($filter);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ class Kendaraan_model extends CI_Model
     // Menggunakan EXISTS subquery — lebih efisien dari JOIN lalu GROUP BY
     // INDEX yang dipakai: pengajuan_uji(id_kendaraan, status) — idx_status_tgl sudah ada
     // ─────────────────────────────────────────────────────────────────────────
-    private function _base_query_lulus($filters = [])
+    private function _base_query_lulus($filter = [])
     {
         $this->db
             ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe,
@@ -83,16 +83,16 @@ class Kendaraan_model extends CI_Model
             )", null, false)
             ->group_by('k.id_kendaraan');
 
-        $this->_apply_filters($filters);
+        $this->_apply_filter($filter);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Filter terpusat — dipakai oleh kedua base query
     // ─────────────────────────────────────────────────────────────────────────
-    private function _apply_filters($filters = [])
+    private function _apply_filter($filter = [])
     {
-        if (!empty($filters['search'])) {
-            $kw = $filters['search'];
+        if (!empty($filter['search'])) {
+            $kw = $filter['search'];
             $this->db->group_start()
                 ->like('k.no_polisi',  $kw)
                 ->or_like('t.nama_tipe', $kw)
@@ -102,55 +102,55 @@ class Kendaraan_model extends CI_Model
                 ->group_end();
         }
 
-        if (!empty($filters['jenis_kendaraan'])) {
-            if (is_numeric($filters['jenis_kendaraan'])) {
-                $this->db->where('k.id_tipe_kendaraan', (int) $filters['jenis_kendaraan']);
+        if (!empty($filter['jenis_kendaraan'])) {
+            if (is_numeric($filter['jenis_kendaraan'])) {
+                $this->db->where('k.id_tipe_kendaraan', (int) $filter['jenis_kendaraan']);
             } else {
-                $this->db->where('t.nama_tipe', $filters['jenis_kendaraan']);
+                $this->db->where('t.nama_tipe', $filter['jenis_kendaraan']);
             }
         }
 
-        if (isset($filters['is_unit_baru']) && $filters['is_unit_baru'] !== '') {
-            $this->db->where('k.is_unit_baru', $filters['is_unit_baru']);
+        if (isset($filter['is_unit_baru']) && $filter['is_unit_baru'] !== '') {
+            $this->db->where('k.is_unit_baru', $filter['is_unit_baru']);
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Count — SEMUA kendaraan
     // ─────────────────────────────────────────────────────────────────────────
-    public function count_all($filters = [])
+    public function count_all($filter = [])
     {
-        $this->_base_query($filters);
+        $this->_base_query($filter);
         return $this->db->count_all_results();
     }
 
-    public function count_filtered($filters = [])
+    public function count_filtered($filter = [])
     {
-        $this->_base_query($filters);
+        $this->_base_query($filter);
         return $this->db->count_all_results();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Count — HANYA kendaraan lulus commissioning
     // ─────────────────────────────────────────────────────────────────────────
-    public function count_all_lulus($filters = [])
+    public function count_all_lulus($filter = [])
     {
-        $this->_base_query_lulus($filters);
+        $this->_base_query_lulus($filter);
         return $this->db->count_all_results();
     }
 
-    public function count_filtered_lulus($filters = [])
+    public function count_filtered_lulus($filter = [])
     {
-        $this->_base_query_lulus($filters);
+        $this->_base_query_lulus($filter);
         return $this->db->count_all_results();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // DataTable — SEMUA kendaraan (dipakai Pengajuan, dll.)
     // ─────────────────────────────────────────────────────────────────────────
-    public function get_datatable($start, $length, $filters = [])
+    public function get_datatable($start, $length, $filter = [])
     {
-        $this->_base_query($filters);
+        $this->_base_query($filter);
         $this->db->order_by('k.created_at', 'DESC')->limit($length, $start);
         return $this->db->get()->result();
     }
@@ -159,9 +159,9 @@ class Kendaraan_model extends CI_Model
     // DataTable — HANYA kendaraan lulus commissioning
     // Kolom tambahan: tgl_lulus (MAX tgl_acc_ktt dari pengajuan lulus)
     // ─────────────────────────────────────────────────────────────────────────
-    public function get_datatable_lulus($start, $length, $filters = [])
+    public function get_datatable_lulus($start, $length, $filter = [])
     {
-        $this->_base_query_lulus($filters);
+        $this->_base_query_lulus($filter);
         $this->db->order_by('tgl_lulus', 'DESC')->limit($length, $start);
         return $this->db->get()->result();
     }
