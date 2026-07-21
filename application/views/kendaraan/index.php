@@ -221,7 +221,7 @@
                     d.filter_jenis = $('#filterJenis').val();
                     d.filter_unit = $('#filterUnit').val();
                     d.filter_stiker = $('#filterStiker').val();
-                    d['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
+                    d['<?= $this->security->get_csrf_token_name() ?>'] = window.csrfTokenHash;
                 },
                 error: function() {
                     toastr.error('Gagal memuat data kendaraan.');
@@ -602,7 +602,7 @@
         }
 
         function getCsrf() {
-            return $('meta[name="csrf-token"]').attr('content') || '<?= $this->security->get_csrf_hash() ?>';
+            return window.csrfTokenHash;
         }
     });
 </script>

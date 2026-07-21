@@ -263,8 +263,6 @@
     var siteUrl = '<?= site_url() ?>';
 
     $(function() {
-        var csrfName = '<?= $this->security->get_csrf_token_name() ?>';
-        var csrfHash = '<?= $this->security->get_csrf_hash() ?>';
         var level = '<?= $level ?>';
         var modalReject = new bootstrap.Modal(document.getElementById('modalReject'));
         var modalStiker = new bootstrap.Modal(document.getElementById('modalStiker'));
@@ -331,7 +329,7 @@
             modalStiker.show();
 
             var post = {};
-            post[csrfName] = csrfHash;
+            post[window.csrfTokenName] = window.csrfTokenHash;
             post.id_pengajuan = activeId;
 
             $.ajax({
@@ -429,7 +427,7 @@
                 if (!r.isConfirmed) return;
                 NProgress.start();
                 var post = {};
-                post[csrfName] = csrfHash;
+                post[window.csrfTokenName] = window.csrfTokenHash;
                 post.id_pengajuan = id;
                 post.alasan = r.value;
 
@@ -475,7 +473,7 @@
                 catatan: catatan,
                 nomor_stiker: nomor_stiker
             };
-            post[csrfName] = csrfHash;
+            post[window.csrfTokenName] = window.csrfTokenHash;
 
             $.ajax({
                 url: siteUrl + 'approval/proses',

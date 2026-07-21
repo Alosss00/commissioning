@@ -744,7 +744,7 @@ function aksi_color($aksi)
                 url: '<?= site_url('dashboard/rekap_commissioning') ?>',
                 type: 'POST',
                 data: {
-                    '<?= $this->security->get_csrf_token_name() ?>': '<?= $this->security->get_csrf_hash() ?>',
+                    [window.csrfTokenName]: window.csrfTokenHash,
                     mode: mode,
                     dari: dari,
                     sampai: sampai,

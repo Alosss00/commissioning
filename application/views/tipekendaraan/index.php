@@ -175,9 +175,6 @@
 
 
 <script>
-    $(function() {
-        var CSRF_NAME = '<?= $this->security->get_csrf_token_name() ?>';
-        var CSRF_HASH = '<?= $this->security->get_csrf_hash() ?>';
         var modal = new bootstrap.Modal(document.getElementById('modalTipe'));
 
         /* ── DataTable ──────────────────────────────────────────────── */
@@ -186,7 +183,7 @@
                 url: '<?= site_url('tipekendaraan/get_data') ?>',
                 type: 'POST',
                 data: function(d) {
-                    d[CSRF_NAME] = CSRF_HASH;
+                    d[window.csrfTokenName] = window.csrfTokenHash;
                 },
             },
             columns: [{
@@ -235,7 +232,6 @@
         });
 
         function refreshDt() {
-            CSRF_HASH = '<?= $this->security->get_csrf_hash() ?>';
             dt.ajax.reload(null, false);
         }
 
@@ -348,7 +344,7 @@
                 .html('<span class="spinner-border spinner-border-sm"></span> Menyimpan...');
 
             var d = {};
-            d[CSRF_NAME] = CSRF_HASH;
+            d[window.csrfTokenName] = window.csrfTokenHash;
             d.id_tipe_kendaraan = $('#tipe_id').val();
             d.nama_tipe = nama;
             d.kode_tipe = $.trim($('#tipe_kode').val()).toUpperCase();
@@ -386,7 +382,7 @@
         /* ── Toggle aktif ───────────────────────────────────────────── */
         $(document).on('click', '.btn-toggle', function() {
             var d = {};
-            d[CSRF_NAME] = CSRF_HASH;
+            d[window.csrfTokenName] = window.csrfTokenHash;
             d.id = $(this).data('id');
             $.post('<?= site_url('tipekendaraan/toggle') ?>', d, function(res) {
                 if (res.status === 'success') {
@@ -413,7 +409,7 @@
             }).then(function(r) {
                 if (!r.isConfirmed) return;
                 var d = {};
-                d[CSRF_NAME] = CSRF_HASH;
+                d[window.csrfTokenName] = window.csrfTokenHash;
                 d.id = id;
                 $.post('<?= site_url('tipekendaraan/delete') ?>', d, function(res) {
                     if (res.status === 'success') {

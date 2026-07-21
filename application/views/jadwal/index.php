@@ -228,8 +228,6 @@
 <script>
     $(function() {
 
-        var csrfName = '<?= $this->security->get_csrf_token_name() ?>';
-        var csrfHash = '<?= $this->security->get_csrf_hash() ?>';
         var modalDetail = new bootstrap.Modal(document.getElementById('modalDetailJadwal'));
         var activeJadwalId = null;
 
@@ -272,7 +270,7 @@
             modalDetail.show();
 
             var post = {};
-            post[csrfName] = csrfHash;
+            post[window.csrfTokenName] = window.csrfTokenHash;
             post.id_jadwal = id;
             $.post('<?= site_url('jadwal/detail') ?>', post, function(res) {
                 if (!res.status || !res.data) return;
@@ -343,7 +341,7 @@
             }).then(function(r) {
                 if (!r.isConfirmed) return;
                 var post = {};
-                post[csrfName] = csrfHash;
+                post[window.csrfTokenName] = window.csrfTokenHash;
                 post.id_jadwal = id;
                 $.post('<?= site_url('jadwal/cancel') ?>', post, function(res) {
                     if (res.status === 'success') {

@@ -203,21 +203,10 @@
 </div>
 
 <script>
-    // ── CSRF token global, di-refresh dari SETIAP response server ─────────
-    // (CodeIgniter meregenerasi csrf_hash tiap POST, jadi token statis dari
-    // render awal akan basi setelah 1x request dan bikin filter/paginate
-    // berikutnya ditolak diam-diam oleh CI Security -> tabel/filter macet)
-    var CSRF_NAME = '<?= $this->security->get_csrf_token_name() ?>';
-    var CSRF_HASH = '<?= $this->security->get_csrf_hash() ?>';
-
     function csrfField() {
         var f = {};
-        f[CSRF_NAME] = CSRF_HASH;
+        f[window.csrfTokenName] = window.csrfTokenHash;
         return f;
-    }
-
-    function refreshCsrf(res) {
-        if (res && res.csrfHash) CSRF_HASH = res.csrfHash;
     }
 
     $(function() {
@@ -241,10 +230,9 @@
                     d.filter_jenis = $('#filterJenis').val();
                     d.filter_tgl_dari = $('#filterTglDari').val();
                     d.filter_tgl_sampai = $('#filterTglSampai').val();
-                    // d[CSRF_NAME] = CSRF_HASH;
+                    d[window.csrfTokenName] = window.csrfTokenHash;
                 },
                 dataSrc: function(json) {
-                    refreshCsrf(json); // simpan token baru sebelum draw/filter/page berikutnya
                     return json.data;
                 },
                 error: function(xhr) {
@@ -413,7 +401,6 @@
                 data: post,
                 dataType: 'json',
                 success: function(res) {
-                    refreshCsrf(res);
                     if (!res || res.status !== 'success') {
                         $('#rsModalBody').html('<div class="alert alert-danger">Gagal memuat detail.</div>');
                         return;
@@ -454,7 +441,6 @@
                 dataType: 'json',
                 success: function(res) {
                     NProgress.done();
-                    refreshCsrf(res);
                     if (res.status === 'success') {
                         if (res.redirect_jadwal) {
                             Swal.fire({
@@ -757,7 +743,6 @@
                 dataType: 'json',
                 success: function(res) {
                     NProgress.done();
-                    refreshCsrf(res);
                     $btn.prop('disabled', false).html('<i class="bi bi-send me-1"></i>Ajukan Ulang');
                     if (res.status === 'success') {
                         modalResubmit.hide();

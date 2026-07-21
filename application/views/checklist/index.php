@@ -99,8 +99,6 @@
 
 <script>
     $(function() {
-        var CSRF_NAME = '<?= $this->security->get_csrf_token_name() ?>';
-        var CSRF_HASH = '<?= $this->security->get_csrf_hash() ?>';
         var modal = new bootstrap.Modal(document.getElementById('modalTambahTemplate'));
 
         // ── Buka modal & muat tipe tersedia ──────────────────────────────────────
@@ -110,7 +108,7 @@
             $('#tmpl_nama').val('');
 
             var d = {};
-            d[CSRF_NAME] = CSRF_HASH;
+            d[window.csrfTokenName] = window.csrfTokenHash;
             $.post('<?= site_url('checklist/get_tipe_tersedia') ?>', d, function(res) {
                 if (res.status !== 'success') {
                     toastr.error('Gagal memuat tipe kendaraan.');
@@ -170,7 +168,7 @@
             var $btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Menyimpan...');
 
             var d = {};
-            d[CSRF_NAME] = CSRF_HASH;
+            d[window.csrfTokenName] = window.csrfTokenHash;
             d.id_tipe_kendaraan = tipe;
             d.kode = kode;
             d.nama_template = nama;

@@ -9,6 +9,12 @@ class MY_Security extends CI_Security {
      */
     public function csrf_set_cookie()
     {
+        // Prevent parallel GET requests from overwriting the CSRF cookie
+        if (strtoupper($_SERVER['REQUEST_METHOD']) !== 'POST' && isset($_COOKIE[$this->_csrf_cookie_name]))
+        {
+            return $this;
+        }
+
         $expire = time() + $this->_csrf_expire;
         $secure_cookie = (bool) config_item('cookie_secure');
 
