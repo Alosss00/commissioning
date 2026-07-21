@@ -241,7 +241,7 @@
                     d.filter_jenis = $('#filterJenis').val();
                     d.filter_tgl_dari = $('#filterTglDari').val();
                     d.filter_tgl_sampai = $('#filterTglSampai').val();
-                    d[CSRF_NAME] = CSRF_HASH;
+                    // d[CSRF_NAME] = CSRF_HASH;
                 },
                 dataSrc: function(json) {
                     refreshCsrf(json); // simpan token baru sebelum draw/filter/page berikutnya
