@@ -52,4 +52,12 @@ class MY_Security extends CI_Security {
         log_message('info', 'CSRF cookie sent (non-HttpOnly)');
         return $this;
     }
+
+    public function csrf_show_error()
+    {
+        $post_token = isset($_POST[$this->_csrf_token_name]) ? $_POST[$this->_csrf_token_name] : 'NOT_SET';
+        $cookie_token = isset($_COOKIE[$this->_csrf_cookie_name]) ? $_COOKIE[$this->_csrf_cookie_name] : 'NOT_SET';
+        log_message('error', 'CSRF Mismatch details: POST [' . $post_token . '] vs COOKIE [' . $cookie_token . '] for URL [' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : 'unknown') . ']');
+        parent::csrf_show_error();
+    }
 }
