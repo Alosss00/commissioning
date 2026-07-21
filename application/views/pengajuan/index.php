@@ -213,23 +213,29 @@
         }
 
         // ── DataTable ─────────────────────────────────────────────────────
-        var table = $('#tabelPengajuan').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: '<?= site_url('pengajuan/get_data') ?>',
-                type: 'POST',
-                data: function(d) {
-                    d.filter_status = $('#filterStatus').val();
-                    d.filter_jenis = $('#filterJenis').val();
-                    d.filter_tgl_dari = $('#filterTglDari').val();
-                    d.filter_tgl_sampai = $('#filterTglSampai').val();
-                    d['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
-                },
-                error: function() {
-                    toastr.error('Gagal memuat data.');
-                }
+        ajax: {
+            url: '<?= site_url('pengajuan/get_data') ?>',
+            type: 'POST',
+
+            beforeSend: function () {
+                console.log('AJAX URL:', '<?= site_url('pengajuan/get_data') ?>');
             },
+
+            data: function(d) {
+                d.filter_status = $('#filterStatus').val();
+                d.filter_jenis = $('#filterJenis').val();
+                d.filter_tgl_dari = $('#filterTglDari').val();
+                d.filter_tgl_sampai = $('#filterTglSampai').val();
+                d['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
+            },
+
+            error: function(xhr, status, error) {
+                console.log("Status :", xhr.status);
+                console.log("Response :", xhr.responseText);
+                console.log("Error :", error);
+                toastr.error('Gagal memuat data.');
+            }
+        },
             columns: [{
                     data: 'no',
                     orderable: false,
