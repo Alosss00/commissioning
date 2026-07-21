@@ -203,6 +203,23 @@
 </div>
 
 <script>
+    // ── CSRF token global, di-refresh dari SETIAP response server ─────────
+    // (CodeIgniter meregenerasi csrf_hash tiap POST, jadi token statis dari
+    // render awal akan basi setelah 1x request dan bikin filter/paginate
+    // berikutnya ditolak diam-diam oleh CI Security -> tabel/filter macet)
+    var CSRF_NAME = '<?= $this->security->get_csrf_token_name() ?>';
+    var CSRF_HASH = '<?= $this->security->get_csrf_hash() ?>';
+
+    function csrfField() {
+        var f = {};
+        f[CSRF_NAME] = CSRF_HASH;
+        return f;
+    }
+
+    function refreshCsrf(res) {
+        if (res && res.csrfHash) CSRF_HASH = res.csrfHash;
+    }
+
     $(function() {
         // ── Init Flatpickr ────────────────────────────────────────────────
         if (typeof flatpickr !== 'undefined') {
@@ -213,29 +230,27 @@
         }
 
         // ── DataTable ─────────────────────────────────────────────────────
-        ajax: {
-            url: '<?= site_url('pengajuan/get_data') ?>',
-            type: 'POST',
-
-            beforeSend: function () {
-                console.log('AJAX URL:', '<?= site_url('pengajuan/get_data') ?>');
+        var table = $('#tabelPengajuan').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '<?= site_url('pengajuan/get_data') ?>',
+                type: 'POST',
+                data: function(d) {
+                    d.filter_status = $('#filterStatus').val();
+                    d.filter_jenis = $('#filterJenis').val();
+                    d.filter_tgl_dari = $('#filterTglDari').val();
+                    d.filter_tgl_sampai = $('#filterTglSampai').val();
+                    d[CSRF_NAME] = CSRF_HASH;
+                },
+                dataSrc: function(json) {
+                    refreshCsrf(json); // simpan token baru sebelum draw/filter/page berikutnya
+                    return json.data;
+                },
+                error: function(xhr) {
+                    toastr.error('Gagal memuat data.');
+                }
             },
-
-            data: function(d) {
-                d.filter_status = $('#filterStatus').val();
-                d.filter_jenis = $('#filterJenis').val();
-                d.filter_tgl_dari = $('#filterTglDari').val();
-                d.filter_tgl_sampai = $('#filterTglSampai').val();
-                d['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
-            },
-
-            error: function(xhr, status, error) {
-                console.log("Status :", xhr.status);
-                console.log("Response :", xhr.responseText);
-                console.log("Error :", error);
-                toastr.error('Gagal memuat data.');
-            }
-        },
             columns: [{
                     data: 'no',
                     orderable: false,
@@ -390,8 +405,7 @@
             rsId = $(this).data('id');
             $('#rsModalBody').html('<div class="text-center py-4"><div class="spinner-border text-success" role="status"></div><div class="text-muted small mt-2">Memuat detail...</div></div>');
             modalRS.show();
-            var post = {};
-            post['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
+            var post = csrfField();
             post.id_pengajuan = rsId;
             $.ajax({
                 url: '<?= site_url('approval/get_detail_stiker') ?>',
@@ -399,6 +413,7 @@
                 data: post,
                 dataType: 'json',
                 success: function(res) {
+                    refreshCsrf(res);
                     if (!res || res.status !== 'success') {
                         $('#rsModalBody').html('<div class="alert alert-danger">Gagal memuat detail.</div>');
                         return;
@@ -429,17 +444,17 @@
             $.ajax({
                 url: '<?= site_url('approval/proses') ?>',
                 type: 'POST',
-                data: {
-                    <?= $this->security->get_csrf_token_name() ?>: '<?= $this->security->get_csrf_hash() ?>',
+                data: $.extend(csrfField(), {
                     id_pengajuan: id,
                     level: level,
                     aksi: aksi,
                     catatan: catatan,
                     nomor_stiker: nomor_stiker,
-                },
+                }),
                 dataType: 'json',
                 success: function(res) {
                     NProgress.done();
+                    refreshCsrf(res);
                     if (res.status === 'success') {
                         if (res.redirect_jadwal) {
                             Swal.fire({
@@ -731,8 +746,7 @@
 
             var $btn = $(this);
             $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Memproses...');
-            var post = {};
-            post['<?= $this->security->get_csrf_token_name() ?>'] = '<?= $this->security->get_csrf_hash() ?>';
+            var post = csrfField();
             post.id_pengajuan = resubmitId;
             post.alasan_pengajuan_ulang = alasan;
             NProgress.start();
@@ -743,6 +757,7 @@
                 dataType: 'json',
                 success: function(res) {
                     NProgress.done();
+                    refreshCsrf(res);
                     $btn.prop('disabled', false).html('<i class="bi bi-send me-1"></i>Ajukan Ulang');
                     if (res.status === 'success') {
                         modalResubmit.hide();
