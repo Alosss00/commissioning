@@ -3,10 +3,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Pengajuan extends CI_Controller
 {
-     public function get_data()
-    {
-        echo "OK";
-    }
 
     public function __construct()
     {
@@ -321,8 +317,6 @@ class Pengajuan extends CI_Controller
 
     public function get_data()
     {
-        die("MASUK GET_DATA");
-
         if (!$this->input->is_ajax_request()) show_404();
 
         $filters = [
