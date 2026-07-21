@@ -7,7 +7,7 @@ class Pengajuan extends CI_Controller
     {
         echo "OK";
     }
-    
+
     public function __construct()
     {
         parent::__construct();
@@ -321,6 +321,8 @@ class Pengajuan extends CI_Controller
 
     public function get_data()
     {
+        die("MASUK GET_DATA");
+
         if (!$this->input->is_ajax_request()) show_404();
 
         $filters = [
