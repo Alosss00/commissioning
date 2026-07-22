@@ -167,13 +167,6 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                                 <?= pending_badge(['diterima_manager']) ?>
                             </a>
                         </li>
-                        <li>
-                            <a href="<?= site_url('approval/stiker') ?>" class="<?= is_active_exact('approval/stiker') ?>">
-                                <i class="bi bi-circle"></i>
-                                <span>Penerbitan Stiker</span>
-                                <?= pending_badge(['acc_ktt']) ?>
-                            </a>
-                        </li>
                     <?php endif; ?>
 
                     <?php if ($isAdmin || $isOHSSupt): ?>
@@ -192,6 +185,16 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                                 <i class="bi bi-circle"></i>
                                 <span>Approval KTT</span>
                                 <?= pending_badge(['diterima_ohs_supt', 'menunggu_ktt_2']) ?>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if ($isAdmin || $isAdminOHS): ?>
+                        <li>
+                            <a href="<?= site_url('approval/stiker') ?>" class="<?= is_active_exact('approval/stiker') ?>">
+                                <i class="bi bi-circle"></i>
+                                <span>Penerbitan Stiker</span>
+                                <?= pending_badge(['acc_ktt']) ?>
                             </a>
                         </li>
                     <?php endif; ?>
