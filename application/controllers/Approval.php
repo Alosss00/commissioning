@@ -687,15 +687,42 @@ class Approval extends CI_Controller
     }
 
     // =========================================================
-    // CABUT STIKER — hanya KTT (role 2) atau Super Admin (role 1)
+    // PENCABUTAN STIKER — MULTI-ROLE WORKFLOW & ADMIN OHS EKSEKUSI
     // =========================================================
-    public function cabut_stiker()
+
+    // Halaman daftar pengajuan pencabutan stiker
+    public function pencabutan()
+    {
+        $roles = $this->_user_roles();
+        if (!$this->_has_access([1, 2, 3, 4, 5], $roles)) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('dashboard');
+        }
+
+        $filters = [
+            'search' => $this->input->get('search'),
+            'status_request' => $this->input->get('status'),
+        ];
+
+        $data['title']     = 'Pencabutan Stiker Kelayakan';
+        $data['user']      = $this->session->userdata();
+        $data['roles']     = $roles;
+        $data['requests']  = $this->approval_model->get_pencabutan_list($filters);
+
+        $this->load->view('templates/header',  $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('pencabutan/index',  $data);
+        $this->load->view('templates/footer',  $data);
+    }
+
+    // Form modal request pencabutan (Inspektor=4, OHS Supt=3, KTT=2, Admin=1)
+    public function request_cabut()
     {
         if (!$this->input->is_ajax_request()) show_404();
 
         $roles = $this->_user_roles();
-        if (!$this->_has_access([1, 2], $roles)) {
-            echo json_encode(['status' => 'error', 'message' => 'Hanya KTT yang dapat memerintahkan pencabutan stiker.']);
+        if (!$this->_has_access([1, 2, 3, 4], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Anda tidak memiliki hak untuk mengajukan pencabutan stiker.']);
             return;
         }
 
@@ -720,51 +747,221 @@ class Approval extends CI_Controller
             return;
         }
 
-        $id_ktt = (int) $this->session->userdata('id_user');
+        $id_user = (int) $this->session->userdata('id_user');
+        
+        // Tentukan primary role pengaju
+        $role_pemohon = 4;
+        if (in_array(1, $roles) || in_array(2, $roles)) {
+            $role_pemohon = 2; // KTT / Super Admin
+        } elseif (in_array(3, $roles)) {
+            $role_pemohon = 3; // OHS Supt
+        }
 
-        $this->db->trans_start();
+        $id_cabut = $this->approval_model->create_request_cabut($stiker->id_sticker, $id_pengajuan, $id_user, $role_pemohon, $alasan);
 
-        $this->db->insert('pencabutan_stiker', [
-            'id_sticker'   => $stiker->id_sticker,
-            'id_pengajuan' => $id_pengajuan,
-            'id_ktt'       => $id_ktt,
-            'alasan'       => $alasan,
-            'tgl_perintah' => date('Y-m-d H:i:s'),
-            'status'       => 'diperintahkan',
-        ]);
-
-        $this->db->where('id_pengajuan', $id_pengajuan)
-            ->update('pengajuan_uji', ['status' => 'dicabut_ktt']);
-
-        $this->db->where('id_sticker', $stiker->id_sticker)
-            ->update('sticker_release', [
-                'dicabut'     => 1,
-                'tgl_dicabut' => date('Y-m-d H:i:s'),
-            ]);
-
-        $this->db->insert('pengajuan_approval', [
-            'id_pengajuan'   => $id_pengajuan,
-            'id_approver'    => $id_ktt,
-            'level_approval' => 'ktt',
-            'status'         => 'rejected',
-            'catatan'        => '[PENCABUTAN STIKER] ' . $alasan,
-            'created_at'     => date('Y-m-d H:i:s'),
-        ]);
-
-        $this->_audit('cabut_stiker', $id_pengajuan);
-        $this->db->trans_complete();
-
-        if (!$this->db->trans_status()) {
-            echo json_encode(['status' => 'error', 'message' => 'Gagal memproses pencabutan.']);
+        if (!$id_cabut) {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal membuat permohonan pencabutan stiker.']);
             return;
         }
 
-        $no = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
+        $this->_audit('request_cabut_stiker', $id_pengajuan);
+
+        $msg_map = [
+            4 => 'Permohonan pencabutan stiker berhasil dikirim. Menunggu verifikasi dari OHS Superintendent.',
+            3 => 'Permohonan pencabutan stiker berhasil dikirim. Menunggu approval dari KTT.',
+            2 => 'Permohonan pencabutan stiker berhasil dibuat. Siap dieksekusi oleh Admin OHS.',
+        ];
+
+        echo json_encode([
+            'status'   => 'success',
+            'message'  => $msg_map[$role_pemohon] ?? 'Permohonan pencabutan stiker berhasil dikirim.',
+            'redirect' => site_url('approval/pencabutan'),
+        ]);
+    }
+
+    // Legacy fallback alias untuk request_cabut
+    public function cabut_stiker()
+    {
+        return $this->request_cabut();
+    }
+
+    // Approve permohonan pencabutan (OHS Supt & KTT)
+    public function approve_cabut()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $roles   = $this->_user_roles();
+        $id_user = (int) $this->session->userdata('id_user');
+        $id_cabut = (int) $this->input->post('id_cabut');
+
+        $c = $this->approval_model->get_pencabutan_detail($id_cabut);
+        if (!$c) {
+            echo json_encode(['status' => 'error', 'message' => 'Data permohonan pencabutan tidak ditemukan.']);
+            return;
+        }
+
+        $status_req = $c->status_request;
+
+        if ($status_req === 'menunggu_ohs_supt') {
+            if (!$this->_has_access([1, 3], $roles)) {
+                echo json_encode(['status' => 'error', 'message' => 'Hanya OHS Superintendent yang dapat memverifikasi permohonan ini.']);
+                return;
+            }
+            $this->db->where('id_cabut', $id_cabut)->update('pencabutan_stiker', [
+                'status_request' => 'menunggu_ktt_1',
+                'ohs_supt_by'    => $id_user,
+                'ohs_supt_at'    => date('Y-m-d H:i:s'),
+            ]);
+            $msg = 'Permohonan disetujui oleh OHS Superintendent dan diteruskan ke KTT.';
+
+        } elseif ($status_req === 'menunggu_ktt_1') {
+            if (!$this->_has_access([1, 2], $roles)) {
+                echo json_encode(['status' => 'error', 'message' => 'Hanya KTT yang dapat melakukan approval permohonan ini.']);
+                return;
+            }
+            $this->db->where('id_cabut', $id_cabut)->update('pencabutan_stiker', [
+                'status_request' => 'menunggu_ktt_2',
+                'ktt_1_by'       => $id_user,
+                'ktt_1_at'       => date('Y-m-d H:i:s'),
+            ]);
+            $msg = 'Approval KTT Pertama berhasil. Menunggu approval dari KTT Kedua.';
+
+        } elseif ($status_req === 'menunggu_ktt_2') {
+            if (!$this->_has_access([1, 2], $roles)) {
+                echo json_encode(['status' => 'error', 'message' => 'Hanya KTT yang dapat melakukan approval permohonan ini.']);
+                return;
+            }
+            if (!in_array(1, $roles) && (int)$c->ktt_1_by === $id_user) {
+                echo json_encode(['status' => 'error', 'message' => 'KTT kedua harus merupakan KTT yang berbeda dari KTT pertama.']);
+                return;
+            }
+            $this->db->where('id_cabut', $id_cabut)->update('pencabutan_stiker', [
+                'status_request' => 'siap_dicabut',
+                'ktt_2_by'       => $id_user,
+                'ktt_2_at'       => date('Y-m-d H:i:s'),
+            ]);
+            $msg = 'Approval Dual KTT Selesai. Permohonan pencabutan stiker SIAP DIEKSEKUSI oleh Admin OHS.';
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Status permohonan ini tidak membutuhkan approval lagi.']);
+            return;
+        }
+
+        $this->_audit('approve_cabut_stiker', $c->id_pengajuan);
+
         echo json_encode([
             'status'  => 'success',
-            'message' => 'Perintah pencabutan stiker <strong>' . html_escape($stiker->nomor_sticker)
-                . '</strong> untuk pengajuan <strong>' . $no . '</strong> berhasil dicatat. '
-                . 'Admin OHS akan menerima notifikasi.',
+            'message' => $msg,
+        ]);
+    }
+
+    // Reject permohonan pencabutan (OHS Supt & KTT)
+    public function reject_cabut()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $roles   = $this->_user_roles();
+        if (!$this->_has_access([1, 2, 3], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak.']);
+            return;
+        }
+
+        $id_cabut = (int) $this->input->post('id_cabut');
+        $catatan  = trim((string) $this->input->post('catatan'));
+
+        $c = $this->approval_model->get_pencabutan_detail($id_cabut);
+        if (!$c) {
+            echo json_encode(['status' => 'error', 'message' => 'Data tidak ditemukan.']);
+            return;
+        }
+
+        $this->db->where('id_cabut', $id_cabut)->update('pencabutan_stiker', [
+            'status_request'    => 'ditolak',
+            'catatan_penolakan' => $catatan,
+        ]);
+
+        $this->_audit('reject_cabut_stiker', $c->id_pengajuan);
+
+        echo json_encode([
+            'status'  => 'success',
+            'message' => 'Permohonan pencabutan stiker telah ditolak.',
+        ]);
+    }
+
+    // Eksekusi Pencabutan Stiker — Khusus Admin OHS (Role 5) atau Super Admin (Role 1)
+    public function eksekusi_cabut()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $roles = $this->_user_roles();
+        if (!$this->_has_access([1, 5], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Hanya Admin OHS yang dapat melakukan eksekusi pencabutan stiker.']);
+            return;
+        }
+
+        $id_cabut = (int) $this->input->post('id_cabut');
+        $c = $this->approval_model->get_pencabutan_detail($id_cabut);
+
+        if (!$c) {
+            echo json_encode(['status' => 'error', 'message' => 'Data permohonan pencabutan tidak ditemukan.']);
+            return;
+        }
+
+        if ($c->status_request !== 'siap_dicabut' && $c->status !== 'diperintahkan') {
+            echo json_encode(['status' => 'error', 'message' => 'Permohonan pencabutan stiker belum memenuhi syarat approval untuk dieksekusi.']);
+            return;
+        }
+
+        $id_admin_ohs = (int) $this->session->userdata('id_user');
+
+        $this->db->trans_start();
+
+        // Update status pencabutan
+        $this->db->where('id_cabut', $id_cabut)->update('pencabutan_stiker', [
+            'status_request'    => 'dilaksanakan',
+            'status'            => 'dilaksanakan',
+            'tgl_dilaksanakan'  => date('Y-m-d H:i:s'),
+            'dilaksanakan_oleh' => $id_admin_ohs,
+        ]);
+
+        // Nonaktifkan stiker
+        $this->db->where('id_sticker', $c->id_sticker)->update('sticker_release', [
+            'dicabut'     => 1,
+            'tgl_dicabut' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Update status pengajuan uji
+        $this->db->where('id_pengajuan', $c->id_pengajuan)->update('pengajuan_uji', [
+            'status' => 'dicabut_ktt',
+        ]);
+
+        // Catat riwayat approval
+        $this->db->insert('pengajuan_approval', [
+            'id_pengajuan'   => $c->id_pengajuan,
+            'id_approver'    => $id_admin_ohs,
+            'level_approval' => 'admin_ohs',
+            'status'         => 'rejected',
+            'catatan'        => '[EKSEKUSI PENCABUTAN STIKER] ' . $c->alasan,
+            'created_at'     => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->_audit('eksekusi_cabut_stiker', $c->id_pengajuan);
+
+        $this->db->trans_complete();
+
+        if (!$this->db->trans_status()) {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal mengeksekusi pencabutan stiker.']);
+            return;
+        }
+
+        // Kirim Notifikasi Email Otomatis sesuai kondisi pengaju
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            $this->load->library('sikuk_email');
+            $this->sikuk_email->notif_stiker_dicabut($id_cabut);
+        }
+
+        echo json_encode([
+            'status'  => 'success',
+            'message' => 'Stiker kelayakan <strong>' . html_escape($c->nomor_sticker) . '</strong> berhasil <strong>DICABUT</strong>. Notifikasi email telah dikirimkan ke pihak terkait.',
         ]);
     }
 

@@ -1051,16 +1051,27 @@ CREATE TABLE `notif_stiker` (
 --
 
 CREATE TABLE `pencabutan_stiker` (
-  `id_cabut` int UNSIGNED NOT NULL,
+  `id_cabut` int UNSIGNED NOT NULL AUTO_INCREMENT,
   `id_sticker` int NOT NULL COMMENT 'FK ke sticker_release',
   `id_pengajuan` int NOT NULL,
-  `id_ktt` int NOT NULL COMMENT 'KTT yang memerintahkan pencabutan',
+  `id_pemohon` int DEFAULT NULL COMMENT 'User yang mengajukan pencabutan',
+  `role_pemohon` int DEFAULT NULL COMMENT 'Role ID pemohon (2=KTT, 3=OHS Supt, 4=Inspektor)',
+  `id_ktt` int DEFAULT NULL COMMENT 'Legacy/KTT yang memerintahkan',
   `alasan` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status_request` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'menunggu_ohs_supt' COMMENT 'menunggu_ohs_supt, menunggu_ktt_1, menunggu_ktt_2, siap_dicabut, dilaksanakan, ditolak',
+  `ohs_supt_by` int DEFAULT NULL,
+  `ohs_supt_at` datetime DEFAULT NULL,
+  `ktt_1_by` int DEFAULT NULL,
+  `ktt_1_at` datetime DEFAULT NULL,
+  `ktt_2_by` int DEFAULT NULL,
+  `ktt_2_at` datetime DEFAULT NULL,
+  `catatan_penolakan` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `tgl_perintah` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `tgl_dilaksanakan` datetime DEFAULT NULL,
   `status` enum('diperintahkan','dilaksanakan') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'diperintahkan',
-  `dilaksanakan_oleh` int DEFAULT NULL COMMENT 'id_user Admin OHS yang eksekusi'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Perintah pencabutan stiker kelayakan oleh KTT';
+  `dilaksanakan_oleh` int DEFAULT NULL COMMENT 'id_user Admin OHS yang eksekusi',
+  PRIMARY KEY (`id_cabut`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Pengajuan dan perintah pencabutan stiker kelayakan';
 
 -- --------------------------------------------------------
 

@@ -66,6 +66,11 @@ $route['approval/stiker']               = 'Approval/stiker';
 $route['approval/proses']               = 'Approval/proses';
 $route['approval/get_detail_stiker']    = 'Approval/get_detail_stiker';
 $route['approval/cabut_stiker']         = 'Approval/cabut_stiker';
+$route['approval/request_cabut']        = 'Approval/request_cabut';
+$route['approval/pencabutan']           = 'Approval/pencabutan';
+$route['approval/approve_cabut']        = 'Approval/approve_cabut';
+$route['approval/reject_cabut']         = 'Approval/reject_cabut';
+$route['approval/eksekusi_cabut']       = 'Approval/eksekusi_cabut';
 // Inspektor verifikasi fisik perbaikan (status masuk: siap_verifikasi)
 // ACC → inspeksi_ulang | Tolak → tidak_lulus_inspeksi
 $route['approval/verif_perbaikan']      = 'Approval/verif_perbaikan';

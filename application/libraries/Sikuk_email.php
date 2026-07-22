@@ -465,6 +465,85 @@ class Sikuk_email
         );
     }
 
+    /**
+     * Notifikasi Pencabutan Stiker Terkini
+     * Mengirim email sesuai kondisi pengaju (Inspektor, OHS Supt, KTT)
+     */
+    public function notif_stiker_dicabut($id_cabut)
+    {
+        $c = $this->CI->db
+            ->select('ps.*, sr.nomor_sticker, pu.id_pengajuan, pu.email_pemohon, pu.id_pemohon AS id_admin_dept,
+                      k.no_polisi, k.jenis_kendaraan, k.merk, k.tipe, k.perusahaan,
+                      u_pem.nama AS nama_pengaju')
+            ->from('pencabutan_stiker ps')
+            ->join('sticker_release sr', 'sr.id_sticker = ps.id_sticker',     'left')
+            ->join('pengajuan_uji pu',   'pu.id_pengajuan = ps.id_pengajuan', 'left')
+            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',   'left')
+            ->join('users u_pem',        'u_pem.id_user = ps.id_pemohon',     'left')
+            ->where('ps.id_cabut', (int)$id_cabut)
+            ->get()->row();
+
+        if (!$c) return false;
+
+        $recipients = [];
+
+        // 1. Selalu kirim ke Admin Dept (Pemohon Pengajuan)
+        if (!empty($c->email_pemohon)) {
+            $recipients[] = $c->email_pemohon;
+        }
+
+        // 2. Selalu kirim ke Dept Manager (Role 6)
+        $managers = $this->_get_users_by_role(6);
+        foreach ($managers as $mgr) {
+            if (!empty($mgr->email)) $recipients[] = $mgr->email;
+        }
+
+        // Kondisi 2: Jika diajukan oleh OHS Supt (role 3) -> Tambahkan Inspektor (Role 4)
+        if ((int)$c->role_pemohon === 3) {
+            $inspektors = $this->_get_users_by_role(4);
+            foreach ($inspektors as $ins) {
+                if (!empty($ins->email)) $recipients[] = $ins->email;
+            }
+        }
+
+        // Kondisi 3: Jika diajukan oleh KTT (role 2) -> Tambahkan OHS Supt (Role 3) & Inspektor (Role 4)
+        if ((int)$c->role_pemohon === 2) {
+            $ohs_supts = $this->_get_users_by_role(3);
+            foreach ($ohs_supts as $supt) {
+                if (!empty($supt->email)) $recipients[] = $supt->email;
+            }
+            $inspektors = $this->_get_users_by_role(4);
+            foreach ($inspektors as $ins) {
+                if (!empty($ins->email)) $recipients[] = $ins->email;
+            }
+        }
+
+        $recipients = array_unique(array_filter($recipients));
+
+        $role_label_map = [2 => 'KTT', 3 => 'OHS Superintendent', 4 => 'Inspektor'];
+        $pengaju_label = $role_label_map[$c->role_pemohon] ?? 'Petugas';
+        $nama_pengaju  = $c->nama_pengaju ? $c->nama_pengaju . ' (' . $pengaju_label . ')' : $pengaju_label;
+
+        $subject = '[Pencabutan Stiker] Stiker Kelayakan Unit ' . $c->no_polisi . ' Resmi Dicabut';
+        $body = $this->_wrap(
+            'Pemberitahuan Pencabutan Stiker Kelayakan Operasional',
+            'Stiker kelayakan operasional untuk unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> telah <strong>RESMI DICABUT</strong> oleh Admin OHS.',
+            '<div style="background:#f8d7da;color:#721c24;padding:12px 16px;border-radius:4px;border:1px solid #f5c6cb;">'
+            . '<strong>Nomor Stiker:</strong> ' . htmlspecialchars($c->nomor_sticker ?? '-') . '<br>'
+            . '<strong>Pengaju Pencabutan:</strong> ' . htmlspecialchars($nama_pengaju) . '<br>'
+            . '<strong>Alasan Pencabutan:</strong> ' . htmlspecialchars($c->alasan)
+            . '</div>',
+            'Dengan dicabutnya stiker ini, unit tersebut <strong>TIDAK DIIZINKAN BEROPERASI</strong> di area kerja sampai dilakukan pengajuan commissioning ulang.',
+            $this->_btn_link('Lihat Detail Pengajuan', $this->base_url . '/pengajuan')
+        );
+
+        foreach ($recipients as $to) {
+            $this->_send($to, $subject, $body);
+        }
+
+        return true;
+    }
+
     // ============================================================
     // PRIVATE — Core send + template helpers
     // ============================================================

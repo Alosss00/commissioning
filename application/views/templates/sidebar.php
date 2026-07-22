@@ -196,6 +196,15 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                         </li>
                     <?php endif; ?>
 
+                    <?php if ($isAdmin || $isKTT || $isOHSSupt || $isInspektor || $isAdminOHS): ?>
+                        <li>
+                            <a href="<?= site_url('approval/pencabutan') ?>" class="<?= is_active_exact('approval/pencabutan') ?>">
+                                <i class="bi bi-circle"></i>
+                                <span>Pencabutan Stiker</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
                 </ul>
             </li>
         <?php endif; ?>
