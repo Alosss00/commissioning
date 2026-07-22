@@ -252,6 +252,10 @@
                     data: 'pemohon'
                 },
                 {
+                    data: 'nomor_unit',
+                    className: 'text-center'
+                },
+                {
                     data: 'no_polisi',
                     className: 'text-center'
                 },
@@ -279,7 +283,7 @@
                 },
             ],
             order: [
-                [7, 'desc']
+                [8, 'desc']
             ],
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
