@@ -95,7 +95,6 @@
                                         <th width="40">No</th>
                                         <th>ID</th>
                                         <th>Pemohon</th>
-                                        <th>Nomor Unit</th>
                                         <th>No. Polisi</th>
                                         <th>Kendaraan</th>
                                         <th>Unit</th>
@@ -223,6 +222,8 @@
         var table = $('#tabelPengajuan').DataTable({
             processing: true,
             serverSide: true,
+            destroy: true,
+            autoWidth: false,
             ajax: {
                 url: '<?= site_url('pengajuan/get_data') ?>',
                 type: 'POST',
