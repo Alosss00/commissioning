@@ -33,8 +33,9 @@ class Pengajuan_model extends CI_Model
             $kw = $filters['search'];
             $this->db->group_start();
             $this->db->like('k.no_polisi',       $kw);
+            $this->db->or_like('k.nomor_unit',    $kw);
             $this->db->or_like('u.nama',          $kw);
-            $this->db->or_like('t.nama_tipe',     $kw); // ← ganti k.jenis_kendaraan
+            $this->db->or_like('t.nama_tipe',     $kw);
             $this->db->or_like('k.merk',          $kw);
             $this->db->or_like('k.tipe',          $kw);
             $this->db->group_end();
