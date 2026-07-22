@@ -347,6 +347,7 @@ class Pengajuan extends CI_Controller
                 'no'              => $no++,
                 'id_display'      => '<span class="fw-bold text-primary">#PU-' . str_pad($row->id_pengajuan, 4, '0', STR_PAD_LEFT) . '</span>',
                 'pemohon'         => html_escape($row->nama_pemohon),
+                'nomor_unit'      => '<span class="badge bg-dark font-monospace">' . html_escape($row->nomor_unit ?? '-') . '</span>',
                 'no_polisi'       => '<span class="badge bg-secondary font-monospace">' . html_escape($row->no_polisi) . '</span>',
                 'jenis_kendaraan' => html_escape($row->jenis_kendaraan) . '<br><small class="text-muted">' . html_escape($row->merk) . ' ' . html_escape($row->tipe) . '</small>',
                 'unit_baru'       => $row->is_unit_baru ? '<span class="badge bg-warning text-dark">Unit Baru</span>' : '<span class="badge bg-secondary">Unit Lama</span>',
