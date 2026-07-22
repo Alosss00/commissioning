@@ -197,7 +197,7 @@ class Approval_model extends CI_Model
         $this->check_pencabutan_schema();
 
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
-                           pu.no_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan,
+                           pu.id_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan,
                            k.no_polisi, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
                            u_pem.nama AS nama_pemungut_cabut, u_pem.email AS email_pemungut_cabut,
                            u_ohs.nama AS nama_ohs_supt, u_ktt1.nama AS nama_ktt_1, u_ktt2.nama AS nama_ktt_2,
@@ -239,7 +239,7 @@ class Approval_model extends CI_Model
         $this->check_pencabutan_schema();
 
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
-                           pu.no_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan, pu.email_pemohon,
+                           pu.id_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan, pu.email_pemohon,
                            k.no_polisi, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
                            u_pem.nama AS nama_pemungut_cabut, u_pem.email AS email_pemungut_cabut');
         $this->db->from('pencabutan_stiker ps');
