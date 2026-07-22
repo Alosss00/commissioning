@@ -95,6 +95,7 @@
                                         <th width="40">No</th>
                                         <th>ID</th>
                                         <th>Pemohon</th>
+                                        <th>Nomor Unit</th>
                                         <th>No. Polisi</th>
                                         <th>Kendaraan</th>
                                         <th>Unit</th>
