@@ -553,6 +553,9 @@ class Sikuk_email
      */
     private function _send($to, $subject, $body)
     {
+        // NONAKTIF SEMENTARA: kembalikan true agar alur tidak error tanpa mengirim email
+        return true;
+
         if (empty($to)) return false;
 
         try {
