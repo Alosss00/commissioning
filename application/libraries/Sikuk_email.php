@@ -553,7 +553,6 @@ class Sikuk_email
      */
     private function _send($to, $subject, $body)
     {
-        
 
         if (empty($to)) return false;
 
@@ -567,11 +566,14 @@ class Sikuk_email
             $this->CI->email->set_mailtype('html');
             $result = $this->CI->email->send(false); // false = jangan throw exception
             if (!$result) {
-                log_message('error', '[Sikuk_email] Gagal kirim ke ' . $to . ' | ' . $this->CI->email->print_debugger());
+                $debugger = $this->CI->email->print_debugger(['headers', 'subject', 'body']);
+                log_message('error', '[Sikuk_email] Gagal kirim ke ' . $to . ' | ' . $debugger);
+                error_log("\n=================== [EMAIL ERROR DEBUGGER] ===================\n" . strip_tags($debugger) . "\n=============================================================\n");
             }
             return $result;
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             log_message('error', '[Sikuk_email] Exception: ' . $e->getMessage());
+            error_log("\n=================== [EMAIL EXCEPTION] ===================\n" . $e->getMessage() . "\n=========================================================\n");
             return false;
         }
     }
