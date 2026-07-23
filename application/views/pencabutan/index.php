@@ -106,6 +106,7 @@ $isAdminOHS  = in_array(5, $_roles);
                                                 <td>
                                                     <span class="badge bg-primary text-wrap mb-1"><?= html_escape($r->nomor_sticker ?? '-') ?></span><br>
                                                     <strong><?= html_escape($r->no_polisi ?? '-') ?></strong><br>
+                                                    <small class="text-muted">No. Unit: </small><span class="badge bg-dark font-monospace" style="font-size:10px;"><?= html_escape(!empty($r->nomor_unit) ? $r->nomor_unit : '-') ?></span><br>
                                                     <small class="text-muted"><?= html_escape($r->jenis_kendaraan ?? '') ?> (<?= html_escape($r->perusahaan ?? '') ?>)</small>
                                                 </td>
                                                 <td>

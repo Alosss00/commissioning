@@ -21,7 +21,7 @@ class Approval_model extends CI_Model
 
     public function get_list($status_arr, $filters = [])
     {
-        $this->db->select('pu.*, k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru, u.nama AS nama_pemohon, u.email AS email_pemohon');
+        $this->db->select('pu.*, k.no_polisi, k.nomor_unit, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru, u.nama AS nama_pemohon, u.email AS email_pemohon');
         $this->db->from('pengajuan_uji pu');
         $this->db->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left');
         $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left'); // ← tambah
@@ -37,6 +37,7 @@ class Approval_model extends CI_Model
             $kw = $filters['search'];
             $this->db->group_start();
             $this->db->like('k.no_polisi', $kw);
+            $this->db->or_like('k.nomor_unit', $kw);
             $this->db->or_like('u.nama',   $kw);
             $this->db->group_end();
         }
@@ -46,7 +47,7 @@ class Approval_model extends CI_Model
 
     public function get_detail($id, $filters = [])
     {
-        $this->db->select('pu.*, k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru, u.nama AS nama_pemohon, u.email AS email_pemohon');
+        $this->db->select('pu.*, k.no_polisi, k.nomor_unit, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru, u.nama AS nama_pemohon, u.email AS email_pemohon');
         $this->db->from('pengajuan_uji pu');
         $this->db->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left');
         $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left'); // ← tambah
@@ -198,7 +199,7 @@ class Approval_model extends CI_Model
 
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
                            pu.id_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan,
-                           k.no_polisi, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
+                           k.no_polisi, k.nomor_unit, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
                            u_pem.nama AS nama_pemungut_cabut, u_pem.email AS email_pemungut_cabut,
                            u_ohs.nama AS nama_ohs_supt, u_ktt1.nama AS nama_ktt_1, u_ktt2.nama AS nama_ktt_2,
                            u_eks.nama AS nama_eksekutor');
@@ -226,6 +227,7 @@ class Approval_model extends CI_Model
             $this->db->group_start();
             $this->db->like('sr.nomor_sticker', $kw);
             $this->db->or_like('k.no_polisi',   $kw);
+            $this->db->or_like('k.nomor_unit',  $kw);
             $this->db->or_like('u_pem.nama',    $kw);
             $this->db->group_end();
         }
@@ -240,7 +242,7 @@ class Approval_model extends CI_Model
 
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
                            pu.id_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan, pu.email_pemohon,
-                           k.no_polisi, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
+                           k.no_polisi, k.nomor_unit, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
                            u_pem.nama AS nama_pemungut_cabut, u_pem.email AS email_pemungut_cabut');
         $this->db->from('pencabutan_stiker ps');
         $this->db->join('sticker_release sr', 'sr.id_sticker = ps.id_sticker',     'left');

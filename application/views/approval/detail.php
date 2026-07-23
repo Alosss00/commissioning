@@ -123,12 +123,10 @@
                                         <small class="text-muted d-block">Tahun</small>
                                         <strong><?= $pengajuan->tahun ?: '—' ?></strong>
                                     </div>
-                                    <?php if (!empty($pengajuan->nomor_unit)): ?>
-                                        <div class="col-6">
-                                            <small class="text-muted d-block">Nomor Unit</small>
-                                            <strong><?= html_escape($pengajuan->nomor_unit) ?></strong>
-                                        </div>
-                                    <?php endif; ?>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Nomor Unit</small>
+                                        <strong class="font-monospace text-primary"><?= html_escape(!empty($pengajuan->nomor_unit) ? $pengajuan->nomor_unit : '—') ?></strong>
+                                    </div>
                                     <?php if (!empty($pengajuan->perusahaan)): ?>
                                         <div class="col-6">
                                             <small class="text-muted d-block">Perusahaan Unit</small>
