@@ -297,9 +297,15 @@ class Pengajuan extends CI_Controller
         ]);
 
         // ════════════════════════════════════════════════════════
-        // AUDIT LOG
+        // AUDIT LOG & EMAIL NOTIFIKASI
         // ════════════════════════════════════════════════════════
         $this->_audit('buat_pengajuan', 'pengajuan_uji', $id_pengajuan);
+
+        // Kirim Notifikasi Email Otomatis ke Pemohon & Dept Manager
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            $this->load->library('sikuk_email');
+            $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
+        }
 
         // ════════════════════════════════════════════════════════
         // SUCCESS RESPONSE ✅ dengan csrfHash
