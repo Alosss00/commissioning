@@ -548,4 +548,4 @@ $config['sikuk_smtp_host']   = 'smtp.gmail.com';
 $config['sikuk_smtp_port']   = 587;
 $config['sikuk_smtp_crypto'] = 'tls';
 $config['sikuk_smtp_user']   = 'alosjo123@gmail.com';
-$config['sikuk_smtp_pass']   = 'Aloss123456789';
+$config['sikuk_smtp_pass']   = 'dzgg xxhw bnqu oddn';
