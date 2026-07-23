@@ -540,12 +540,12 @@ $config['proxy_ips'] = '';
 date_default_timezone_set('Asia/Makassar');
 
 // ── Identitas pengirim ────────────────────────────────────────────────────
-$config['sikuk_email_from'] = 'tokatactic@gmail.com';   // ← keep local sender
+$config['sikuk_email_from'] = 'alosjo123@gmail.com';
 $config['sikuk_email_name'] = 'TACTIC System';
 
 // ── SMTP Gmail ────────────────────────────────────────────────────────────
 $config['sikuk_smtp_host']   = 'smtp.gmail.com';
 $config['sikuk_smtp_port']   = 587;
 $config['sikuk_smtp_crypto'] = 'tls';
-$config['sikuk_smtp_user']   = 'tokatactic@gmail.com';  // ← ganti (sama dengan from)
-$config['sikuk_smtp_pass']   = 'bcxb flma utax kflq';   // ← App Password 16 karakter
+$config['sikuk_smtp_user']   = 'alosjo123@gmail.com';
+$config['sikuk_smtp_pass']   = 'Aloss123456789';
