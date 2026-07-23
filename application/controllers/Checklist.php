@@ -263,12 +263,13 @@ class Checklist extends CI_Controller
             $existing_perus_mekanik = $uji->perusahaan_mekanik    ?? '';
         }
 
-        // Auto-fill dari jadwal
+        // Auto-fill dari jadwal & data user inspektor
         $jadwal_info = $this->db
             ->select('j.id_jadwal,
                       mm.nama       AS nama_mekanik_jdl,
                       mm.perusahaan AS perus_mekanik_jdl,
-                      ui.nama       AS nama_inspektor_jdl')
+                      ui.nama       AS nama_inspektor_jdl,
+                      ui.departemen AS perus_inspektor_jdl')
             ->from('jadwal_uji j')
             ->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master', 'left')
             ->join('users ui', 'ui.id_user = COALESCE(j.id_inspektor, j.id_mekanik)', 'left')
@@ -280,6 +281,20 @@ class Checklist extends CI_Controller
         if (empty($existing_inspektor) && $jadwal_info) {
             $existing_inspektor = $jadwal_info->nama_inspektor_jdl ?? '';
         }
+
+        if (empty($existing_perusahaan)) {
+            if ($jadwal_info && !empty($jadwal_info->perus_inspektor_jdl)) {
+                $existing_perusahaan = $jadwal_info->perus_inspektor_jdl;
+            } else {
+                // Fallback ke departemen milik user logged in jika role-nya inspektor/admin
+                $id_user_login = $this->session->userdata('id_user');
+                $user_login = $this->db->select('departemen')->where('id_user', $id_user_login)->get('users')->row();
+                if ($user_login && !empty($user_login->departemen)) {
+                    $existing_perusahaan = $user_login->departemen;
+                }
+            }
+        }
+
         if (empty($existing_mekanik) && $jadwal_info) {
             $existing_mekanik       = $jadwal_info->nama_mekanik_jdl   ?? '';
             $existing_perus_mekanik = $jadwal_info->perus_mekanik_jdl  ?? '';
