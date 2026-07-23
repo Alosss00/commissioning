@@ -419,12 +419,13 @@ class Sikuk_email
         $p = $this->CI->db
             ->select('pu.id_pengajuan, pu.tipe_pengajuan,
                       u.nama AS nama_pemohon, u.email AS email_pemohon,
-                      k.no_polisi, k.jenis_kendaraan, k.merk, k.tipe,
+                      k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe,
                       sr.nomor_sticker, sr.tanggal_release')
             ->from('pengajuan_uji pu')
-            ->join('users u',            'u.id_user = pu.id_pemohon',         'left')
-            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',  'left')
-            ->join('sticker_release sr', 'sr.id_pengajuan = pu.id_pengajuan', 'left')
+            ->join('users u',            'u.id_user = pu.id_pemohon',                 'left')
+            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
+            ->join('sticker_release sr', 'sr.id_pengajuan = pu.id_pengajuan',         'left')
             ->where('pu.id_pengajuan', $id_pengajuan)
             ->get()->row();
 
@@ -473,13 +474,14 @@ class Sikuk_email
     {
         $c = $this->CI->db
             ->select('ps.*, sr.nomor_sticker, pu.id_pengajuan, pu.email_pemohon, pu.id_pemohon AS id_admin_dept,
-                      k.no_polisi, k.jenis_kendaraan, k.merk, k.tipe, k.perusahaan,
+                      k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.perusahaan,
                       u_pem.nama AS nama_pengaju')
             ->from('pencabutan_stiker ps')
-            ->join('sticker_release sr', 'sr.id_sticker = ps.id_sticker',     'left')
-            ->join('pengajuan_uji pu',   'pu.id_pengajuan = ps.id_pengajuan', 'left')
-            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',   'left')
-            ->join('users u_pem',        'u_pem.id_user = ps.id_pemohon',     'left')
+            ->join('sticker_release sr', 'sr.id_sticker = ps.id_sticker',            'left')
+            ->join('pengajuan_uji pu',   'pu.id_pengajuan = ps.id_pengajuan',        'left')
+            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
+            ->join('users u_pem',        'u_pem.id_user = ps.id_pemohon',            'left')
             ->where('ps.id_cabut', (int)$id_cabut)
             ->get()->row();
 
@@ -697,10 +699,11 @@ class Sikuk_email
         return $this->CI->db
             ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.status,
                       u.nama AS nama_pemohon, pu.email_pemohon AS email_pemohon,
-                      k.no_polisi, k.jenis_kendaraan, k.merk, k.tipe, k.tahun')
+                      k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
             ->from('pengajuan_uji pu')
-            ->join('users u',     'u.id_user = pu.id_pemohon',        'left')
-            ->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left')
+            ->join('users u',          'u.id_user = pu.id_pemohon',                 'left')
+            ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
             ->where('pu.id_pengajuan', $id_pengajuan)
             ->get()->row();
     }
