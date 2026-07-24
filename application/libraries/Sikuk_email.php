@@ -742,17 +742,26 @@ class Sikuk_email
     private function _smtp_config()
     {
         return [
-            'protocol'   => 'smtp',
-            'smtp_host'  => $this->CI->config->item('sikuk_smtp_host'),
-            'smtp_port'  => $this->CI->config->item('sikuk_smtp_port'),
-            'smtp_user'  => $this->CI->config->item('sikuk_smtp_user'),
-            'smtp_pass'  => $this->CI->config->item('sikuk_smtp_pass'),
-            'smtp_crypto' => $this->CI->config->item('sikuk_smtp_crypto'),
-            'mailtype'   => 'html',
-            'charset'    => 'utf-8',
-            'newline'    => "\r\n",
-            'crlf'       => "\r\n",
-            'wordwrap'   => false,
+            'protocol'         => 'smtp',
+            'smtp_host'        => $this->CI->config->item('sikuk_smtp_host'),
+            'smtp_port'        => $this->CI->config->item('sikuk_smtp_port'),
+            'smtp_user'        => $this->CI->config->item('sikuk_smtp_user'),
+            'smtp_pass'        => $this->CI->config->item('sikuk_smtp_pass'),
+            'smtp_crypto'      => $this->CI->config->item('sikuk_smtp_crypto'),
+            'smtp_timeout'     => 30,
+            'smtp_keepalive'   => false,
+            'mailtype'         => 'html',
+            'charset'          => 'utf-8',
+            'newline'          => "\r\n",
+            'crlf'             => "\r\n",
+            'wordwrap'         => false,
+            'smtp_conn_options' => [
+                'ssl' => [
+                    'verify_peer'      => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                ]
+            ]
         ];
     }
 }
