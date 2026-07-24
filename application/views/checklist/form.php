@@ -367,12 +367,13 @@
                                     <label class="form-label fw-semibold">
                                         <i class="bi bi-person-badge me-1 text-warning"></i>
                                         Foto Mekanik / Peserta Commissioning
-                                        <span class="badge bg-secondary text-white ms-1" style="font-size:9px;">Opsional</span>
+                                        <span class="badge bg-danger text-white ms-1" style="font-size:9px;">Wajib</span>
                                     </label>
+                                    <input type="hidden" id="has_existing_foto_mekanik" value="<?= !empty($existing_foto_mekanik) ? '1' : '0' ?>">
                                     <div class="foto-upload-box border rounded p-3 text-center" id="box_foto_mekanik">
                                         <input type="file" class="d-none" id="inp_foto_mekanik"
                                             name="foto_mekanik" accept=".jpg,.jpeg,.png">
-                                        <div class="foto-default" id="default_foto_mekanik">
+                                        <div class="foto-default <?= !empty($existing_foto_mekanik) ? 'd-none' : '' ?>" id="default_foto_mekanik">
                                             <i class="bi bi-person-badge-fill text-warning d-block mb-2" style="font-size:2.5rem;"></i>
                                             <div class="text-muted small mb-2">Klik untuk upload foto mekanik</div>
                                             <button type="button" class="btn btn-sm btn-outline-warning btn-trigger-foto"
@@ -380,9 +381,9 @@
                                                 <i class="bi bi-upload me-1"></i>Pilih Foto
                                             </button>
                                         </div>
-                                        <div class="foto-preview d-none" id="preview_foto_mekanik">
+                                        <div class="foto-preview <?= empty($existing_foto_mekanik) ? 'd-none' : '' ?>" id="preview_foto_mekanik">
                                             <div class="position-relative d-inline-block">
-                                                <img id="img_foto_mekanik" src="" alt="Foto Mekanik"
+                                                <img id="img_foto_mekanik" src="<?= !empty($existing_foto_mekanik) ? base_url($existing_foto_mekanik->file_path) : '' ?>" alt="Foto Mekanik"
                                                     class="img-fluid rounded border mb-1"
                                                     style="max-height:160px;max-width:100%;object-fit:cover;">
                                                 <button type="button" class="btn btn-danger rounded-circle p-0 btn-hapus-foto"
@@ -395,7 +396,7 @@
                                             </div>
                                             <div class="small text-success mt-1">
                                                 <i class="bi bi-check-circle me-1"></i>
-                                                <span id="fname_foto_mekanik"></span>
+                                                <span id="fname_foto_mekanik"><?= !empty($existing_foto_mekanik) ? html_escape(basename($existing_foto_mekanik->file_path)) : '' ?></span>
                                             </div>
                                             <button type="button" class="btn btn-sm btn-outline-secondary mt-1 btn-trigger-foto"
                                                 data-input="inp_foto_mekanik" style="font-size:11px;">
@@ -403,8 +404,10 @@
                                             </button>
                                         </div>
                                     </div>
+                                    <div id="err_foto_mekanik" class="text-danger small mt-1"></div>
                                     <input type="text" class="form-control form-control-sm mt-2"
                                         id="ket_foto_mekanik" name="ket_foto_mekanik"
+                                        value="<?= !empty($existing_foto_mekanik) ? html_escape($existing_foto_mekanik->keterangan ?? '') : '' ?>"
                                         placeholder="Keterangan foto mekanik (opsional)" maxlength="200">
                                 </div>
 
@@ -624,6 +627,7 @@
                 toastr.warning('Foto mekanik maks 5MB.');
                 return;
             }
+            $('#err_foto_mekanik').text('');
             var reader = new FileReader();
             reader.onload = function(e) {
                 $('#img_foto_mekanik').attr('src', e.target.result);
@@ -641,6 +645,7 @@
             $('#' + $(this).data('default')).removeClass('d-none');
             $('#' + $(this).data('preview')).addClass('d-none');
             $('#img_foto_mekanik').attr('src', '');
+            $('#has_existing_foto_mekanik').val('0');
         });
 
         // ── Foto temuan (multiple maks 10) ───────────────────────────────────
@@ -703,7 +708,7 @@
             var namaIns = $('#nama_inspektor').val().trim();
             var perusIns = ($('#perusahaan_inspektor').val() || '').trim();
             var errFocus = null;
-            $('#err_nama_inspektor, #err_perusahaan_inspektor, #err_tgl_maks').text('');
+            $('#err_nama_inspektor, #err_perusahaan_inspektor, #err_tgl_maks, #err_foto_mekanik').text('');
 
             if (!namaIns) {
                 $('#err_nama_inspektor').text('Nama inspektor wajib diisi.');
@@ -712,6 +717,14 @@
             if (!perusIns) {
                 $('#err_perusahaan_inspektor').text('Perusahaan wajib diisi.');
                 errFocus = errFocus || '#perusahaan_inspektor';
+            }
+
+            // Validasi Foto Mekanik
+            var elFotoMek = document.getElementById('inp_foto_mekanik');
+            var hasFotoMek = (elFotoMek && elFotoMek.files && elFotoMek.files.length > 0) || ($('#has_existing_foto_mekanik').val() === '1');
+            if (!hasFotoMek) {
+                $('#err_foto_mekanik').text('Foto Mekanik / Peserta Commissioning wajib di-upload.');
+                errFocus = errFocus || '#box_foto_mekanik';
             }
 
             // Validasi tgl_maks_perbaikan jika ada item NO

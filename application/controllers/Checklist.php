@@ -248,6 +248,7 @@ class Checklist extends CI_Controller
         $existing_mekanik       = '';
         $existing_perus_mekanik = '';
 
+        $existing_foto_mekanik  = null;
         $uji = $this->pengajuan_model->get_uji($id_pengajuan);
         if ($uji) {
             $answers = $this->checklist_model->get_checklist_answers($uji->id_uji);
@@ -261,6 +262,12 @@ class Checklist extends CI_Controller
             $existing_perusahaan    = $uji->perusahaan_inspektor  ?? '';
             $existing_mekanik       = $uji->nama_mekanik          ?? '';
             $existing_perus_mekanik = $uji->perusahaan_mekanik    ?? '';
+
+            $existing_foto_mekanik = $this->db
+                ->where('id_uji', $uji->id_uji)
+                ->where('jenis', 'mekanik')
+                ->order_by('id_foto', 'DESC')
+                ->get('uji_foto')->row();
         }
 
         // Auto-fill dari jadwal & data user inspektor
@@ -346,6 +353,7 @@ class Checklist extends CI_Controller
             'lampiran_perbaikan'     => $lampiran_perbaikan,
             'is_inspeksi_ulang'      => $is_inspeksi_ulang,
             'uji_sebelumnya'         => $uji_sebelumnya,
+            'existing_foto_mekanik'  => $existing_foto_mekanik,
             'daftar_perusahaan'      => $daftar_perusahaan,
         ];
 
@@ -400,6 +408,22 @@ class Checklist extends CI_Controller
 
         // ── Untuk inspeksi ulang: gabungkan jawaban lama (yes/na) + baru (dari form) ──
         $uji_existing   = $this->pengajuan_model->get_uji($id_pengajuan);
+
+        // Validasi Foto Mekanik / Peserta Commissioning (Wajib)
+        $has_foto_mekanik = !empty($_FILES['foto_mekanik']['tmp_name']) && $_FILES['foto_mekanik']['error'] === UPLOAD_ERR_OK;
+        if (!$has_foto_mekanik && $uji_existing) {
+            $check_exist = $this->db
+                ->where('id_uji', $uji_existing->id_uji)
+                ->where('jenis', 'mekanik')
+                ->count_all_results('uji_foto');
+            if ($check_exist > 0) {
+                $has_foto_mekanik = true;
+            }
+        }
+        if (!$has_foto_mekanik) {
+            echo json_encode(['status' => 'error', 'message' => 'Foto Mekanik / Peserta Commissioning wajib di-upload.']);
+            return;
+        }
         $template_items = $this->checklist_model->get_items($id_template);
 
         if ($is_inspeksi_ulang && $uji_existing) {
