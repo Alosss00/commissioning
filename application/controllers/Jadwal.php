@@ -356,72 +356,14 @@ class Jadwal extends CI_Controller
     // =============================================
     private function _notif_mekanik($id_inspektor, $id_pengajuan, $tanggal_uji, $lokasi)
     {
-        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
-        if (!$pengajuan) return;
-
-        // Ambil info mekanik lapangan dari jadwal (jika sudah disimpan)
-        $jadwal = $this->db
-            ->select('j.*, mm.nama AS nama_mekanik_lap, mm.perusahaan AS perusahaan_mekanik')
-            ->from('jadwal_uji j')
-            ->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master', 'left')
-            ->where('j.id_pengajuan', $id_pengajuan)
-            ->where('j.status', 'scheduled')
-            ->get()->row();
-
-        $nama_mekanik_lap  = $jadwal->nama_mekanik_lap ?? '—';
-        $perusahaan_mekanik = $jadwal->perusahaan_mekanik ?? '—';
-
-        $this->load->library('email');
-        $from_email = $this->config->item('sikuk_email_from') ?: 'noreply@sikuk.app';
-        $from_name  = $this->config->item('sikuk_email_name') ?: 'TACTIC System';
-
-        $subject = '[TACTIC] Jadwal Inspeksi Baru — ' . $pengajuan->no_polisi;
-        $body    = '<b>Jadwal Inspeksi Kelayakan Kendaraan</b><br><br>'
-            . '<b>Kendaraan</b>&nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($pengajuan->no_polisi) . ' — ' . htmlspecialchars($pengajuan->jenis_kendaraan) . '<br>'
-            . '<b>Merk / Tipe</b> : ' . htmlspecialchars($pengajuan->merk) . ' ' . htmlspecialchars($pengajuan->tipe) . '<br>'
-            . '<b>Tanggal</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' . date('d M Y H:i', strtotime($tanggal_uji)) . ' WIB<br>'
-            . '<b>Lokasi</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($lokasi) . '<br>'
-            . '<b>No. Pengajuan</b>: #PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . '<br>'
-            . '<b>Mekanik</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ' . htmlspecialchars($nama_mekanik_lap) . ' (' . htmlspecialchars($perusahaan_mekanik) . ')<br><br>'
-            . 'Harap memastikan mekanik lapangan siap pada jadwal yang telah ditentukan.<br><br>'
-            . 'Terima kasih,<br><b>TACTIC System</b>';
-
-        // Kirim ke semua Planner/Safety (role 8)
-        $planners = $this->db
-            ->select('u.id_user, u.nama, u.email')
-            ->from('users u')
-            ->join('user_roles ur', 'ur.id_user = u.id_user', 'left')
-            ->group_start()
-            ->where('ur.id_role', 8)
-            ->or_where('u.id_role', 8)
-            ->group_end()
-            ->where('u.is_active', 1)
-            ->where('u.email !=', '')
-            ->group_by('u.id_user')
-            ->get()->result();
-
-        foreach ($planners as $p) {
-            if (!$p->email) continue;
-            $this->email->initialize(['mailtype' => 'html']);
-            $this->email->from($from_email, $from_name);
-            $this->email->to($p->email);
-            $this->email->subject($subject);
-            $this->email->message('Yth. ' . htmlspecialchars($p->nama) . ',<br><br>' . $body);
-            @$this->email->send();
-        }
-
-        // Juga kirim ke inspektor sistem (role 4) yang login
-        $inspektor = $this->db->where('id_user', $id_inspektor)->get('users')->row();
-        if ($inspektor && $inspektor->email) {
-            $this->email->initialize(['mailtype' => 'html']);
-            $this->email->from($from_email, $from_name);
-            $this->email->to($inspektor->email);
-            $this->email->subject('[TACTIC] Tugas Inspeksi — ' . $pengajuan->no_polisi);
-            $this->email->message(
-                'Yth. ' . htmlspecialchars($inspektor->nama) . ',<br><br>'
-                    . 'Anda dijadwalkan sebagai inspektor untuk:<br><br>' . $body
-            );
-            @$this->email->send();
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            try {
+                $this->load->library('sikuk_email');
+                $this->sikuk_email->notif_jadwal_mekanik($id_pengajuan, $id_inspektor, $tanggal_uji, $lokasi);
+                $this->sikuk_email->notif_progress($id_pengajuan, 'Dijadwalkan Inspeksi Lapangan (' . date('d M Y H:i', strtotime($tanggal_uji)) . ' WIB)');
+            } catch (Throwable $e) {
+                log_message('error', '[Jadwal Email] Exception: ' . $e->getMessage());
+            }
         }
     }
 

@@ -388,6 +388,7 @@ class Approval extends CI_Controller
                 'created_at'     => date('Y-m-d H:i:s'),
             ]);
             $this->_audit('approve_admin_ohs', $id_pengajuan);
+            $this->_notif_pemohon($id_pengajuan, 'admin_ohs', 'approve', $catatan);
             echo json_encode([
                 'status'          => 'success',
                 'aksi'            => 'approve',
@@ -431,6 +432,7 @@ class Approval extends CI_Controller
 
             if ($this->db->trans_status()) {
                 $this->_audit('release_stiker', $id_pengajuan);
+                $this->_notif_pemohon($id_pengajuan, 'release_stiker', 'approve', $nomor_stiker);
                 echo json_encode([
                     'status'   => 'success',
                     'aksi'     => 'approve',
@@ -472,6 +474,7 @@ class Approval extends CI_Controller
                     return;
                 }
                 $this->_audit('reject_ktt', $id_pengajuan);
+                $this->_notif_pemohon($id_pengajuan, 'ktt', 'reject', $catatan);
                 echo json_encode([
                     'status'   => 'success',
                     'aksi'     => 'reject',
@@ -547,6 +550,9 @@ class Approval extends CI_Controller
             }
 
             $this->_audit('approve_ktt', $id_pengajuan);
+            if ($new_status === 'acc_ktt') {
+                $this->_notif_pemohon($id_pengajuan, 'ktt', 'approve', $catatan);
+            }
 
             $redirect_url = site_url('approval/ktt');
             if ($new_status === 'acc_ktt' && $this->_has_access([1, 5], $roles)) {
@@ -621,6 +627,7 @@ class Approval extends CI_Controller
                 $aksi === 'approve' ? 'approve_verif_perbaikan' : 'reject_verif_perbaikan',
                 $id_pengajuan
             );
+            $this->_notif_pemohon($id_pengajuan, 'verif_perbaikan', $aksi, $catatan);
 
             $no = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
 
@@ -663,6 +670,7 @@ class Approval extends CI_Controller
         }
 
         $this->_audit(($aksi === 'approve' ? 'approve_' : 'reject_') . $level, $id_pengajuan);
+        $this->_notif_pemohon($id_pengajuan, $level, $aksi, $catatan);
 
         $no  = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
         $msg = $aksi === 'approve'
@@ -1007,37 +1015,58 @@ class Approval extends CI_Controller
     private function _notif_pemohon($id_pengajuan, $level, $aksi, $catatan = '')
     {
         if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
-            $this->load->library('sikuk_email');
-            if ($aksi === 'reject') {
-                switch ($level) {
-                    case 'dept_manager':
-                        $this->sikuk_email->notif_ditolak_manager($id_pengajuan, $catatan);
-                        break;
-                    case 'admin_ohs':
-                        $this->sikuk_email->notif_ditolak_admin_ohs_ke_manager($id_pengajuan, $catatan);
-                        break;
-                    case 'ohs_supt':
-                        $this->sikuk_email->notif_dikembalikan_ke_admin_ohs($id_pengajuan, 'OHS Superintendent', $catatan);
-                        break;
-                    case 'ktt':
-                        $this->sikuk_email->notif_dikembalikan_ke_admin_ohs($id_pengajuan, 'KTT', $catatan);
-                        break;
+            try {
+                $this->load->library('sikuk_email');
+                if ($aksi === 'reject') {
+                    switch ($level) {
+                        case 'dept_manager':
+                            $this->sikuk_email->notif_ditolak_manager($id_pengajuan, $catatan);
+                            break;
+                        case 'admin_ohs':
+                            $this->sikuk_email->notif_ditolak_admin_ohs_ke_manager($id_pengajuan, $catatan);
+                            break;
+                        case 'ohs_supt':
+                            $this->sikuk_email->notif_dikembalikan_ke_admin_ohs($id_pengajuan, 'OHS Superintendent', $catatan);
+                            break;
+                        case 'ktt':
+                            $this->sikuk_email->notif_dikembalikan_ke_admin_ohs($id_pengajuan, 'KTT', $catatan);
+                            break;
+                        case 'verif_perbaikan':
+                            $this->sikuk_email->notif_ditolak_manager($id_pengajuan, $catatan);
+                            break;
+                    }
+                } elseif ($aksi === 'approve') {
+                    switch ($level) {
+                        case 'dept_manager':
+                            $this->sikuk_email->notif_diterima_manager($id_pengajuan);
+                            $this->sikuk_email->notif_progress($id_pengajuan, 'Verifikasi Dokumen oleh Admin OHS');
+                            break;
+                        case 'admin_ohs':
+                            $this->sikuk_email->notif_progress($id_pengajuan, 'Penjadwalan Inspeksi');
+                            break;
+                        case 'ohs_supt':
+                            $this->sikuk_email->notif_diterima_ohs_supt($id_pengajuan);
+                            $this->sikuk_email->notif_progress($id_pengajuan, 'Final Approval oleh KTT');
+                            break;
+                        case 'ktt':
+                            $this->sikuk_email->notif_acc_ktt($id_pengajuan);
+                            $this->sikuk_email->notif_progress($id_pengajuan, 'ACC KTT — Menunggu Penerbitan Stiker');
+                            break;
+                        case 'release_stiker':
+                            $this->sikuk_email->notif_stiker_keluar($id_pengajuan);
+                            break;
+                        case 'verif_perbaikan':
+                            $this->sikuk_email->notif_progress($id_pengajuan, 'Verifikasi Perbaikan Diterima — Siap Pengujian Ulang');
+                            break;
+                    }
                 }
-            } elseif ($aksi === 'approve') {
-                $nama_tahapan_map = [
-                    'dept_manager'    => 'Verifikasi Dokumen oleh Admin OHS',
-                    'ohs_supt'        => 'Final Approval oleh KTT',
-                    'ktt'             => 'ACC KTT — Menunggu Penerbitan Stiker',
-                    'verif_perbaikan' => 'Verifikasi Perbaikan Diterima — Siap Pengujian Ulang',
-                ];
-                if (isset($nama_tahapan_map[$level])) {
-                    $this->sikuk_email->notif_progress($id_pengajuan, $nama_tahapan_map[$level]);
-                }
+                return;
+            } catch (Throwable $e) {
+                log_message('error', '[Approval _notif_pemohon] Exception: ' . $e->getMessage());
             }
-            return;
         }
 
-        // Fallback email sederhana
+        // Fallback email sederhana jika library tidak ada
         $p = $this->db
             ->select('pu.id_pengajuan, u.email AS email_pemohon, u.nama AS nama_pemohon, k.no_polisi')
             ->from('pengajuan_uji pu')

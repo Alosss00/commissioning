@@ -612,6 +612,21 @@ class Checklist extends CI_Controller
             return;
         }
 
+        // Kirim notifikasi email otomatis
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            try {
+                $this->load->library('sikuk_email');
+                if ($summary['lulus']) {
+                    $this->sikuk_email->notif_selesai_inspeksi($id_pengajuan);
+                    $this->sikuk_email->notif_progress($id_pengajuan, 'Lulus Inspeksi — Menunggu Review Admin OHS');
+                } else {
+                    $this->sikuk_email->notif_ditolak_admin_ohs_ke_manager($id_pengajuan, 'Hasil inspeksi kelayakan menyatakan unit TIDAK LULUS.');
+                }
+            } catch (Throwable $e) {
+                log_message('error', '[Checklist Submit Email] Exception: ' . $e->getMessage());
+            }
+        }
+
         // ── Susun pesan response ──────────────────────────────────────
         $prefix = $is_inspeksi_ulang ? 'Pengujian ulang selesai.' : 'Inspeksi selesai.';
 
