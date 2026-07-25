@@ -555,7 +555,6 @@ class Sikuk_email
      */
     private function _send($to, $subject, $body)
     {
-
         if (empty($to)) return false;
 
         try {
@@ -566,16 +565,42 @@ class Sikuk_email
             $this->CI->email->subject($subject);
             $this->CI->email->message($body);
             $this->CI->email->set_mailtype('html');
-            $result = $this->CI->email->send(false); // false = jangan throw exception
-            if (!$result) {
-                $debugger = $this->CI->email->print_debugger(['headers', 'subject', 'body']);
-                log_message('error', '[Sikuk_email] Gagal kirim ke ' . $to . ' | ' . $debugger);
-                error_log("\n=================== [EMAIL ERROR DEBUGGER] ===================\n" . strip_tags($debugger) . "\n=============================================================\n");
+
+            $result = $this->CI->email->send(false);
+
+            if ($result) {
+                $msg_success = '[Sikuk_email] STATUS: TERKIRIM | Ke: ' . $to . ' | Subject: ' . $subject;
+                log_message('info', $msg_success);
+                error_log($msg_success);
+            } else {
+                $raw_debugger   = $this->CI->email->print_debugger([]);
+                $clean_debugger = strip_tags($raw_debugger);
+
+                $lines       = explode("\n", str_replace("\r", "", $clean_debugger));
+                $error_lines = [];
+                foreach ($lines as $line) {
+                    $trimmed = trim($line);
+                    if (empty($trimmed)) continue;
+                    if (preg_match('/^(Date|From|Return-Path|To|Subject|Reply-To|User-Agent|X-Sender|X-Mailer|X-Priority|Message-ID|Mime-Version|Content-Type|Content-Transfer-Encoding):/i', $trimmed)) {
+                        continue;
+                    }
+                    if (strpos($trimmed, 'This is a multi-part message') !== false || strpos($trimmed, '--B_ALT_') !== false) {
+                        continue;
+                    }
+                    $error_lines[] = $trimmed;
+                }
+
+                $err_summary = !empty($error_lines) ? implode(' | ', array_slice($error_lines, 0, 3)) : 'SMTP Authentication or Connection Failed';
+                $msg_fail    = '[Sikuk_email] STATUS: GAGAL | Ke: ' . $to . ' | Error: ' . $err_summary;
+                log_message('error', $msg_fail);
+                error_log($msg_fail);
             }
+
             return $result;
         } catch (Throwable $e) {
-            log_message('error', '[Sikuk_email] Exception: ' . $e->getMessage());
-            error_log("\n=================== [EMAIL EXCEPTION] ===================\n" . $e->getMessage() . "\n=========================================================\n");
+            $msg_exc = '[Sikuk_email] STATUS: EXCEPTION | Ke: ' . $to . ' | Error: ' . $e->getMessage();
+            log_message('error', $msg_exc);
+            error_log($msg_exc);
             return false;
         }
     }
