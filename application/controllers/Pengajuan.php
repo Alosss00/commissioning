@@ -690,7 +690,8 @@ class Pengajuan extends CI_Controller
         foreach ($jenis_list as $jenis) {
             $field = 'lampiran_' . $jenis;
             if (empty($_FILES[$field]['name'])) continue;
-            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf', 'max_size' => 5120, 'file_name' => $jenis . '_' . time(), 'overwrite' => true]);
+            $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
+            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf', 'max_size' => 5120, 'file_name' => $unique_name, 'overwrite' => false]);
             if (!$this->upload->do_upload($field)) {
                 $errors[] = $this->upload->display_errors('', '');
             } else {
@@ -706,12 +707,13 @@ class Pengajuan extends CI_Controller
     {
         $path = FCPATH . 'uploads/lampiran/' . $id_pengajuan . '/';
         if (!is_dir($path)) mkdir($path, 0755, true);
+        $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
         $this->upload->initialize([
             'upload_path'   => $path,
             'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|xls|xlsx',
             'max_size'      => 10240,   // 10MB — dokumen bisa lebih besar
-            'file_name'     => $jenis . '_' . time(),
-            'overwrite'     => true,
+            'file_name'     => $unique_name,
+            'overwrite'     => false,
         ]);
         if (!$this->upload->do_upload($field_name)) {
             return $this->upload->display_errors('', '');
@@ -859,12 +861,14 @@ class Pengajuan extends CI_Controller
             ? $doc_types
             : $img_types;
 
+        $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
+
         $this->upload->initialize([
             'upload_path'   => $path,
             'allowed_types' => $allowed,
             'max_size'      => ($jenis === 'maintenance_record') ? 10240 : 5120,
-            'file_name'     => $jenis . '_' . time(),
-            'overwrite'     => true,
+            'file_name'     => $unique_name,
+            'overwrite'     => false,
         ]);
 
         if (!$this->upload->do_upload($field_name)) {
@@ -882,12 +886,8 @@ class Pengajuan extends CI_Controller
             ->row();
 
         if ($existing) {
-            // Hapus file fisik lama jika ada dan berbeda
-            $old_file = FCPATH . $existing->file_path;
-            if (file_exists($old_file) && $existing->file_path !== $new_path) {
-                @unlink($old_file);
-            }
-            // Update record
+            // File fisik lama TIDAK DIHAPUS (disimpan permanen di server)
+            // Cukup perbarui pointer path ke file baru di database
             $this->db
                 ->where('id_lampiran', $existing->id_lampiran)
                 ->update('pengajuan_lampiran', [

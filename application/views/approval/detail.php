@@ -253,6 +253,7 @@
                                                             <img src="<?= base_url($lamp->file_path) ?>"
                                                                 class="img-fluid rounded mb-1"
                                                                 style="max-height:80px;object-fit:cover;width:100%;"
+                                                                onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'80\' viewBox=\'0 0 100 80\'><rect width=\'100%\' height=\'100%\' fill=\'%23f8f9fa\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23dc3545\' font-size=\'10\' font-family=\'sans-serif\'>File Tidak Ada</text></svg>';"
                                                                 alt="<?= $label ?>">
                                                         </a>
                                                     <?php else: ?>
