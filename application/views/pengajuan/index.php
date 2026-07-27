@@ -95,9 +95,10 @@
                                         <th width="40">No</th>
                                         <th>ID</th>
                                         <th>Pemohon</th>
+                                        <th>No. Unit</th>
                                         <th>No. Polisi</th>
                                         <th>Kendaraan</th>
-                                        <th>Unit</th>
+                                        <th>Tipe Unit</th>
                                         <th>Status</th>
                                         <th>Tgl Pengajuan</th>
                                         <th width="140">Aksi</th>
@@ -599,7 +600,7 @@
                     var ext = l.file_path.split('.').pop().toLowerCase();
                     var isImg = ['jpg', 'jpeg', 'png', 'webp'].indexOf(ext) >= 0;
                     var preview = isImg ?
-                        '<a href="' + baseUrl + l.file_path + '" target="_blank"><img src="' + baseUrl + l.file_path + '" class="img-fluid rounded mb-1" style="height:80px;width:100%;object-fit:cover;" onerror="this.onerror=null;this.src=\'data:image/svg+xml;utf8,<svg xmlns=\\\'http://www.w3.org/2000/svg\\\' width=\\\'100\\\' height=\\\'80\\\' viewBox=\\\'0 0 100 80\\\ '><rect width=\\\'100%\\\' height=\\\'100%\\\' fill=\\\'%23f8f9fa\\\ '/><text x=\\\'50%\\\' y=\\\'50%\\\' dominant-baseline=\\\'middle\\\' text-anchor=\\\'middle\\\' fill=\\\'%23dc3545\\\' font-size=\\\'10\\\' font-family=\\\'sans-serif\\\ '>File Tidak Ada</text></svg>\';"></a>' :
+                        '<a href="' + baseUrl + l.file_path + '" target="_blank"><img src="' + baseUrl + l.file_path + '" class="img-fluid rounded mb-1" style="height:80px;width:100%;object-fit:cover;" onerror="this.onerror=null;this.src=\'' + baseUrl + 'assets/img/img-error.png\';"></a>' :
                         '<a href="' + baseUrl + l.file_path + '" target="_blank" class="d-flex align-items-center justify-content-center" style="height:80px;"><i class="bi bi-file-earmark-pdf text-danger fs-1"></i></a>';
                     lampiranHtml += '<div class="col-6 col-md-4 col-lg-2"><div class="border rounded text-center p-2">' + preview + '<div class="small text-muted fw-semibold mt-1">' + (jenisLabel[l.jenis_lampiran] || l.jenis_lampiran) + '</div></div></div>';
                 });

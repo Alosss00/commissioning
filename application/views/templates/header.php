@@ -262,7 +262,7 @@ $primary_label = isset($role_labels[$_sess_role]) ? $role_labels[$_sess_role] : 
                     <a class="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
                         <i class="bi bi-bell"></i>
                         <?php if ($notif_count > 0): ?>
-                    <script src="<?= base_url('assets/js/dropzone.min.js') ?>"></script>
+                            <span class="badge bg-danger badge-number"><?= $notif_count ?></span>
                         <?php endif; ?>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
