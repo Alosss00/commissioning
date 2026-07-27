@@ -540,9 +540,12 @@ $config['proxy_ips'] = '';
 date_default_timezone_set('Asia/Makassar');
 
 $config['sikuk_email_from'] = 'alos123@gmail.com';
-$config['sikuk_email_name'] = 'Mining Appointment System';
+$config['sikuk_email_name'] = 'Commissioning Appointment System';
 
-// ── SMTP Gmail ────────────────────────────────────────────────────────
+// ── SMTP Gmail Configuration ──────────────────────────────────────────
+// Email: alos123@gmail.com
+// Password: Aloss123456789
+// App Password: kitwioldyljouoct
 $config['sikuk_smtp_host']   = 'smtp.gmail.com';
 $config['sikuk_smtp_port']   = 587;
 $config['sikuk_smtp_crypto'] = 'tls';
