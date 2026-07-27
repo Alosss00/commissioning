@@ -539,12 +539,12 @@ $config['rewrite_short_tags'] = FALSE;
 $config['proxy_ips'] = '';
 date_default_timezone_set('Asia/Makassar');
 
-$config['sikuk_email_from'] = 'archi.info@archimining.com';
+$config['sikuk_email_from'] = 'alos123@gmail.com';
 $config['sikuk_email_name'] = 'Mining Appointment System';
 
-// ── SMTP Office365 ────────────────────────────────────────────────────────
-$config['sikuk_smtp_host']   = 'smtp-legacy.office365.com';
+// ── SMTP Gmail ────────────────────────────────────────────────────────
+$config['sikuk_smtp_host']   = 'smtp.gmail.com';
 $config['sikuk_smtp_port']   = 587;
 $config['sikuk_smtp_crypto'] = 'tls';
-$config['sikuk_smtp_user']   = 'archi.info@archimining.com';
-$config['sikuk_smtp_pass']   = 'V!074968784470ax';
+$config['sikuk_smtp_user']   = 'alos123@gmail.com';
+$config['sikuk_smtp_pass']   = 'kitw iold yljo uoct';
