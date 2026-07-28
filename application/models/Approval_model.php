@@ -41,7 +41,8 @@ class Approval_model extends CI_Model
             $this->db->or_like('u.nama',   $kw);
             $this->db->group_end();
         }
-        $this->db->order_by('pu.tanggal_pengajuan', 'ASC');
+        $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
+        $this->db->order_by('pu.id_pengajuan', 'DESC');
         return $this->db->get()->result();
     }
 
@@ -129,7 +130,8 @@ class Approval_model extends CI_Model
             $this->db->or_like('u.nama',   $kw);
             $this->db->group_end();
         }
-        $this->db->order_by('pu.tanggal_pengajuan', 'ASC');
+        $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
+        $this->db->order_by('pu.id_pengajuan', 'DESC');
         return $this->db->get()->result();
     }
 
