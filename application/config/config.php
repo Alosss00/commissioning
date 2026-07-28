@@ -539,15 +539,16 @@ $config['rewrite_short_tags'] = FALSE;
 $config['proxy_ips'] = '';
 date_default_timezone_set('Asia/Makassar');
 
-$config['sikuk_email_from'] = 'alosjo123@gmail.com';
-$config['sikuk_email_name'] = 'Commissioning Appointment System';
-
-// ── SMTP Gmail Configuration ──────────────────────────────────────────
-// Email: alosjo123@gmail.com
-// Password: Aloss123456789
-// App Password: bubhmqwjuzrtvfop
-$config['sikuk_smtp_host']   = 'smtp.gmail.com';
-$config['sikuk_smtp_port']   = 587;
-$config['sikuk_smtp_crypto'] = 'tls';
-$config['sikuk_smtp_user']   = 'alosjo123@gmail.com';
-$config['sikuk_smtp_pass']   = 'bubhmqwjuzrtvfop';
+// ── SMTP & Email Configuration ──────────────────────────────────────────
+// Muat konfigurasi sensitif dari email_env.php (diabaikan oleh git)
+if (file_exists(APPPATH . 'config/email_env.php')) {
+    require_once APPPATH . 'config/email_env.php';
+} else {
+    $config['sikuk_email_from'] = 'alosjo123@gmail.com';
+    $config['sikuk_email_name'] = 'Commissioning Appointment System';
+    $config['sikuk_smtp_host']   = 'smtp.gmail.com';
+    $config['sikuk_smtp_port']   = 587;
+    $config['sikuk_smtp_crypto'] = 'tls';
+    $config['sikuk_smtp_user']   = 'alosjo123@gmail.com';
+    $config['sikuk_smtp_pass']   = '';
+}
