@@ -255,19 +255,17 @@ class Pengajuan extends CI_Controller
         }
 
         // ════════════════════════════════════════════════════════
-        // UPLOAD LAMPIRAN — untuk Unit Baru
+        // UPLOAD LAMPIRAN — untuk Unit Baru & Unit Lama
         // ════════════════════════════════════════════════════════
-        if ($is_unit_baru) {
-            $upload_errors = $this->_upload_lampiran($id_pengajuan);
-            if (!empty($upload_errors)) {
-                // Rollback: hapus pengajuan & kendaraan
-                $this->pengajuan_model->delete_pengajuan($id_pengajuan);
-                $this->db->where('id_kendaraan', $id_kendaraan)->delete('kendaraan');
-                
-                $error_html = '<ul><li>' . implode('</li><li>', $upload_errors) . '</li></ul>';
-                echo json_encode($response('error', 'Gagal upload lampiran:<br>' . $error_html));
-                return;
-            }
+        $upload_errors = $this->_upload_lampiran($id_pengajuan);
+        if (!empty($upload_errors) && $is_unit_baru) {
+            // Rollback jika unit baru gagal upload wajib
+            $this->pengajuan_model->delete_pengajuan($id_pengajuan);
+            $this->db->where('id_kendaraan', $id_kendaraan)->delete('kendaraan');
+            
+            $error_html = '<ul><li>' . implode('</li><li>', $upload_errors) . '</li></ul>';
+            echo json_encode($response('error', 'Gagal upload lampiran:<br>' . $error_html));
+            return;
         }
 
         // ════════════════════════════════════════════════════════
@@ -691,7 +689,7 @@ class Pengajuan extends CI_Controller
             $field = 'lampiran_' . $jenis;
             if (empty($_FILES[$field]['name'])) continue;
             $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
-            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf', 'max_size' => 5120, 'file_name' => $unique_name, 'overwrite' => false]);
+            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf|webp|JPG|JPEG|PNG|PDF|WEBP', 'max_size' => 10240, 'file_name' => $unique_name, 'overwrite' => false]);
             if (!$this->upload->do_upload($field)) {
                 $errors[] = $this->upload->display_errors('', '');
             } else {
@@ -710,8 +708,8 @@ class Pengajuan extends CI_Controller
         $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
         $this->upload->initialize([
             'upload_path'   => $path,
-            'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|xls|xlsx',
-            'max_size'      => 10240,   // 10MB — dokumen bisa lebih besar
+            'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|xls|xlsx|webp|JPG|JPEG|PNG|PDF|DOC|DOCX|XLS|XLSX|WEBP',
+            'max_size'      => 10240,   // 10MB
             'file_name'     => $unique_name,
             'overwrite'     => false,
         ]);

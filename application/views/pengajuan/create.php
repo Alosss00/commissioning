@@ -1242,25 +1242,26 @@
                     fd.append('perusahaan', $('#perusahaan_' + s).val());
                     fd.append('tahun', $tab.find('.inp-tahun').val());
 
-                    // File upload — skip jika N/A
-                    if (!$('#na_stnk_' + s).prop('checked')) {
-                        var elStnk = document.getElementById('lampiran_stnk_' + s);
-                        if (elStnk && elStnk.files[0]) fd.append('lampiran_stnk', elStnk.files[0]);
-                    }
-                    ['unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'].forEach(function(fbase) {
-                        if (!$('#na_' + fbase + '_' + s).prop('checked')) {
-                            var el = document.getElementById('lampiran_' + fbase + '_' + s);
-                            if (el && el.files[0]) fd.append('lampiran_' + fbase, el.files[0]);
-                        }
-                    });
-
-                    var elMaint = document.getElementById('lampiran_maintenance_record_' + s);
-                    if (elMaint && elMaint.files[0]) fd.append('lampiran_maintenance_record', elMaint.files[0]);
                 } else {
                     fd.append('id_kendaraan', $('#id_kendaraan_' + s).val());
                     fd.append('nomor_rangka', $tab.find('.inp-nomor-rangka-lama').val());
                     fd.append('nomor_mesin', $tab.find('.inp-nomor-mesin-lama').val());
                 }
+
+                // File upload — lampiran STNK & foto 4 sisi & maintenance record (Unit Baru & Unit Lama)
+                if (!$('#na_stnk_' + s).prop('checked')) {
+                    var elStnk = document.getElementById('lampiran_stnk_' + s);
+                    if (elStnk && elStnk.files[0]) fd.append('lampiran_stnk', elStnk.files[0]);
+                }
+                ['unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'].forEach(function(fbase) {
+                    if (!$('#na_' + fbase + '_' + s).prop('checked')) {
+                        var el = document.getElementById('lampiran_' + fbase + '_' + s);
+                        if (el && el.files[0]) fd.append('lampiran_' + fbase, el.files[0]);
+                    }
+                });
+
+                var elMaint = document.getElementById('lampiran_maintenance_record_' + s);
+                if (elMaint && elMaint.files[0]) fd.append('lampiran_maintenance_record', elMaint.files[0]);
 
                 $.ajax({
                     url: '<?= site_url('pengajuan/store') ?>',
