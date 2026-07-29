@@ -40,6 +40,7 @@ $route['pengajuan/resubmit']            = 'Pengajuan/resubmit';
 $route['pengajuan/get_data']            = 'Pengajuan/get_data';
 $route['pengajuan/detail/(:num)']       = 'Pengajuan/detail/$1';
 $route['pengajuan/get_kendaraan_info']  = 'Pengajuan/get_kendaraan_info';
+$route['pengajuan/get_export_history']  = 'Pengajuan/get_export_history';
 
 
 // =========================
