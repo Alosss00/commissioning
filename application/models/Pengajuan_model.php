@@ -205,7 +205,7 @@ class Pengajuan_model extends CI_Model
                 t.nama_tipe AS jenis_kendaraan,
                 u_pem.nama AS nama_pemohon,
                 u_pem.email AS email_pemohon,
-                j.tgl_rencana AS tgl_jadwal_rencana,
+                j.tanggal_uji AS tgl_jadwal_rencana,
                 j.created_at AS tgl_jadwal_dibuat,
                 COALESCE(uk.nama_inspektor, mm.nama) AS nama_mekanik,
                 COALESCE(uk.perusahaan_inspektor, mm.perusahaan) AS perusahaan_mekanik,
