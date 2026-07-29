@@ -1,7 +1,9 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <main id="main" class="main">
 
     <div class="pagetitle">
-        <h1>Daftar Pengajuan</h1>
+        <h1>Daftar Pengajuan Uji Kelayakan</h1>
         <nav>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<?= site_url('dashboard') ?>">Home</a></li>
@@ -12,29 +14,36 @@
 
     <section class="section">
         <div class="row">
-            <div class="col-12">
+            <div class="col-lg-12">
+
                 <div class="card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center pt-3 mb-3">
-                            <h5 class="card-title mb-0">Daftar Pengajuan Uji Kelayakan</h5>
+                    <div class="card-body pt-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <h5 class="card-title p-0 m-0">Pengajuan Uji Kelayakan (Commissioning)</h5>
                             <?php
                             $roles_sess = $this->session->userdata('roles');
                             $role_int   = (int)$this->session->userdata('role');
                             $_r = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
                             $canCreate = in_array(1, $_r) || in_array(7, $_r);
                             ?>
-                            <?php if ($canCreate): ?>
-                                <a href="<?= site_url('pengajuan/create') ?>" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-plus-circle me-1"></i>Buat Pengajuan
-                                </a>
-                            <?php endif; ?>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-success btn-sm fw-semibold" id="btnExportExcelHistory">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Export History Excel
+                                </button>
+                                <?php if ($canCreate): ?>
+                                    <a href="<?= site_url('pengajuan/create') ?>" class="btn btn-primary btn-sm fw-semibold">
+                                        <i class="bi bi-plus-circle me-1"></i>Buat Pengajuan
+                                    </a>
+                                <?php endif; ?>
+                            </div>
                         </div>
 
                         <!-- Filter -->
                         <div class="row g-2 mb-3">
                             <div class="col-sm-6 col-md-3">
                                 <select class="form-select form-select-sm" id="filterStatus">
-                                    <option value="">— Semua Status —</option>
+                                    <option value="">— Semua Status Pengajuan —</option>
                                     <option value="draft">Draft</option>
                                     <option value="pengajuan_baru">Pengajuan Baru</option>
                                     <option value="pengajuan_ulang">Pengajuan Ulang</option>
@@ -55,20 +64,31 @@
                                 </select>
                             </div>
                             <div class="col-sm-6 col-md-3">
+                                <select class="form-select form-select-sm" id="filterPerusahaan">
+                                    <option value="">— Semua Perusahaan / Dept —</option>
+                                    <?php if (!empty($perusahaan)): ?>
+                                        <?php foreach ($perusahaan as $p): ?>
+                                            <option value="<?= html_escape($p->nama_perusahaan) ?>"><?= html_escape($p->nama_perusahaan) ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                            </div>
+                            <div class="col-sm-6 col-md-2">
                                 <select class="form-select form-select-sm" id="filterJenis">
-                                    <option value="">— Semua Jenis —</option>
-                                    <option>Light Vehicle</option>
-                                    <option>Light Truck</option>
-                                    <option>Bus</option>
-                                    <option>Dump Truck</option>
-                                    <option>Haul Truck</option>
-                                    <option>Excavator</option>
-                                    <option>Bulldozer</option>
-                                    <option>Motor Grader</option>
-                                    <option>Wheel Loader</option>
-                                    <option>Forklift</option>
-                                    <option>Crane Truck</option>
-                                    <option>Compactor</option>
+                                    <option value="">— Semua Tipe Unit —</option>
+                                    <?php if (!empty($tipe_unit)): ?>
+                                        <?php foreach ($tipe_unit as $tu): ?>
+                                            <option value="<?= html_escape($tu->nama_tipe) ?>"><?= html_escape($tu->nama_tipe) ?></option>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <option>Light Vehicle</option>
+                                        <option>Light Truck</option>
+                                        <option>Bus</option>
+                                        <option>Dump Truck</option>
+                                        <option>Excavator</option>
+                                        <option>Bulldozer</option>
+                                        <option>Motor Grader</option>
+                                    <?php endif; ?>
                                 </select>
                             </div>
                             <div class="col-sm-6 col-md-2">
@@ -77,12 +97,12 @@
                             <div class="col-sm-6 col-md-2">
                                 <input type="text" class="form-control form-control-sm flatpickr-date" id="filterTglSampai" placeholder="Sampai Tanggal">
                             </div>
-                            <div class="col-sm-12 col-md-2 d-flex gap-2">
-                                <button class="btn btn-primary btn-sm flex-fill" id="btnFilter">
+                            <div class="col-sm-12 col-md-12 d-flex justify-content-end gap-2 mt-2">
+                                <button class="btn btn-primary btn-sm px-3" id="btnFilter">
                                     <i class="bi bi-search me-1"></i>Filter
                                 </button>
-                                <button class="btn btn-outline-secondary btn-sm" id="btnReset" title="Reset">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                <button class="btn btn-outline-secondary btn-sm px-3" id="btnReset" title="Reset">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
                                 </button>
                             </div>
                         </div>
@@ -229,9 +249,10 @@
                 url: '<?= site_url('pengajuan/get_data') ?>',
                 type: 'POST',
                 data: function(d) {
-                    d.filter_status = $('#filterStatus').val();
-                    d.filter_jenis = $('#filterJenis').val();
-                    d.filter_tgl_dari = $('#filterTglDari').val();
+                    d.filter_status     = $('#filterStatus').val();
+                    d.filter_jenis      = $('#filterJenis').val();
+                    d.filter_departemen = $('#filterPerusahaan').val();
+                    d.filter_tgl_dari   = $('#filterTglDari').val();
                     d.filter_tgl_sampai = $('#filterTglSampai').val();
                     d[window.csrfTokenName] = window.csrfTokenHash;
                 },
@@ -299,10 +320,152 @@
             table.ajax.reload();
         });
         $('#btnReset').on('click', function() {
-            $('#filterStatus, #filterJenis').val('');
+            $('#filterStatus, #filterJenis, #filterPerusahaan').val('');
             $('#filterTglDari, #filterTglSampai').val('');
             table.ajax.reload();
         });
+
+        // ── Export Excel History — format Workflow Lifecycle ─────────────────────
+        $('#btnExportExcelHistory').on('click', function() {
+            var $btn = $(this);
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Mengambil Data...');
+
+            var postData = {
+                status:     $('#filterStatus').val(),
+                jenis:      $('#filterJenis').val(),
+                departemen: $('#filterPerusahaan').val(),
+                tgl_dari:   $('#filterTglDari').val(),
+                tgl_sampai: $('#filterTglSampai').val(),
+                search:     $('#tabelPengajuan_filter input').val() || ''
+            };
+            postData[window.csrfTokenName] = window.csrfTokenHash;
+
+            $.ajax({
+                url: '<?= site_url('pengajuan/get_export_history') ?>',
+                type: 'POST',
+                data: postData,
+                dataType: 'json',
+                success: function(res) {
+                    $btn.prop('disabled', false).html('<i class="bi bi-file-earmark-excel me-1"></i>Export History Excel');
+                    if (res && res.csrf_hash) {
+                        window.csrfTokenHash = res.csrf_hash;
+                    }
+                    if (!res || res.status !== 'success') {
+                        toastr.error('Gagal mengambil data history.');
+                        return;
+                    }
+                    generateHistoryPengajuanExcel(res.data);
+                },
+                error: function() {
+                    $btn.prop('disabled', false).html('<i class="bi bi-file-earmark-excel me-1"></i>Export History Excel');
+                    toastr.error('Terjadi kesalahan server saat mengekspor data.');
+                }
+            });
+        });
+
+        function generateHistoryPengajuanExcel(rows) {
+            if (!rows || !rows.length) {
+                toastr.warning('Tidak ada data history pengajuan untuk diekspor.');
+                return;
+            }
+
+            var headers = [
+                'No.',
+                'ID Pengajuan',
+                'Tanggal Pengajuan',
+                'Pemohon',
+                'Perusahaan / Departemen',
+                'Tipe Commissioning',
+                'Tipe Akses',
+                'Jenis / Tipe Unit',
+                'Merk Unit',
+                'Model Unit',
+                'Nomor Unit',
+                'Nomor Polisi',
+                'Status Pengajuan',
+                'Approve Dept Manager',
+                'Catatan Manager',
+                'Jadwal Rencana Inspeksi',
+                'Inspektor / Mekanik',
+                'Hasil Inspeksi Mekanik',
+                'Catatan Inspeksi',
+                'Approve OHS Supt',
+                'Catatan OHS',
+                'Nomor Stiker',
+                'Tanggal Stiker Rilis',
+                'Masa Berlaku Expired'
+            ];
+
+            var data = [headers];
+
+            rows.forEach(function(r, idx) {
+                var statusLabel = r.status ? r.status.replace(/_/g, ' ').toUpperCase() : 'DRAFT';
+                var tipeCommissioning = (r.tipe_pengajuan === 'recommissioning') ? 'Re-Commissioning' : 'New Commissioning';
+
+                data.push([
+                    idx + 1,
+                    'PGJ-' + String(r.id_pengajuan).padStart(4, '0'),
+                    r.tanggal_pengajuan || '-',
+                    r.nama_pemohon || '-',
+                    r.perusahaan || '-',
+                    tipeCommissioning,
+                    (r.tipe_akses || '-').toUpperCase(),
+                    r.jenis_kendaraan || '-',
+                    r.merk || '-',
+                    r.model_unit || '-',
+                    r.nomor_unit || '-',
+                    r.no_polisi || '-',
+                    statusLabel,
+                    r.tgl_approve_mgr || '-',
+                    r.catatan_mgr || '-',
+                    r.tgl_jadwal_rencana || '-',
+                    r.nama_mekanik || '-',
+                    r.hasil_inspeksi ? r.hasil_inspeksi.toUpperCase() : '-',
+                    r.catatan_inspeksi || '-',
+                    r.tgl_approve_ohs || '-',
+                    r.catatan_ohs || '-',
+                    r.nomor_stiker || '-',
+                    r.tanggal_rilis_stiker || '-',
+                    r.tgl_expired_stiker || '-'
+                ]);
+            });
+
+            var ws = XLSX.utils.aoa_to_sheet(data);
+
+            ws['!cols'] = [
+                { wch: 5 },  // No
+                { wch: 15 }, // ID Pengajuan
+                { wch: 18 }, // Tanggal Pengajuan
+                { wch: 22 }, // Pemohon
+                { wch: 30 }, // Perusahaan / Dept
+                { wch: 20 }, // Tipe Commissioning
+                { wch: 15 }, // Tipe Akses
+                { wch: 20 }, // Jenis Unit
+                { wch: 18 }, // Merk
+                { wch: 18 }, // Model
+                { wch: 15 }, // Nomor Unit
+                { wch: 15 }, // Nomor Polisi
+                { wch: 25 }, // Status
+                { wch: 20 }, // Approve Mgr
+                { wch: 25 }, // Catatan Mgr
+                { wch: 20 }, // Jadwal Rencana
+                { wch: 22 }, // Mekanik
+                { wch: 20 }, // Hasil Inspeksi
+                { wch: 25 }, // Catatan Inspeksi
+                { wch: 20 }, // Approve OHS
+                { wch: 25 }, // Catatan OHS
+                { wch: 18 }, // Nomor Stiker
+                { wch: 20 }, // Tgl Rilis
+                { wch: 20 }  // Tgl Expired
+            ];
+
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'History Pengajuan');
+
+            var dateToday = new Date().toISOString().slice(0, 10);
+            var fname = 'History_Pengajuan_Commissioning_' + dateToday + '.xlsx';
+            XLSX.writeFile(wb, fname);
+        }
 
         // ── Detail Modal ──────────────────────────────────────────────────
         $(document).on('click', '.btn-detail', function() {

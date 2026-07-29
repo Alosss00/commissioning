@@ -157,4 +157,52 @@ class Pengajuan_model extends CI_Model
     {
         return $this->db->where('status', $status)->count_all_results('pengajuan_uji');
     }
+
+    public function get_export_history_data($filters = [])
+    {
+        $this->db->select(
+            'pu.id_pengajuan, pu.tanggal_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.tujuan, pu.status, '
+            . 'pu.nomor_stiker, pu.tanggal_rilis_stiker, pu.tgl_expired_stiker, '
+            . 'k.no_polisi, k.nomor_unit, k.merk, k.model_unit, k.tipe, k.tahun, k.perusahaan, '
+            . 't.nama_tipe AS jenis_kendaraan, '
+            . 'u_pem.nama AS nama_pemohon, u_pem.email AS email_pemohon, '
+            . 'j.tgl_rencana AS tgl_jadwal_rencana, j.created_at AS tgl_jadwal_dibuat, '
+            . 'mm.nama AS nama_mekanik, mm.perusahaan AS perusahaan_mekanik, '
+            . 'hu.rekomendasi AS hasil_inspeksi, hu.catatan AS catatan_inspeksi, hu.updated_at AS tgl_inspeksi, '
+            . 'pa_mgr.created_at AS tgl_approve_mgr, pa_mgr.catatan AS catatan_mgr, '
+            . 'pa_ohs.created_at AS tgl_approve_ohs, pa_ohs.catatan AS catatan_ohs'
+        );
+        $this->db->from('pengajuan_uji pu');
+        $this->db->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left');
+        $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
+        $this->db->join('users u_pem',        'u_pem.id_user = pu.id_pemohon',             'left');
+        $this->db->join('jadwal_uji j',       'j.id_pengajuan = pu.id_pengajuan',          'left');
+        $this->db->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master',        'left');
+        $this->db->join('hasil_uji hu',       'hu.id_pengajuan = pu.id_pengajuan',          'left');
+        $this->db->join('pengajuan_approval pa_mgr', "pa_mgr.id_pengajuan = pu.id_pengajuan AND pa_mgr.level_approval = 'dept_manager'", 'left');
+        $this->db->join('pengajuan_approval pa_ohs', "pa_ohs.id_pengajuan = pu.id_pengajuan AND pa_ohs.level_approval = 'ohs_supt'",     'left');
+
+        if (!empty($filters['status']))      $this->db->where('pu.status', $filters['status']);
+        if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']);
+        if (!empty($filters['departemen']))  $this->db->where('k.perusahaan', $filters['departemen']);
+        if (!empty($filters['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filters['tgl_dari']);
+        if (!empty($filters['tgl_sampai'])) $this->db->where('DATE(pu.tanggal_pengajuan) <=', $filters['tgl_sampai']);
+
+        if (!empty($filters['search'])) {
+            $kw = $filters['search'];
+            $this->db->group_start();
+            $this->db->like('k.no_polisi',       $kw);
+            $this->db->or_like('k.nomor_unit',    $kw);
+            $this->db->or_like('u_pem.nama',      $kw);
+            $this->db->or_like('t.nama_tipe',     $kw);
+            $this->db->or_like('k.merk',          $kw);
+            $this->db->or_like('k.perusahaan',    $kw);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
+        $this->db->order_by('pu.id_pengajuan', 'DESC');
+
+        return $this->db->get()->result();
+    }
 }

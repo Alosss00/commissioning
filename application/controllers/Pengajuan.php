@@ -69,12 +69,45 @@ class Pengajuan extends CI_Controller
 
     public function index()
     {
-        $data['title'] = 'Daftar Pengajuan';
-        $data['user']  = $this->session->userdata();
+        $data['title']      = 'Daftar Pengajuan';
+        $data['user']       = $this->session->userdata();
+        $data['perusahaan'] = $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result();
+        $data['tipe_unit']  = $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result();
         $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
         $this->load->view('pengajuan/index',   $data);
         $this->load->view('templates/footer',  $data);
+    }
+
+    // AJAX — Export Data History Pengajuan ke Excel
+    public function get_export_history()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $filters = [
+            'status'     => trim($this->input->post('status')     ?? ''),
+            'jenis'      => trim($this->input->post('jenis')      ?? ''),
+            'departemen' => trim($this->input->post('departemen') ?? ''),
+            'tgl_dari'   => trim($this->input->post('tgl_dari')   ?? ''),
+            'tgl_sampai' => trim($this->input->post('tgl_sampai') ?? ''),
+            'search'     => trim($this->input->post('search')     ?? ''),
+        ];
+
+        $roles     = $this->_user_roles();
+        $user_dept = $this->session->userdata('departemen');
+
+        if ($this->_has_role([7, 2], $roles) && !empty($user_dept)) {
+            $filters['departemen'] = $user_dept;
+        }
+
+        $rows = $this->pengajuan_model->get_export_history_data($filters);
+
+        $output = [
+            'status'    => 'success',
+            'data'      => $rows,
+            'csrf_hash' => $this->security->get_csrf_hash(),
+        ];
+        echo json_encode($output);
     }
 
     // Hanya Admin Departemen (7) & Super Admin (1)
@@ -380,6 +413,7 @@ class Pengajuan extends CI_Controller
         $filters = [
             'status'      => $this->input->post('filter_status'),
             'jenis'       => $this->input->post('filter_jenis'),
+            'departemen'  => $this->input->post('filter_departemen'),
             'tgl_dari'    => $this->input->post('filter_tgl_dari'),
             'tgl_sampai'  => $this->input->post('filter_tgl_sampai'),
             'search'      => $this->input->post('search')['value'] ?? '',
