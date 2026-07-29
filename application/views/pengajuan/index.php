@@ -384,7 +384,6 @@
                 'Nomor Polisi',
                 'Status Pengajuan',
                 'Approve Dept Manager',
-                'Catatan Manager',
                 'Jadwal Rencana Inspeksi',
                 'Inspektor / Mekanik',
                 'Hasil Inspeksi Mekanik',
@@ -417,7 +416,6 @@
                     r.no_polisi || '-',
                     statusLabel,
                     r.tgl_approve_mgr || '-',
-                    r.catatan_mgr || '-',
                     r.tgl_jadwal_rencana || '-',
                     r.nama_mekanik || '-',
                     r.hasil_inspeksi ? r.hasil_inspeksi.toUpperCase() : '-',
@@ -447,7 +445,6 @@
                 { wch: 15 }, // Nomor Polisi
                 { wch: 25 }, // Status
                 { wch: 20 }, // Approve Mgr
-                { wch: 25 }, // Catatan Mgr
                 { wch: 20 }, // Jadwal Rencana
                 { wch: 22 }, // Mekanik
                 { wch: 20 }, // Hasil Inspeksi
