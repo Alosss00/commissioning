@@ -72,11 +72,14 @@ class Mekanik extends CI_Controller
         foreach ($list as $dept) {
             $exists = $this->db->where('LOWER(nama_perusahaan)', strtolower(trim($dept)))->count_all_results('perusahaan');
             if ($exists == 0) {
-                $this->db->insert('perusahaan', [
+                $payload = [
                     'nama_perusahaan' => trim($dept),
-                    'is_active'       => 1,
-                    'created_at'      => date('Y-m-d H:i:s')
-                ]);
+                    'is_active'       => 1
+                ];
+                if ($this->db->field_exists('created_at', 'perusahaan')) {
+                    $payload['created_at'] = date('Y-m-d H:i:s');
+                }
+                $this->db->insert('perusahaan', $payload);
             }
         }
     }
