@@ -1317,7 +1317,6 @@
                     // Flag N/A untuk field opsional
                     fd.append('is_na_no_polisi', $('#na_no_polisi_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_nomor_mesin', $('#na_nomor_mesin_' + s).prop('checked') ? '1' : '0');
-                    fd.append('is_na_nomor_unit', $('#na_nomor_unit_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_model_unit', $('#na_model_unit_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_stnk', $('#na_stnk_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_foto', $('#na_all_foto_' + s).prop('checked') ? '1' : '0');
