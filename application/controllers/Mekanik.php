@@ -34,6 +34,51 @@ class Mekanik extends CI_Controller
             $this->session->set_flashdata('error', 'Akses ditolak.');
             redirect('dashboard');
         }
+        $this->_check_departments();
+    }
+
+    private function _check_departments()
+    {
+        $list = [
+            'BUSINESS DEVELOPMENT',
+            'COMMERCIAL',
+            'COMMUNITY DEVELOPMENT',
+            'COMPLIANCE',
+            'COMREL & LAND ACQ (Community Relations & Land Acquisition)',
+            'CORPORATE LEGAL',
+            'ENVIRONMENTAL',
+            'EXPLORATION',
+            'EXTERNAL RELATIONS',
+            'FIN & ACC OPERATIONAL (Finance & Accounting Operational)',
+            'HCCS (Human Capital & Corporate Services)',
+            'HSE & FORMALITIES / HSE (Health, Safety, Environment)',
+            'IT (Information Technology)',
+            'MAINTENANCE',
+            'MANAGEMENT',
+            'METALLURGY',
+            'MINING',
+            'MINING TECH SERVICE / MINING TECHNICAL SERVICE',
+            'OHS (Occupational Health & Safety)',
+            'PRINCIPAL MINING',
+            'PROCESS PLANT',
+            'PROJECT',
+            'RESOURCES & RESERVE',
+            'SECURITY',
+            'SUSTAINABILITY & EXTERNAL AFFAIRS',
+            'SUPPLY CHAIN',
+            'UNDERGROUND'
+        ];
+
+        foreach ($list as $dept) {
+            $exists = $this->db->where('LOWER(nama_perusahaan)', strtolower(trim($dept)))->count_all_results('perusahaan');
+            if ($exists == 0) {
+                $this->db->insert('perusahaan', [
+                    'nama_perusahaan' => trim($dept),
+                    'is_active'       => 1,
+                    'created_at'      => date('Y-m-d H:i:s')
+                ]);
+            }
+        }
     }
 
     // ── INDEX ─────────────────────────────────────────────────────────────────
