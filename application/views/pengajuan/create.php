@@ -166,18 +166,9 @@
                                                 </div>
 
                                                 <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">Nomor Unit / <em class="fw-normal">Unit No.</em></label>
-                                                    <div class="d-flex gap-2 align-items-start">
-                                                        <div class="flex-grow-1">
-                                                            <input type="text" class="form-control inp-nomor-unit" placeholder="misal: DT-001">
-                                                            <div class="text-danger small mt-1 err-nomor-unit"></div>
-                                                        </div>
-                                                        <div class="form-check mt-2 flex-shrink-0">
-                                                            <input class="form-check-input inp-na-check" type="checkbox"
-                                                                id="na_nomor_unit_<?= $s ?>" data-target="nomor_unit" data-s="<?= $s ?>">
-                                                            <label class="form-check-label small text-muted" for="na_nomor_unit_<?= $s ?>">N/A</label>
-                                                        </div>
-                                                    </div>
+                                                    <label class="form-label fw-semibold">Nomor Unit / <em class="fw-normal">Unit No.</em> <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control inp-nomor-unit" placeholder="misal: DT-001">
+                                                    <div class="text-danger small mt-1 err-nomor-unit"></div>
                                                 </div>
 
                                                 <div class="col-md-6">
@@ -1205,6 +1196,10 @@
                     $tab.find('.err-merk').text('Merk unit wajib diisi.');
                     errors = true;
                 }
+                if (!$tab.find('.inp-nomor-unit').val().trim()) {
+                    $tab.find('.err-nomor-unit').text('Nomor unit wajib diisi.');
+                    errors = true;
+                }
 
                 if (!$tab.find('.inp-tahun').val().trim()) {
                     $tab.find('.err-tahun').text('Tahun wajib diisi.');
@@ -1332,7 +1327,7 @@
                     });
 
                     fd.append('jenis_kendaraan', $('#jenis_kendaraan_' + s).val());
-                    fd.append('nomor_unit', $('#na_nomor_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-nomor-unit').val());
+                    fd.append('nomor_unit', $tab.find('.inp-nomor-unit').val().trim());
                     fd.append('merk', $tab.find('.inp-merk').val());
                     fd.append('model_unit', $('#na_model_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-model-unit').val());
                     fd.append('nomor_rangka', 'N/A');

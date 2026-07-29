@@ -105,6 +105,7 @@ class Pengajuan extends CI_Controller
 
             // Validasi field WAJIB (tidak bisa N/A)
             $jenis_kendaraan = $this->input->post('jenis_kendaraan');
+            $nomor_unit      = trim($this->input->post('nomor_unit') ?? '');
             $merk            = trim($this->input->post('merk') ?? '');
             $nomor_rangka    = trim($this->input->post('nomor_rangka') ?? '') ?: 'N/A';
             $perusahaan      = $this->input->post('perusahaan');
@@ -112,6 +113,10 @@ class Pengajuan extends CI_Controller
 
             if (empty($jenis_kendaraan)) {
                 echo json_encode($response('error', 'Tipe Unit <strong>wajib dipilih</strong>.'));
+                return;
+            }
+            if (empty($nomor_unit) || $nomor_unit === 'N/A') {
+                echo json_encode($response('error', 'Nomor Unit <strong>wajib diisi</strong>.'));
                 return;
             }
             if (empty($merk)) {
