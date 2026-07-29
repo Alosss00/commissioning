@@ -177,12 +177,27 @@ class Pengajuan_model extends CI_Model
         $this->db->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left');
         $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u_pem',        'u_pem.id_user = pu.id_pemohon',             'left');
-        $this->db->join('jadwal_uji j',       'j.id_pengajuan = pu.id_pengajuan',          'left');
+
+        // Subquery Jadwal
+        $this->db->join('(SELECT id_pengajuan, MAX(id_jadwal) AS max_id_jadwal FROM jadwal_uji GROUP BY id_pengajuan) jl', 'jl.id_pengajuan = pu.id_pengajuan', 'left');
+        $this->db->join('jadwal_uji j',       'j.id_jadwal = jl.max_id_jadwal',            'left');
         $this->db->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master',        'left');
-        $this->db->join('uji_kelayakan uk',   'uk.id_pengajuan = pu.id_pengajuan',          'left');
-        $this->db->join('sticker_release sr', 'sr.id_pengajuan = pu.id_pengajuan',         'left');
-        $this->db->join('pengajuan_approval pa_mgr', "pa_mgr.id_pengajuan = pu.id_pengajuan AND pa_mgr.level_approval = 'dept_manager'", 'left');
-        $this->db->join('pengajuan_approval pa_ohs', "pa_ohs.id_pengajuan = pu.id_pengajuan AND pa_ohs.level_approval = 'ohs_supt'",     'left');
+
+        // Subquery Inspeksi
+        $this->db->join('(SELECT id_pengajuan, MAX(id_uji) AS max_id_uji FROM uji_kelayakan GROUP BY id_pengajuan) ul', 'ul.id_pengajuan = pu.id_pengajuan', 'left');
+        $this->db->join('uji_kelayakan uk',   'uk.id_uji = ul.max_id_uji',                 'left');
+
+        // Subquery Sticker
+        $this->db->join('(SELECT id_pengajuan, MAX(id_sticker) AS max_id_sticker FROM sticker_release GROUP BY id_pengajuan) sl', 'sl.id_pengajuan = pu.id_pengajuan', 'left');
+        $this->db->join('sticker_release sr', 'sr.id_sticker = sl.max_id_sticker',         'left');
+
+        // Subquery Manager Approval
+        $this->db->join("(SELECT id_pengajuan, MAX(id_approval) AS max_id_app FROM pengajuan_approval WHERE level_approval = 'dept_manager' GROUP BY id_pengajuan) pal_mgr", 'pal_mgr.id_pengajuan = pu.id_pengajuan', 'left');
+        $this->db->join('pengajuan_approval pa_mgr', 'pa_mgr.id_approval = pal_mgr.max_id_app', 'left');
+
+        // Subquery OHS Approval
+        $this->db->join("(SELECT id_pengajuan, MAX(id_approval) AS max_id_app FROM pengajuan_approval WHERE level_approval = 'ohs_supt' GROUP BY id_pengajuan) pal_ohs", 'pal_ohs.id_pengajuan = pu.id_pengajuan', 'left');
+        $this->db->join('pengajuan_approval pa_ohs', 'pa_ohs.id_approval = pal_ohs.max_id_app', 'left');
 
         if (!empty($filters['status']))      $this->db->where('pu.status', $filters['status']);
         if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']);

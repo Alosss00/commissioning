@@ -351,7 +351,7 @@
                         window.csrfTokenHash = res.csrf_hash;
                     }
                     if (!res || res.status !== 'success') {
-                        toastr.error('Gagal mengambil data history.');
+                        toastr.error(res && res.message ? res.message : 'Gagal mengambil data history.');
                         return;
                     }
                     generateHistoryPengajuanExcel(res.data);

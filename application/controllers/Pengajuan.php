@@ -84,29 +84,46 @@ class Pengajuan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $filters = [
-            'status'     => trim($this->input->post('status')     ?? ''),
-            'jenis'      => trim($this->input->post('jenis')      ?? ''),
-            'departemen' => trim($this->input->post('departemen') ?? ''),
-            'tgl_dari'   => trim($this->input->post('tgl_dari')   ?? ''),
-            'tgl_sampai' => trim($this->input->post('tgl_sampai') ?? ''),
-            'search'     => trim($this->input->post('search')     ?? ''),
-        ];
+        try {
+            $filters = [
+                'status'     => trim($this->input->post('status')     ?? ''),
+                'jenis'      => trim($this->input->post('jenis')      ?? ''),
+                'departemen' => trim($this->input->post('departemen') ?? ''),
+                'tgl_dari'   => trim($this->input->post('tgl_dari')   ?? ''),
+                'tgl_sampai' => trim($this->input->post('tgl_sampai') ?? ''),
+                'search'     => trim($this->input->post('search')     ?? ''),
+            ];
 
-        $roles     = $this->_user_roles();
-        $user_dept = $this->session->userdata('departemen');
+            $roles     = $this->_user_roles();
+            $user_dept = $this->session->userdata('departemen');
 
-        if ($this->_has_role([7, 2], $roles) && !empty($user_dept)) {
-            $filters['departemen'] = $user_dept;
+            if ($this->_has_role([7, 2], $roles) && !empty($user_dept)) {
+                $filters['departemen'] = $user_dept;
+            }
+
+            $rows = $this->pengajuan_model->get_export_history_data($filters);
+
+            $output = [
+                'status'    => 'success',
+                'data'      => $rows,
+                'csrf_hash' => $this->security->get_csrf_hash(),
+            ];
+        } catch (Throwable $e) {
+            log_message('error', 'Export History Error: ' . $e->getMessage());
+            $output = [
+                'status'    => 'error',
+                'message'   => $e->getMessage(),
+                'csrf_hash' => $this->security->get_csrf_hash(),
+            ];
+        } catch (Exception $e) {
+            log_message('error', 'Export History Error: ' . $e->getMessage());
+            $output = [
+                'status'    => 'error',
+                'message'   => $e->getMessage(),
+                'csrf_hash' => $this->security->get_csrf_hash(),
+            ];
         }
 
-        $rows = $this->pengajuan_model->get_export_history_data($filters);
-
-        $output = [
-            'status'    => 'success',
-            'data'      => $rows,
-            'csrf_hash' => $this->security->get_csrf_hash(),
-        ];
         echo json_encode($output);
     }
 
