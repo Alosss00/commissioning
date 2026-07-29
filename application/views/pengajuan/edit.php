@@ -69,6 +69,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                     <div class="card-body pt-3">
                         <?php
                         $jenis_config = [
+                            'sertifikasi'        => ['label' => 'Sertifikasi Alat Berat', 'icon' => 'bi-award-fill',       'accept' => '.jpg,.jpeg,.png,.pdf,.doc,.docx'],
                             'stnk'               => ['label' => 'STNK',            'icon' => 'bi-card-text',         'accept' => '.jpg,.jpeg,.png,.pdf'],
                             'unit_depan'         => ['label' => 'Foto Depan',       'icon' => 'bi-camera',            'accept' => '.jpg,.jpeg,.png'],
                             'unit_belakang'      => ['label' => 'Foto Belakang',    'icon' => 'bi-camera',            'accept' => '.jpg,.jpeg,.png'],
@@ -442,7 +443,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                 fd.append('alasan_edit', alasan);
 
                 // Lampiran yang diganti — cek tiap jenis
-                var jenis_list = ['stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan', 'maintenance_record'];
+                var jenis_list = ['sertifikasi', 'stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan', 'maintenance_record'];
                 jenis_list.forEach(function(jenis) {
                     var el = document.getElementById('lamp_file_' + jenis);
                     if (el && el.files && el.files[0]) {

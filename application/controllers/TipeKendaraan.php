@@ -25,6 +25,16 @@ class TipeKendaraan extends CI_Controller
             $this->session->set_flashdata('error', 'Akses ditolak.');
             redirect('dashboard');
         }
+
+        $this->_check_schema_alat_berat();
+    }
+
+    private function _check_schema_alat_berat()
+    {
+        if (!$this->db->field_exists('is_alat_berat', 'tipe_kendaraan')) {
+            $this->db->query("ALTER TABLE `tipe_kendaraan` ADD COLUMN `is_alat_berat` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`");
+            $this->db->query("UPDATE `tipe_kendaraan` SET `is_alat_berat` = 1 WHERE LOWER(nama_tipe) REGEXP 'excavator|dump truck|hd|dozer|bulldozer|grader|loader|crane|forklift|scraper|compactor|backhoe|heavy|alat berat' OR LOWER(kode_tipe) REGEXP 'ex|dt|hd|dz|bd|gr|ld|cr|fl|he'");
+        }
     }
 
     // ── INDEX ──────────────────────────────────────────────────────────────────
@@ -67,18 +77,23 @@ class TipeKendaraan extends CI_Controller
                 ? '<span class="badge bg-info text-dark font-monospace">' . html_escape($r->doc_no) . '</span>'
                 : '<span class="text-muted small">—</span>';
 
+            $badge_alat_berat = !empty($r->is_alat_berat)
+                ? ' <span class="badge bg-warning text-dark ms-1" title="Alat Berat — Wajib Upload Sertifikasi"><i class="bi bi-truck-flatbed me-1"></i>Alat Berat</span>'
+                : '';
+
             $btn_edit = '<button class="btn btn-sm btn-outline-primary py-0 btn-edit"
-                data-id="'    . $r->id_tipe_kendaraan . '"
-                data-nama="'  . html_escape($r->nama_tipe)     . '"
-                data-kode="'  . html_escape($r->kode_tipe ?? '') . '"
-                data-docno="' . html_escape($r->doc_no      ?? '') . '"
-                data-titleid="'   . html_escape($r->title_id    ?? '') . '"
-                data-titleen="'   . html_escape($r->title_en    ?? '') . '"
-                data-docnameid="' . html_escape($r->doc_name_id ?? '') . '"
-                data-docnameen="' . html_escape($r->doc_name_en ?? '') . '"
-                data-tglterbit="' . ($r->tgl_terbit ?? '') . '"
-                data-tglreview="' . ($r->tgl_review ?? '') . '"
-                data-norevisi="'  . html_escape($r->no_revisi   ?? '01') . '"
+                data-id="'          . $r->id_tipe_kendaraan . '"
+                data-nama="'        . html_escape($r->nama_tipe)     . '"
+                data-kode="'        . html_escape($r->kode_tipe ?? '') . '"
+                data-isalatberat="' . ($r->is_alat_berat ?? 0) . '"
+                data-docno="'       . html_escape($r->doc_no      ?? '') . '"
+                data-titleid="'     . html_escape($r->title_id    ?? '') . '"
+                data-titleen="'     . html_escape($r->title_en    ?? '') . '"
+                data-docnameid="'   . html_escape($r->doc_name_id ?? '') . '"
+                data-docnameen="'   . html_escape($r->doc_name_en ?? '') . '"
+                data-tglterbit="'   . ($r->tgl_terbit ?? '') . '"
+                data-tglreview="'   . ($r->tgl_review ?? '') . '"
+                data-norevisi="'    . html_escape($r->no_revisi   ?? '01') . '"
                 title="Edit"><i class="bi bi-pencil"></i></button>';
 
             $btn_toggle = $r->is_active
@@ -96,7 +111,7 @@ class TipeKendaraan extends CI_Controller
 
             $data[] = [
                 'id'              => $r->id_tipe_kendaraan,
-                'nama_tipe'       => html_escape($r->nama_tipe),
+                'nama_tipe'       => html_escape($r->nama_tipe) . $badge_alat_berat,
                 'kode_tipe'       => $r->kode_tipe
                     ? '<span class="badge bg-secondary font-monospace">' . html_escape($r->kode_tipe) . '</span>'
                     : '<span class="text-muted">—</span>',
@@ -182,17 +197,20 @@ class TipeKendaraan extends CI_Controller
             }
         }
 
+        $is_alat_berat = (int) $this->input->post('is_alat_berat');
+
         $payload = [
-            'nama_tipe'   => $nama_tipe,
-            'kode_tipe'   => $kode_tipe,
-            'doc_no'      => $doc_no,
-            'title_id'    => $title_id,
-            'title_en'    => $title_en,
-            'doc_name_id' => $doc_name_id,
-            'doc_name_en' => $doc_name_en,
-            'tgl_terbit'  => $tgl_terbit,
-            'tgl_review'  => $tgl_review,
-            'no_revisi'   => $no_revisi,
+            'nama_tipe'     => $nama_tipe,
+            'kode_tipe'     => $kode_tipe,
+            'is_alat_berat' => $is_alat_berat ? 1 : 0,
+            'doc_no'        => $doc_no,
+            'title_id'      => $title_id,
+            'title_en'      => $title_en,
+            'doc_name_id'   => $doc_name_id,
+            'doc_name_en'   => $doc_name_en,
+            'tgl_terbit'    => $tgl_terbit,
+            'tgl_review'    => $tgl_review,
+            'no_revisi'     => $no_revisi,
         ];
 
         if ($id) {

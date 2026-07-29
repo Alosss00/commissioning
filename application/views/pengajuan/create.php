@@ -142,9 +142,25 @@
                                                     <label class="form-label fw-semibold">Tipe Unit / <em class="fw-normal">Unit Type</em> <span class="text-danger">*</span></label>
                                                     <select class="form-select select2-jenis" name="jenis_kendaraan" id="jenis_kendaraan_<?= $s ?>">
                                                         <option value="">— Pilih Tipe Unit —</option>
-                                                        <?php foreach ($tipe_kendaraan as $tk): ?>
-                                                            <option value="<?= $tk->id_tipe_kendaraan ?>"><?= html_escape($tk->nama_tipe) ?></option>
-                                                        <?php endforeach; ?>
+                                                        <?php
+                                                        $current_group = null;
+                                                        foreach ($tipe_kendaraan as $tk):
+                                                            $is_ab = !empty($tk->is_alat_berat) && $tk->is_alat_berat == 1;
+                                                            $group_label = $is_ab
+                                                                ? ' ALAT BERAT (Wajib Upload Sertifikasi Alat)'
+                                                                : ' KENDARAAN STANDAR / SUPPORT';
+                                                            if ($current_group !== $group_label):
+                                                                if ($current_group !== null): ?>
+                                                                    </optgroup>
+                                                                <?php endif;
+                                                                $current_group = $group_label; ?>
+                                                                <optgroup label="<?= $group_label ?>">
+                                                            <?php endif; ?>
+                                                            <option value="<?= $tk->id_tipe_kendaraan ?>" data-is-alat-berat="<?= $is_ab ? 1 : 0 ?>"><?= html_escape($tk->nama_tipe) ?></option>
+                                                        <?php endforeach;
+                                                        if ($current_group !== null): ?>
+                                                            </optgroup>
+                                                        <?php endif; ?>
                                                     </select>
                                                     <div class="text-danger small mt-1 err-jenis"></div>
                                                 </div>
@@ -237,6 +253,46 @@
                                                     <label class="form-label fw-semibold">Tahun / <em class="fw-normal">Year</em> <span class="text-danger">*</span></label>
                                                     <input type="number" class="form-control inp-tahun" placeholder="misal: 2022" min="1990" max="<?= date('Y') + 1 ?>">
                                                     <div class="text-danger small mt-1 err-tahun"></div>
+                                                </div>
+
+                                                <!-- Upload Sertifikasi Alat Berat (Tampil jika tipe unit = Alat Berat) -->
+                                                <div class="col-12 d-none container-sertifikasi" id="container_sertifikasi_<?= $s ?>">
+                                                    <label class="form-label fw-semibold text-warning">
+                                                        <i class="bi bi-award-fill me-1"></i>Upload Sertifikasi Alat Berat (SIA / SIO / Layak Operasi)
+                                                        <span class="badge bg-warning text-dark ms-1">Wajib Alat Berat</span>
+                                                    </label>
+                                                    <!-- N/A toggle untuk Sertifikasi -->
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input inp-na-foto" type="checkbox"
+                                                            id="na_sertifikasi_<?= $s ?>" data-ftype="sertifikasi" data-s="<?= $s ?>">
+                                                        <label class="form-check-label small text-muted" for="na_sertifikasi_<?= $s ?>">
+                                                            N/A — Sertifikasi Alat Berat belum tersedia / dalam proses
+                                                        </label>
+                                                    </div>
+                                                    <div class="border border-warning bg-light p-3 rounded d-flex align-items-center gap-3 flex-wrap upload-row na-upload-wrap" id="box_sertifikasi_<?= $s ?>">
+                                                        <i class="bi bi-patch-check-fill text-warning flex-shrink-0" style="font-size:2rem;"></i>
+                                                        <div class="flex-grow-1">
+                                                            <input type="file" class="form-control form-control-sm inp-sertifikasi"
+                                                                id="lampiran_sertifikasi_<?= $s ?>" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                                                            <small class="text-muted">PDF, JPG, PNG, atau DOC. Maks 10MB.</small>
+                                                            <div class="text-danger small err-sertifikasi"></div>
+                                                        </div>
+                                                        <div class="thumb-sertifikasi d-none">
+                                                            <div class="position-relative">
+                                                                <img class="thumb-sertifikasi-img rounded border" src="" alt="Sertifikasi" style="height:52px;width:72px;object-fit:cover;">
+                                                                <button type="button" class="btn-clear-sertifikasi btn btn-danger rounded-circle p-0"
+                                                                    style="width:18px;height:18px;font-size:9px;position:absolute;top:-7px;right:-7px;">
+                                                                    <i class="bi bi-x"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="thumb-sertifikasi-pdf d-none d-flex align-items-center gap-1">
+                                                            <span class="badge bg-danger px-2 py-2"><i class="bi bi-file-earmark-pdf me-1"></i><span class="sertifikasi-pdf-name"></span></span>
+                                                            <button type="button" class="btn-clear-sertifikasi btn btn-sm btn-outline-danger py-0 px-1 ms-1">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
                                                 <!-- STNK -->
@@ -930,6 +986,67 @@
             $box.find('.fimg-' + fkey).attr('src', '');
         });
 
+        // ── Toggle Container Sertifikasi Alat Berat ───────────────────────────
+        $(document).on('change', '.select2-jenis', function() {
+            var $opt = $(this).find('option:selected');
+            var isAlatBerat = $opt.data('is-alat-berat');
+            var s = suffixOfTab($(this).closest('.tab-pane'));
+            var $container = $('#container_sertifikasi_' + s);
+
+            if (isAlatBerat == 1 || isAlatBerat == '1') {
+                $container.removeClass('d-none').hide().slideDown(250);
+            } else {
+                $container.slideUp(250, function() {
+                    $(this).addClass('d-none');
+                });
+                var $inp = $('#lampiran_sertifikasi_' + s);
+                if ($inp.length && $inp[0]) {
+                    var neu = $inp[0].cloneNode(true);
+                    $inp[0].parentNode.replaceChild(neu, $inp[0]);
+                }
+                var $wrap = $('#box_sertifikasi_' + s);
+                $wrap.removeClass('has-file');
+                $wrap.find('.thumb-sertifikasi, .thumb-sertifikasi-pdf').addClass('d-none');
+                $wrap.find('.thumb-sertifikasi-img').attr('src', '');
+            }
+        });
+
+        // ── Upload Sertifikasi Alat Berat ──────────────────────────────────────
+        $(document).on('change', '.inp-sertifikasi', function() {
+            var file = this.files[0];
+            if (!file) return;
+            var $wrap = $(this).closest('.upload-row');
+            $wrap.addClass('has-file');
+            $wrap.find('.err-sertifikasi').text('');
+
+            if (file.type === 'application/pdf' || file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
+                var name = file.name.length > 20 ? file.name.substring(0, 18) + '…' : file.name;
+                $wrap.find('.sertifikasi-pdf-name').text(name);
+                $wrap.find('.thumb-sertifikasi').addClass('d-none');
+                $wrap.find('.thumb-sertifikasi-pdf').removeClass('d-none');
+            } else {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    $wrap.find('.thumb-sertifikasi-img').attr('src', e.target.result);
+                    $wrap.find('.thumb-sertifikasi').removeClass('d-none');
+                    $wrap.find('.thumb-sertifikasi-pdf').addClass('d-none');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        $(document).on('click', '.btn-clear-sertifikasi', function() {
+            var $wrap = $(this).closest('.upload-row');
+            var $inp = $wrap.find('.inp-sertifikasi');
+            if ($inp.length && $inp[0]) {
+                var neu = $inp[0].cloneNode(true);
+                $inp[0].parentNode.replaceChild(neu, $inp[0]);
+            }
+            $wrap.removeClass('has-file');
+            $wrap.find('.thumb-sertifikasi, .thumb-sertifikasi-pdf').addClass('d-none');
+            $wrap.find('.thumb-sertifikasi-img').attr('src', '');
+        });
+
         // ── Upload STNK ──────────────────────────────────────────────────────
         $(document).on('change', '.inp-stnk', function() {
             var file = this.files[0];
@@ -1130,6 +1247,16 @@
                     errors = true;
                 }
 
+                // Sertifikasi Alat Berat — wajib KECUALI N/A jika tipe unit = Alat Berat
+                var isAlatBerat = $tab.find('.select2-jenis option:selected').data('is-alat-berat');
+                if (isAlatBerat == 1 || isAlatBerat == '1') {
+                    var naSert = $('#na_sertifikasi_' + s).prop('checked');
+                    if (!naSert && !document.getElementById('lampiran_sertifikasi_' + s).files.length) {
+                        $tab.find('.err-sertifikasi').text('Upload sertifikasi Alat Berat wajib diisi atau centang N/A.');
+                        errors = true;
+                    }
+                }
+
                 // STNK — wajib KECUALI N/A
                 var naStnk = $('#na_stnk_' + s).prop('checked');
                 if (!naStnk && !document.getElementById('lampiran_stnk_' + s).files.length) {
@@ -1248,7 +1375,11 @@
                     fd.append('nomor_mesin', $tab.find('.inp-nomor-mesin-lama').val());
                 }
 
-                // File upload — lampiran STNK & foto 4 sisi & maintenance record (Unit Baru & Unit Lama)
+                // File upload — lampiran Sertifikasi, STNK & foto 4 sisi & maintenance record (Unit Baru & Unit Lama)
+                if (!$('#na_sertifikasi_' + s).prop('checked')) {
+                    var elSert = document.getElementById('lampiran_sertifikasi_' + s);
+                    if (elSert && elSert.files[0]) fd.append('lampiran_sertifikasi', elSert.files[0]);
+                }
                 if (!$('#na_stnk_' + s).prop('checked')) {
                     var elStnk = document.getElementById('lampiran_stnk_' + s);
                     if (elStnk && elStnk.files[0]) fd.append('lampiran_stnk', elStnk.files[0]);

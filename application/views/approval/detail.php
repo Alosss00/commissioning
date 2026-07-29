@@ -234,6 +234,7 @@
                                     <div class="row g-2">
                                         <?php
                                         $jenis_label = [
+                                            'sertifikasi'        => 'Sertifikasi Alat Berat',
                                             'stnk'               => 'STNK',
                                             'unit_depan'         => 'Foto Depan',
                                             'unit_belakang'      => 'Foto Belakang',

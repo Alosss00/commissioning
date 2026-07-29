@@ -31,12 +31,13 @@ class Pengajuan extends CI_Controller
             $this->session->set_flashdata('error', 'Hanya Admin Departemen yang dapat membuat pengajuan.');
             redirect('pengajuan');
         }
+        $this->_check_schema_alat_berat();
         $data = [
             'title'              => 'Buat Pengajuan Uji Kelayakan',
             'user'               => $this->session->userdata(),
             // Untuk recommissioning: hanya kendaraan yang lulus + stiker expired
             'kendaraan'          => $this->kendaraan_model->get_kendaraan_lulus_eligible(),
-            'tipe_kendaraan'     => $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result(),
+            'tipe_kendaraan'     => $this->db->where('is_active', 1)->order_by('is_alat_berat', 'DESC')->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result(),
             'perusahaan'         => $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result(),
         ];
         $this->load->view('templates/header',  $data);
@@ -679,17 +680,25 @@ class Pengajuan extends CI_Controller
         ]);
     }
 
+    private function _check_schema_alat_berat()
+    {
+        if (!$this->db->field_exists('is_alat_berat', 'tipe_kendaraan')) {
+            $this->db->query("ALTER TABLE `tipe_kendaraan` ADD COLUMN `is_alat_berat` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`");
+            $this->db->query("UPDATE `tipe_kendaraan` SET `is_alat_berat` = 1 WHERE LOWER(nama_tipe) REGEXP 'excavator|dump truck|hd|dozer|bulldozer|grader|loader|crane|forklift|scraper|compactor|backhoe|heavy|alat berat' OR LOWER(kode_tipe) REGEXP 'ex|dt|hd|dz|bd|gr|ld|cr|fl|he'");
+        }
+    }
+
     private function _upload_lampiran($id_pengajuan)
     {
         $errors     = [];
-        $jenis_list = ['stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'];
+        $jenis_list = ['sertifikasi', 'stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'];
         $path       = FCPATH . 'uploads/lampiran/' . $id_pengajuan . '/';
         if (!is_dir($path)) mkdir($path, 0755, true);
         foreach ($jenis_list as $jenis) {
             $field = 'lampiran_' . $jenis;
             if (empty($_FILES[$field]['name'])) continue;
             $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
-            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf|webp|JPG|JPEG|PNG|PDF|WEBP', 'max_size' => 10240, 'file_name' => $unique_name, 'overwrite' => false]);
+            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|webp|JPG|JPEG|PNG|PDF|DOC|DOCX|WEBP', 'max_size' => 10240, 'file_name' => $unique_name, 'overwrite' => false]);
             if (!$this->upload->do_upload($field)) {
                 $errors[] = $this->upload->display_errors('', '');
             } else {
