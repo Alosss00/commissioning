@@ -211,9 +211,9 @@
                                                 </div>
 
                                                 <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">Perusahaan / <em class="fw-normal">Company</em> <span class="text-danger">*</span></label>
+                                                    <label class="form-label fw-semibold">Perusahaan / Departemen <em class="fw-normal">Company / Department</em> <span class="text-danger">*</span></label>
                                                     <select class="form-select select2-perusahaan" id="perusahaan_<?= $s ?>">
-                                                        <option value="">— Pilih Perusahaan —</option>
+                                                        <option value="">— Pilih Perusahaan / Departemen —</option>
                                                         <?php foreach ($perusahaan as $p): ?>
                                                             <option value="<?= html_escape($p->nama_perusahaan) ?>"><?= html_escape($p->nama_perusahaan) ?><?= $p->singkatan ? ' (' . html_escape($p->singkatan) . ')' : '' ?></option>
                                                         <?php endforeach; ?>
