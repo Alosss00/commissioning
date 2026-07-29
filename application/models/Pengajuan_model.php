@@ -162,13 +162,14 @@ class Pengajuan_model extends CI_Model
     {
         $this->db->select(
             'pu.id_pengajuan, pu.tanggal_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.tujuan, pu.status, '
-            . 'pu.nomor_stiker, pu.tanggal_rilis_stiker, pu.tgl_expired_stiker, '
+            . 'sr.nomor_sticker AS nomor_stiker, sr.tanggal_release AS tanggal_rilis_stiker, sr.tgl_expired AS tgl_expired_stiker, '
             . 'k.no_polisi, k.nomor_unit, k.merk, k.model_unit, k.tipe, k.tahun, k.perusahaan, '
             . 't.nama_tipe AS jenis_kendaraan, '
             . 'u_pem.nama AS nama_pemohon, u_pem.email AS email_pemohon, '
             . 'j.tgl_rencana AS tgl_jadwal_rencana, j.created_at AS tgl_jadwal_dibuat, '
-            . 'mm.nama AS nama_mekanik, mm.perusahaan AS perusahaan_mekanik, '
-            . 'hu.rekomendasi AS hasil_inspeksi, hu.catatan AS catatan_inspeksi, hu.updated_at AS tgl_inspeksi, '
+            . 'COALESCE(uk.nama_inspektor, mm.nama) AS nama_mekanik, '
+            . 'COALESCE(uk.perusahaan_inspektor, mm.perusahaan) AS perusahaan_mekanik, '
+            . 'uk.hasil AS hasil_inspeksi, uk.catatan_temuan AS catatan_inspeksi, uk.tanggal_uji AS tgl_inspeksi, '
             . 'pa_mgr.created_at AS tgl_approve_mgr, pa_mgr.catatan AS catatan_mgr, '
             . 'pa_ohs.created_at AS tgl_approve_ohs, pa_ohs.catatan AS catatan_ohs'
         );
@@ -178,7 +179,8 @@ class Pengajuan_model extends CI_Model
         $this->db->join('users u_pem',        'u_pem.id_user = pu.id_pemohon',             'left');
         $this->db->join('jadwal_uji j',       'j.id_pengajuan = pu.id_pengajuan',          'left');
         $this->db->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master',        'left');
-        $this->db->join('hasil_uji hu',       'hu.id_pengajuan = pu.id_pengajuan',          'left');
+        $this->db->join('uji_kelayakan uk',   'uk.id_pengajuan = pu.id_pengajuan',          'left');
+        $this->db->join('sticker_release sr', 'sr.id_pengajuan = pu.id_pengajuan',         'left');
         $this->db->join('pengajuan_approval pa_mgr', "pa_mgr.id_pengajuan = pu.id_pengajuan AND pa_mgr.level_approval = 'dept_manager'", 'left');
         $this->db->join('pengajuan_approval pa_ohs', "pa_ohs.id_pengajuan = pu.id_pengajuan AND pa_ohs.level_approval = 'ohs_supt'",     'left');
 
