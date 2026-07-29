@@ -212,9 +212,9 @@ class Pengajuan_model extends CI_Model
                 uk.hasil AS hasil_inspeksi,
                 uk.catatan_temuan AS catatan_inspeksi,
                 uk.tanggal_uji AS tgl_inspeksi,
-                pa_mgr.created_at AS tgl_approve_mgr,
+                COALESCE(pa_mgr.created_at, CASE WHEN pu.status NOT IN ('draft', 'pengajuan_baru', 'ditolak_manager') THEN pu.tanggal_pengajuan ELSE NULL END) AS tgl_approve_mgr,
                 pa_mgr.catatan AS catatan_mgr,
-                pa_ohs.created_at AS tgl_approve_ohs,
+                COALESCE(pa_ohs.created_at, CASE WHEN pu.status IN ('diterima_ohs_supt', 'acc_ktt', 'stiker_keluar') THEN sr.tanggal_release ELSE NULL END) AS tgl_approve_ohs,
                 pa_ohs.catatan AS catatan_ohs
             FROM pengajuan_uji pu
             LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
@@ -238,12 +238,12 @@ class Pengajuan_model extends CI_Model
             LEFT JOIN sticker_release sr ON sr.id_sticker = sl.max_id_sticker
             LEFT JOIN (
                 SELECT id_pengajuan, MAX(id_approval) AS max_id_app
-                FROM pengajuan_approval WHERE level_approval = 'dept_manager' GROUP BY id_pengajuan
+                FROM pengajuan_approval WHERE level_approval IN ('dept_manager', 'manager', 'diterima_manager') GROUP BY id_pengajuan
             ) pal_mgr ON pal_mgr.id_pengajuan = pu.id_pengajuan
             LEFT JOIN pengajuan_approval pa_mgr ON pa_mgr.id_approval = pal_mgr.max_id_app
             LEFT JOIN (
                 SELECT id_pengajuan, MAX(id_approval) AS max_id_app
-                FROM pengajuan_approval WHERE level_approval = 'ohs_supt' GROUP BY id_pengajuan
+                FROM pengajuan_approval WHERE level_approval IN ('ohs_supt', 'ohs', 'admin_ohs') GROUP BY id_pengajuan
             ) pal_ohs ON pal_ohs.id_pengajuan = pu.id_pengajuan
             LEFT JOIN pengajuan_approval pa_ohs ON pa_ohs.id_approval = pal_ohs.max_id_app
             {$where_sql}
