@@ -160,66 +160,96 @@ class Pengajuan_model extends CI_Model
 
     public function get_export_history_data($filters = [])
     {
-        $this->db->select(
-            'pu.id_pengajuan, pu.tanggal_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.tujuan, pu.status, '
-            . 'sr.nomor_sticker AS nomor_stiker, sr.tanggal_release AS tanggal_rilis_stiker, sr.tgl_expired AS tgl_expired_stiker, '
-            . 'k.no_polisi, k.nomor_unit, k.merk, k.model_unit, k.tipe, k.tahun, k.perusahaan, '
-            . 't.nama_tipe AS jenis_kendaraan, '
-            . 'u_pem.nama AS nama_pemohon, u_pem.email AS email_pemohon, '
-            . 'j.tgl_rencana AS tgl_jadwal_rencana, j.created_at AS tgl_jadwal_dibuat, '
-            . 'COALESCE(uk.nama_inspektor, mm.nama) AS nama_mekanik, '
-            . 'COALESCE(uk.perusahaan_inspektor, mm.perusahaan) AS perusahaan_mekanik, '
-            . 'uk.hasil AS hasil_inspeksi, uk.catatan_temuan AS catatan_inspeksi, uk.tanggal_uji AS tgl_inspeksi, '
-            . 'pa_mgr.created_at AS tgl_approve_mgr, pa_mgr.catatan AS catatan_mgr, '
-            . 'pa_ohs.created_at AS tgl_approve_ohs, pa_ohs.catatan AS catatan_ohs'
-        );
-        $this->db->from('pengajuan_uji pu');
-        $this->db->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left');
-        $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
-        $this->db->join('users u_pem',        'u_pem.id_user = pu.id_pemohon',             'left');
+        $where_clauses = [];
 
-        // Subquery Jadwal
-        $this->db->join('(SELECT id_pengajuan, MAX(id_jadwal) AS max_id_jadwal FROM jadwal_uji GROUP BY id_pengajuan) jl', 'jl.id_pengajuan = pu.id_pengajuan', 'left');
-        $this->db->join('jadwal_uji j',       'j.id_jadwal = jl.max_id_jadwal',            'left');
-        $this->db->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master',        'left');
-
-        // Subquery Inspeksi
-        $this->db->join('(SELECT id_pengajuan, MAX(id_uji) AS max_id_uji FROM uji_kelayakan GROUP BY id_pengajuan) ul', 'ul.id_pengajuan = pu.id_pengajuan', 'left');
-        $this->db->join('uji_kelayakan uk',   'uk.id_uji = ul.max_id_uji',                 'left');
-
-        // Subquery Sticker
-        $this->db->join('(SELECT id_pengajuan, MAX(id_sticker) AS max_id_sticker FROM sticker_release GROUP BY id_pengajuan) sl', 'sl.id_pengajuan = pu.id_pengajuan', 'left');
-        $this->db->join('sticker_release sr', 'sr.id_sticker = sl.max_id_sticker',         'left');
-
-        // Subquery Manager Approval
-        $this->db->join("(SELECT id_pengajuan, MAX(id_approval) AS max_id_app FROM pengajuan_approval WHERE level_approval = 'dept_manager' GROUP BY id_pengajuan) pal_mgr", 'pal_mgr.id_pengajuan = pu.id_pengajuan', 'left');
-        $this->db->join('pengajuan_approval pa_mgr', 'pa_mgr.id_approval = pal_mgr.max_id_app', 'left');
-
-        // Subquery OHS Approval
-        $this->db->join("(SELECT id_pengajuan, MAX(id_approval) AS max_id_app FROM pengajuan_approval WHERE level_approval = 'ohs_supt' GROUP BY id_pengajuan) pal_ohs", 'pal_ohs.id_pengajuan = pu.id_pengajuan', 'left');
-        $this->db->join('pengajuan_approval pa_ohs', 'pa_ohs.id_approval = pal_ohs.max_id_app', 'left');
-
-        if (!empty($filters['status']))      $this->db->where('pu.status', $filters['status']);
-        if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']);
-        if (!empty($filters['departemen']))  $this->db->where('k.perusahaan', $filters['departemen']);
-        if (!empty($filters['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filters['tgl_dari']);
-        if (!empty($filters['tgl_sampai'])) $this->db->where('DATE(pu.tanggal_pengajuan) <=', $filters['tgl_sampai']);
-
+        if (!empty($filters['status'])) {
+            $where_clauses[] = "pu.status = " . $this->db->escape($filters['status']);
+        }
+        if (!empty($filters['jenis'])) {
+            $where_clauses[] = "t.nama_tipe = " . $this->db->escape($filters['jenis']);
+        }
+        if (!empty($filters['departemen'])) {
+            $where_clauses[] = "k.perusahaan = " . $this->db->escape($filters['departemen']);
+        }
+        if (!empty($filters['tgl_dari'])) {
+            $where_clauses[] = "DATE(pu.tanggal_pengajuan) >= " . $this->db->escape($filters['tgl_dari']);
+        }
+        if (!empty($filters['tgl_sampai'])) {
+            $where_clauses[] = "DATE(pu.tanggal_pengajuan) <= " . $this->db->escape($filters['tgl_sampai']);
+        }
         if (!empty($filters['search'])) {
-            $kw = $filters['search'];
-            $this->db->group_start();
-            $this->db->like('k.no_polisi',       $kw);
-            $this->db->or_like('k.nomor_unit',    $kw);
-            $this->db->or_like('u_pem.nama',      $kw);
-            $this->db->or_like('t.nama_tipe',     $kw);
-            $this->db->or_like('k.merk',          $kw);
-            $this->db->or_like('k.perusahaan',    $kw);
-            $this->db->group_end();
+            $kw = $this->db->escape_like_str($filters['search']);
+            $where_clauses[] = "(k.no_polisi LIKE '%$kw%' OR k.nomor_unit LIKE '%$kw%' OR u_pem.nama LIKE '%$kw%' OR t.nama_tipe LIKE '%$kw%' OR k.merk LIKE '%$kw%' OR k.perusahaan LIKE '%$kw%')";
         }
 
-        $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
-        $this->db->order_by('pu.id_pengajuan', 'DESC');
+        $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
-        return $this->db->get()->result();
+        $sql = "
+            SELECT 
+                pu.id_pengajuan,
+                pu.tanggal_pengajuan,
+                pu.tipe_pengajuan,
+                pu.tipe_akses,
+                pu.tujuan,
+                pu.status,
+                sr.nomor_sticker AS nomor_stiker,
+                sr.tanggal_release AS tanggal_rilis_stiker,
+                sr.tgl_expired AS tgl_expired_stiker,
+                k.no_polisi,
+                k.nomor_unit,
+                k.merk,
+                k.model_unit,
+                k.tipe,
+                k.tahun,
+                k.perusahaan,
+                t.nama_tipe AS jenis_kendaraan,
+                u_pem.nama AS nama_pemohon,
+                u_pem.email AS email_pemohon,
+                j.tgl_rencana AS tgl_jadwal_rencana,
+                j.created_at AS tgl_jadwal_dibuat,
+                COALESCE(uk.nama_inspektor, mm.nama) AS nama_mekanik,
+                COALESCE(uk.perusahaan_inspektor, mm.perusahaan) AS perusahaan_mekanik,
+                uk.hasil AS hasil_inspeksi,
+                uk.catatan_temuan AS catatan_inspeksi,
+                uk.tanggal_uji AS tgl_inspeksi,
+                pa_mgr.created_at AS tgl_approve_mgr,
+                pa_mgr.catatan AS catatan_mgr,
+                pa_ohs.created_at AS tgl_approve_ohs,
+                pa_ohs.catatan AS catatan_ohs
+            FROM pengajuan_uji pu
+            LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
+            LEFT JOIN tipe_kendaraan t ON t.id_tipe_kendaraan = k.id_tipe_kendaraan
+            LEFT JOIN users u_pem ON u_pem.id_user = pu.id_pemohon
+            LEFT JOIN (
+                SELECT id_pengajuan, MAX(id_jadwal) AS max_id_jadwal
+                FROM jadwal_uji GROUP BY id_pengajuan
+            ) jl ON jl.id_pengajuan = pu.id_pengajuan
+            LEFT JOIN jadwal_uji j ON j.id_jadwal = jl.max_id_jadwal
+            LEFT JOIN mekanik_master mm ON mm.id_mekanik = j.id_mekanik_master
+            LEFT JOIN (
+                SELECT id_pengajuan, MAX(id_uji) AS max_id_uji
+                FROM uji_kelayakan GROUP BY id_pengajuan
+            ) ul ON ul.id_pengajuan = pu.id_pengajuan
+            LEFT JOIN uji_kelayakan uk ON uk.id_uji = ul.max_id_uji
+            LEFT JOIN (
+                SELECT id_pengajuan, MAX(id_sticker) AS max_id_sticker
+                FROM sticker_release GROUP BY id_pengajuan
+            ) sl ON sl.id_pengajuan = pu.id_pengajuan
+            LEFT JOIN sticker_release sr ON sr.id_sticker = sl.max_id_sticker
+            LEFT JOIN (
+                SELECT id_pengajuan, MAX(id_approval) AS max_id_app
+                FROM pengajuan_approval WHERE level_approval = 'dept_manager' GROUP BY id_pengajuan
+            ) pal_mgr ON pal_mgr.id_pengajuan = pu.id_pengajuan
+            LEFT JOIN pengajuan_approval pa_mgr ON pa_mgr.id_approval = pal_mgr.max_id_app
+            LEFT JOIN (
+                SELECT id_pengajuan, MAX(id_approval) AS max_id_app
+                FROM pengajuan_approval WHERE level_approval = 'ohs_supt' GROUP BY id_pengajuan
+            ) pal_ohs ON pal_ohs.id_pengajuan = pu.id_pengajuan
+            LEFT JOIN pengajuan_approval pa_ohs ON pa_ohs.id_approval = pal_ohs.max_id_app
+            {$where_sql}
+            ORDER BY pu.tanggal_pengajuan DESC, pu.id_pengajuan DESC
+        ";
+
+        return $this->db->query($sql)->result();
     }
 }

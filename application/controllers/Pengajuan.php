@@ -84,6 +84,16 @@ class Pengajuan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
+        if (!$this->session->userdata('id_user')) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode([
+                    'status'    => 'error',
+                    'message'   => 'Sesi telah berakhir, silakan login kembali.',
+                    'csrf_hash' => $this->security->get_csrf_hash()
+                ]));
+        }
+
         try {
             $filters = [
                 'status'     => trim($this->input->post('status')     ?? ''),
@@ -112,19 +122,21 @@ class Pengajuan extends CI_Controller
             log_message('error', 'Export History Error: ' . $e->getMessage());
             $output = [
                 'status'    => 'error',
-                'message'   => $e->getMessage(),
+                'message'   => 'Gagal mengekspor data: ' . $e->getMessage(),
                 'csrf_hash' => $this->security->get_csrf_hash(),
             ];
         } catch (Exception $e) {
             log_message('error', 'Export History Error: ' . $e->getMessage());
             $output = [
                 'status'    => 'error',
-                'message'   => $e->getMessage(),
+                'message'   => 'Gagal mengekspor data: ' . $e->getMessage(),
                 'csrf_hash' => $this->security->get_csrf_hash(),
             ];
         }
 
-        echo json_encode($output);
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode($output));
     }
 
     // Hanya Admin Departemen (7) & Super Admin (1)
