@@ -16,6 +16,10 @@ class Pengajuan extends CI_Controller
 
     private function _check_departments()
     {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+
         $old_new_map = [
             'BUSINESS DEVELOPMENT' => 'Departemen Business Development',
             'COMMERCIAL' => 'Departemen Commercial',
@@ -46,24 +50,36 @@ class Pengajuan extends CI_Controller
             'UNDERGROUND' => 'Departemen Underground'
         ];
 
+        $existing = $this->db->select('LOWER(nama_perusahaan) as nama_lower')->get('perusahaan')->result_array();
+        $existing_map = array_column($existing, 'nama_lower');
+
+        $to_insert = [];
+        $has_created_at = $this->db->field_exists('created_at', 'perusahaan');
+
         foreach ($old_new_map as $old => $new) {
-            $this->db->where('LOWER(nama_perusahaan)', strtolower($old))->update('perusahaan', ['nama_perusahaan' => $new]);
-        }
+            $old_lower = strtolower($old);
+            $new_trim  = trim($new);
+            $new_lower = strtolower($new_trim);
 
-        $list = array_values($old_new_map);
+            if (in_array($old_lower, $existing_map, true)) {
+                $this->db->where('LOWER(nama_perusahaan)', $old_lower)->update('perusahaan', ['nama_perusahaan' => $new_trim]);
+            }
 
-        foreach ($list as $dept) {
-            $exists = $this->db->where('LOWER(nama_perusahaan)', strtolower(trim($dept)))->count_all_results('perusahaan');
-            if ($exists == 0) {
+            if (!in_array($old_lower, $existing_map, true) && !in_array($new_lower, $existing_map, true)) {
                 $payload = [
-                    'nama_perusahaan' => trim($dept),
+                    'nama_perusahaan' => $new_trim,
                     'is_active'       => 1
                 ];
-                if ($this->db->field_exists('created_at', 'perusahaan')) {
+                if ($has_created_at) {
                     $payload['created_at'] = date('Y-m-d H:i:s');
                 }
-                $this->db->insert('perusahaan', $payload);
+                $to_insert[] = $payload;
+                $existing_map[] = $new_lower;
             }
+        }
+
+        if (!empty($to_insert)) {
+            $this->db->insert_batch('perusahaan', $to_insert);
         }
     }
 
@@ -796,6 +812,10 @@ class Pengajuan extends CI_Controller
 
     private function _check_schema_alat_berat()
     {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+
         if (!$this->db->field_exists('is_alat_berat', 'tipe_kendaraan')) {
             $this->db->query("ALTER TABLE `tipe_kendaraan` ADD COLUMN `is_alat_berat` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`");
             $this->db->query("UPDATE `tipe_kendaraan` SET `is_alat_berat` = 1 WHERE LOWER(nama_tipe) REGEXP 'excavator|dump truck|hd|dozer|bulldozer|grader|loader|crane|forklift|scraper|compactor|backhoe|heavy|alat berat' OR LOWER(kode_tipe) REGEXP 'ex|dt|hd|dz|bd|gr|ld|cr|fl|he'");

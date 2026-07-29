@@ -34,26 +34,40 @@ $isPlanner   = has_role(8, $_roles);
 // ================================================================
 function pending_badge($status_arr)
 {
+    static $cached_counts = null;
     $CI = &get_instance();
-    $db = &$CI->db;
-    
-    $roles_raw = $CI->session->userdata('roles');
-    $role_int  = (int) $CI->session->userdata('role');
-    $roles = is_array($roles_raw) ? array_map('intval', $roles_raw) : ($role_int > 0 ? [$role_int] : []);
-    $departemen = $CI->session->userdata('departemen');
 
-    $db->from('pengajuan_uji pu');
-    $db->where_in('pu.status', (array)$status_arr);
+    if ($cached_counts === null) {
+        $db = &$CI->db;
+        $roles_raw = $CI->session->userdata('roles');
+        $role_int  = (int) $CI->session->userdata('role');
+        $roles = is_array($roles_raw) ? array_map('intval', $roles_raw) : ($role_int > 0 ? [$role_int] : []);
+        $departemen = $CI->session->userdata('departemen');
 
-    if (!in_array(1, $roles, true) && !empty($departemen)) {
-        $db->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left');
-        $db->where('k.perusahaan', $departemen);
-        if (in_array(7, $roles, true)) {
-            $db->where('pu.id_pemohon', (int)$CI->session->userdata('id_user'));
+        $db->select('pu.status, COUNT(*) as cnt');
+        $db->from('pengajuan_uji pu');
+
+        if (!in_array(1, $roles, true) && !empty($departemen)) {
+            $db->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left');
+            $db->where('k.perusahaan', $departemen);
+            if (in_array(7, $roles, true)) {
+                $db->where('pu.id_pemohon', (int)$CI->session->userdata('id_user'));
+            }
+        }
+
+        $db->group_by('pu.status');
+        $rows = $db->get()->result();
+
+        $cached_counts = [];
+        foreach ($rows as $r) {
+            $cached_counts[$r->status] = (int) $r->cnt;
         }
     }
 
-    $cnt = $db->count_all_results();
+    $cnt = 0;
+    foreach ((array)$status_arr as $st) {
+        $cnt += $cached_counts[$st] ?? 0;
+    }
 
     return $cnt > 0
         ? '<span class="badge bg-danger rounded-pill ms-auto" style="font-size:10px;">' . $cnt . '</span>'

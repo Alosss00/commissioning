@@ -112,12 +112,13 @@ class Approval_model extends CI_Model
         $this->db->select('pu.*, k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru,
         u.nama AS nama_pemohon, u.email AS email_pemohon,
         uk.id_uji, uk.hasil AS hasil_inspeksi,
-        COALESCE((SELECT COUNT(*) FROM uji_checklist uc WHERE uc.id_uji = uk.id_uji AND uc.hasil = "no"), 0) AS count_no');
+        COALESCE(COUNT(CASE WHEN uc.hasil = "no" THEN 1 END), 0) AS count_no');
         $this->db->from('pengajuan_uji pu');
         $this->db->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left');
         $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
         $this->db->join('uji_kelayakan uk', 'uk.id_pengajuan = pu.id_pengajuan',         'left');
+        $this->db->join('uji_checklist uc', 'uc.id_uji = uk.id_uji',                    'left');
 
         if (is_array($status_arr) && !empty($status_arr)) {
             $this->db->where_in('pu.status', $status_arr);
@@ -130,6 +131,7 @@ class Approval_model extends CI_Model
             $this->db->or_like('u.nama',   $kw);
             $this->db->group_end();
         }
+        $this->db->group_by('pu.id_pengajuan');
         $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
         $this->db->order_by('pu.id_pengajuan', 'DESC');
         return $this->db->get()->result();
@@ -141,6 +143,10 @@ class Approval_model extends CI_Model
 
     public function check_pencabutan_schema()
     {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+
         if (!$this->db->table_exists('pencabutan_stiker')) return;
         
         $fields = [
