@@ -201,26 +201,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">Nomor Rangka / <em class="fw-normal">Chassis No.</em> <span class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control inp-nomor-rangka" placeholder="Nomor rangka">
-                                                    <div class="text-danger small mt-1 err-nomor-rangka"></div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold">Nomor Mesin / <em class="fw-normal">Machine No.</em></label>
-                                                    <div class="d-flex gap-2 align-items-start">
-                                                        <div class="flex-grow-1">
-                                                            <input type="text" class="form-control inp-nomor-mesin" placeholder="Nomor mesin">
-                                                            <div class="text-danger small mt-1 err-nomor-mesin"></div>
-                                                        </div>
-                                                        <div class="form-check mt-2 flex-shrink-0">
-                                                            <input class="form-check-input inp-na-check" type="checkbox"
-                                                                id="na_nomor_mesin_<?= $s ?>" data-target="nomor_mesin" data-s="<?= $s ?>">
-                                                            <label class="form-check-label small text-muted" for="na_nomor_mesin_<?= $s ?>">N/A</label>
-                                                        </div>
-                                                    </div>
-                                                </div>
 
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold">Nomor Polisi / <em class="fw-normal">Police No.</em></label>
@@ -1224,10 +1205,7 @@
                     $tab.find('.err-merk').text('Merk unit wajib diisi.');
                     errors = true;
                 }
-                if (!$tab.find('.inp-nomor-rangka').val().trim()) {
-                    $tab.find('.err-nomor-rangka').text('Nomor rangka wajib diisi.');
-                    errors = true;
-                }
+
                 if (!$tab.find('.inp-tahun').val().trim()) {
                     $tab.find('.err-tahun').text('Tahun wajib diisi.');
                     errors = true;
@@ -1239,13 +1217,7 @@
                     $tab.find('.err-no-polisi').text('Nomor polisi wajib diisi atau centang N/A.');
                     errors = true;
                 }
-                // Nomor Unit — opsional (N/A atau diisi)
-                // Nomor Mesin — wajib KECUALI N/A
-                var naMesin = $('#na_nomor_mesin_' + s).prop('checked');
-                if (!naMesin && !$tab.find('.inp-nomor-mesin').val().trim()) {
-                    $tab.find('.err-nomor-mesin').text('Nomor mesin wajib diisi atau centang N/A.');
-                    errors = true;
-                }
+
 
                 // Sertifikasi Alat Berat — wajib KECUALI N/A jika tipe unit = Alat Berat
                 var isAlatBerat = $tab.find('.select2-jenis option:selected').data('is-alat-berat');
@@ -1363,8 +1335,8 @@
                     fd.append('nomor_unit', $('#na_nomor_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-nomor-unit').val());
                     fd.append('merk', $tab.find('.inp-merk').val());
                     fd.append('model_unit', $('#na_model_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-model-unit').val());
-                    fd.append('nomor_rangka', $tab.find('.inp-nomor-rangka').val());
-                    fd.append('nomor_mesin', $('#na_nomor_mesin_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-nomor-mesin').val());
+                    fd.append('nomor_rangka', 'N/A');
+                    fd.append('nomor_mesin', 'N/A');
                     fd.append('no_polisi', $('#na_no_polisi_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-no-polisi').val().toUpperCase());
                     fd.append('perusahaan', $('#perusahaan_' + s).val());
                     fd.append('tahun', $tab.find('.inp-tahun').val());

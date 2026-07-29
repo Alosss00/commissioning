@@ -106,7 +106,7 @@ class Pengajuan extends CI_Controller
             // Validasi field WAJIB (tidak bisa N/A)
             $jenis_kendaraan = $this->input->post('jenis_kendaraan');
             $merk            = trim($this->input->post('merk') ?? '');
-            $nomor_rangka    = trim($this->input->post('nomor_rangka') ?? '');
+            $nomor_rangka    = trim($this->input->post('nomor_rangka') ?? '') ?: 'N/A';
             $perusahaan      = $this->input->post('perusahaan');
             $tahun           = $this->input->post('tahun');
 
@@ -116,10 +116,6 @@ class Pengajuan extends CI_Controller
             }
             if (empty($merk)) {
                 echo json_encode($response('error', 'Merk Unit <strong>wajib diisi</strong>.'));
-                return;
-            }
-            if (empty($nomor_rangka)) {
-                echo json_encode($response('error', 'Nomor Rangka <strong>wajib diisi</strong>.'));
                 return;
             }
             if (empty($perusahaan)) {
@@ -151,12 +147,8 @@ class Pengajuan extends CI_Controller
                 }
             }
 
-            // Nomor Mesin — wajib KECUALI N/A
-            $nomor_mesin = $is_na_nomor_mesin ? 'N/A' : trim($this->input->post('nomor_mesin') ?? '');
-            if (!$is_na_nomor_mesin && empty($nomor_mesin)) {
-                echo json_encode($response('error', 'Nomor Mesin <strong>wajib diisi</strong> atau centang N/A.'));
-                return;
-            }
+            // Nomor Mesin
+            $nomor_mesin = trim($this->input->post('nomor_mesin') ?? '') ?: 'N/A';
 
             // ── Validasi lampiran: STNK + Foto 4 sisi ──
             $foto_required = [
