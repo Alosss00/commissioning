@@ -21,35 +21,41 @@ class UserManagement extends CI_Controller
 
     private function _check_departments()
     {
-        $list = [
-            'BUSINESS DEVELOPMENT',
-            'COMMERCIAL',
-            'COMMUNITY DEVELOPMENT',
-            'COMPLIANCE',
-            'COMREL & LAND ACQ (Community Relations & Land Acquisition)',
-            'CORPORATE LEGAL',
-            'ENVIRONMENTAL',
-            'EXPLORATION',
-            'EXTERNAL RELATIONS',
-            'FIN & ACC OPERATIONAL (Finance & Accounting Operational)',
-            'HCCS (Human Capital & Corporate Services)',
-            'HSE & FORMALITIES / HSE (Health, Safety, Environment)',
-            'IT (Information Technology)',
-            'MAINTENANCE',
-            'MANAGEMENT',
-            'METALLURGY',
-            'MINING',
-            'MINING TECH SERVICE / MINING TECHNICAL SERVICE',
-            'OHS (Occupational Health & Safety)',
-            'PRINCIPAL MINING',
-            'PROCESS PLANT',
-            'PROJECT',
-            'RESOURCES & RESERVE',
-            'SECURITY',
-            'SUSTAINABILITY & EXTERNAL AFFAIRS',
-            'SUPPLY CHAIN',
-            'UNDERGROUND'
+        $old_new_map = [
+            'BUSINESS DEVELOPMENT' => 'Departemen Business Development',
+            'COMMERCIAL' => 'Departemen Commercial',
+            'COMMUNITY DEVELOPMENT' => 'Departemen Community Development',
+            'COMPLIANCE' => 'Departemen Compliance',
+            'COMREL & LAND ACQ (Community Relations & Land Acquisition)' => 'Departemen Comrel & Land Acq (Community Relations & Land Acquisition)',
+            'CORPORATE LEGAL' => 'Departemen Corporate Legal',
+            'ENVIRONMENTAL' => 'Departemen Environmental',
+            'EXPLORATION' => 'Departemen Exploration',
+            'EXTERNAL RELATIONS' => 'Departemen External Relations',
+            'FIN & ACC OPERATIONAL (Finance & Accounting Operational)' => 'Departemen Fin & Acc Operational (Finance & Accounting Operational)',
+            'HCCS (Human Capital & Corporate Services)' => 'Departemen HCCS (Human Capital & Corporate Services)',
+            'HSE & FORMALITIES / HSE (Health, Safety, Environment)' => 'Departemen HSE & Formalities / HSE (Health, Safety, Environment)',
+            'IT (Information Technology)' => 'Departemen IT (Information Technology)',
+            'MAINTENANCE' => 'Departemen Maintenance',
+            'MANAGEMENT' => 'Departemen Management',
+            'METALLURGY' => 'Departemen Metallurgy',
+            'MINING' => 'Departemen Mining',
+            'MINING TECH SERVICE / MINING TECHNICAL SERVICE' => 'Departemen Mining Tech Service / Mining Technical Service',
+            'OHS (Occupational Health & Safety)' => 'Departemen OHS (Occupational Health & Safety)',
+            'PRINCIPAL MINING' => 'Departemen Principal Mining',
+            'PROCESS PLANT' => 'Departemen Process Plant',
+            'PROJECT' => 'Departemen Project',
+            'RESOURCES & RESERVE' => 'Departemen Resources & Reserve',
+            'SECURITY' => 'Departemen Security',
+            'SUSTAINABILITY & EXTERNAL AFFAIRS' => 'Departemen Sustainability & External Affairs',
+            'SUPPLY CHAIN' => 'Departemen Supply Chain',
+            'UNDERGROUND' => 'Departemen Underground'
         ];
+
+        foreach ($old_new_map as $old => $new) {
+            $this->db->where('LOWER(nama_perusahaan)', strtolower($old))->update('perusahaan', ['nama_perusahaan' => $new]);
+        }
+
+        $list = array_values($old_new_map);
 
         foreach ($list as $dept) {
             $exists = $this->db->where('LOWER(nama_perusahaan)', strtolower(trim($dept)))->count_all_results('perusahaan');
