@@ -17,8 +17,8 @@ $config['ldap'] = array(
 	'enabled'          => true,
 
 	// Use ldaps:// (port 636) whenever possible
-	'host'             => 'ldaps://archimining.local',
-	'port'             => 636,
+	'host'             => getenv('LDAP_HOST') ? 'ldaps://' . str_replace(['ldaps://', 'ldap://'], '', getenv('LDAP_HOST')) : 'ldaps://archimining.local',
+	'port'             => getenv('LDAP_PORT') ? (int)getenv('LDAP_PORT') : 636,
 	'use_starttls'     => false,
 
 	// Network/protocol hardening
@@ -27,10 +27,10 @@ $config['ldap'] = array(
 	'time_limit'       => 5,   // seconds
 
 	// Active Directory Domain
-	'domain'           => 'ARCHIMINING',
+	'domain'           => getenv('LDAP_DOMAIN') ?: 'ARCHIMINING',
 
 	// Base DN to search under
-	'base_dn'          => 'DC=archimining,DC=local',
+	'base_dn'          => getenv('LDAP_BASE_DN') ?: 'DC=archimining,DC=local',
 
 	// Service (bind) account used ONLY to search for the user's DN.
 	// bind_password is read from environment variable LDAP_BIND_PASSWORD
