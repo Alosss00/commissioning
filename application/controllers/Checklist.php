@@ -909,20 +909,8 @@ class Checklist extends CI_Controller
 
     private function _get_perbaikan_list($id_pengajuan)
     {
-        $rows = $this->db
-            ->select('pu.*, u.nama AS nama_verifikator')
-            ->from('perbaikan_unit pu')
-            ->join('users u', 'u.id_user = pu.id_verifikator', 'left')
-            ->where('pu.id_pengajuan', $id_pengajuan)
-            ->order_by('pu.id_perbaikan', 'ASC')
-            ->get()->result();
-
-        foreach ($rows as $pb) {
-            $pb->lampiran = $this->db
-                ->where('id_perbaikan', $pb->id_perbaikan)
-                ->get('perbaikan_lampiran')->result();
-        }
-        return $rows;
+        $this->load->model('pengajuan_model');
+        return $this->pengajuan_model->get_perbaikan_with_lampiran($id_pengajuan);
     }
 
     private function _user_roles()

@@ -141,38 +141,8 @@ class Approval_model extends CI_Model
     // PENCABUTAN STIKER WORKFLOW METHODS
     // =========================================================
 
-    public function check_pencabutan_schema()
-    {
-        static $checked = false;
-        if ($checked) return;
-        $checked = true;
-
-        if (!$this->db->table_exists('pencabutan_stiker')) return;
-        
-        $fields = [
-            'id_pemohon'       => "INT NULL AFTER id_pengajuan",
-            'role_pemohon'     => "INT NULL AFTER id_pemohon",
-            'status_request'   => "VARCHAR(50) NOT NULL DEFAULT 'menunggu_ohs_supt' AFTER alasan",
-            'ohs_supt_by'      => "INT NULL AFTER status_request",
-            'ohs_supt_at'      => "DATETIME NULL AFTER ohs_supt_by",
-            'ktt_1_by'         => "INT NULL AFTER ohs_supt_at",
-            'ktt_1_at'         => "DATETIME NULL AFTER ktt_1_by",
-            'ktt_2_by'         => "INT NULL AFTER ktt_1_at",
-            'ktt_2_at'         => "DATETIME NULL AFTER ktt_2_by",
-            'catatan_penolakan' => "TEXT NULL AFTER ktt_2_at",
-        ];
-
-        foreach ($fields as $field => $def) {
-            if (!$this->db->field_exists($field, 'pencabutan_stiker')) {
-                @$this->db->query("ALTER TABLE `pencabutan_stiker` ADD COLUMN `$field` $def");
-            }
-        }
-    }
-
     public function create_request_cabut($id_sticker, $id_pengajuan, $id_pemohon, $role_pemohon, $alasan)
     {
-        $this->check_pencabutan_schema();
-
         // Tentukan initial status_request berdasarkan role pemohon:
         // Kondisi 1: Inspektor (role 4) -> 'menunggu_ohs_supt'
         // Kondisi 2: OHS Supt (role 3)  -> 'menunggu_ktt_1'
@@ -203,8 +173,6 @@ class Approval_model extends CI_Model
 
     public function get_pencabutan_list($filters = [])
     {
-        $this->check_pencabutan_schema();
-
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
                            pu.id_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan,
                            k.no_polisi, k.nomor_unit, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,
@@ -246,8 +214,6 @@ class Approval_model extends CI_Model
 
     public function get_pencabutan_detail($id_cabut)
     {
-        $this->check_pencabutan_schema();
-
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
                            pu.id_pengajuan, pu.id_pemohon AS id_pemohon_pengajuan, pu.email_pemohon,
                            k.no_polisi, k.nomor_unit, k.merk, k.tipe, k.perusahaan, t.nama_tipe AS jenis_kendaraan,

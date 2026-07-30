@@ -300,22 +300,7 @@ class Approval extends CI_Controller
         $data['uji']     = $uji;
         $data['summary'] = $uji ? $this->checklist_model->get_summary($uji->id_uji) : null;
 
-        $perbaikan_list = [];
-        if ($uji) {
-            $perb_rows = $this->db
-                ->select('pu.*, u.nama AS nama_verifikator')
-                ->from('perbaikan_unit pu')
-                ->join('users u', 'u.id_user = pu.id_verifikator', 'left')
-                ->where('pu.id_pengajuan', $id_pengajuan)
-                ->order_by('pu.id_perbaikan', 'ASC')
-                ->get()->result();
-            foreach ($perb_rows as $pb) {
-                $pb->lampiran = $this->db
-                    ->where('id_perbaikan', $pb->id_perbaikan)
-                    ->get('perbaikan_lampiran')->result();
-            }
-            $perbaikan_list = $perb_rows;
-        }
+        $perbaikan_list = $uji ? $this->pengajuan_model->get_perbaikan_with_lampiran($id_pengajuan) : [];
 
         $history_versions = $uji ? $this->checklist_model->get_history_versions($uji->id_uji) : [];
         $history_detail   = $uji ? $this->checklist_model->get_checklist_history($uji->id_uji) : [];

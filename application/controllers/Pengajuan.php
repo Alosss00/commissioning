@@ -536,21 +536,7 @@ class Pengajuan extends CI_Controller
         $data->uji      = $this->pengajuan_model->get_uji($id);
 
 
-        $perbaikan_rows = $this->db
-            ->select('pu.*, u.nama AS nama_verifikator')
-            ->from('perbaikan_unit pu')
-            ->join('users u', 'u.id_user = pu.id_verifikator', 'left')
-            ->where('pu.id_pengajuan', $id)
-            ->order_by('pu.id_perbaikan', 'ASC')
-            ->get()
-            ->result();
-
-        foreach ($perbaikan_rows as $pb) {
-            $pb->lampiran = $this->db
-                ->where('id_perbaikan', $pb->id_perbaikan)
-                ->get('perbaikan_lampiran')
-                ->result();
-        }
+        $perbaikan_rows = $this->pengajuan_model->get_perbaikan_with_lampiran($id);
 
         $data->perbaikan = $perbaikan_rows;
 

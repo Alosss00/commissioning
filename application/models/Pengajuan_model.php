@@ -252,4 +252,37 @@ class Pengajuan_model extends CI_Model
 
         return $this->db->query($sql)->result();
     }
+
+    public function get_perbaikan_with_lampiran($id_pengajuan)
+    {
+        $rows = $this->db
+            ->select('pu.*, u.nama AS nama_verifikator')
+            ->from('perbaikan_unit pu')
+            ->join('users u', 'u.id_user = pu.id_verifikator', 'left')
+            ->where('pu.id_pengajuan', $id_pengajuan)
+            ->order_by('pu.id_perbaikan', 'ASC')
+            ->get()->result();
+
+        if (empty($rows)) {
+            return $rows;
+        }
+
+        $ids = array_map(function ($r) { return $r->id_perbaikan; }, $rows);
+
+        $lampiran_rows = $this->db
+            ->where_in('id_perbaikan', $ids)
+            ->get('perbaikan_lampiran')
+            ->result();
+
+        $grouped = [];
+        foreach ($lampiran_rows as $l) {
+            $grouped[$l->id_perbaikan][] = $l;
+        }
+
+        foreach ($rows as $pb) {
+            $pb->lampiran = $grouped[$pb->id_perbaikan] ?? [];
+        }
+
+        return $rows;
+    }
 }
