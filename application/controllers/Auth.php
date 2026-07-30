@@ -65,8 +65,10 @@ class Auth extends CI_Controller
 			$ldap_attrs = $this->ldap_auth->authenticate($user->username ?? $identity, $password);
 			if ($ldap_attrs !== false) {
 				$authenticated = true;
-				if (isset($ldap_attrs['dn']) && $user->ldap_dn !== $ldap_attrs['dn']) {
-					$this->db->where('id_user', $user->id_user)->update('users', ['ldap_dn' => $ldap_attrs['dn']]);
+				if (isset($ldap_attrs['dn']) && isset($user->ldap_dn) && $user->ldap_dn !== $ldap_attrs['dn']) {
+					if ($this->db->field_exists('ldap_dn', 'users')) {
+						$this->db->where('id_user', $user->id_user)->update('users', ['ldap_dn' => $ldap_attrs['dn']]);
+					}
 				}
 			}
 		} else {

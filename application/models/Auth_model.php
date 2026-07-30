@@ -8,12 +8,24 @@ class Auth_model extends CI_Model
      */
     public function check_login_by_email($email)
     {
-        return $this->db
-            ->select('id_user, id_role, nama, username, email, foto, jabatan, no_hp, departemen, password, is_active, auth_source, ldap_dn')
+        $select = 'id_user, id_role, nama, username, email, foto, jabatan, no_hp, departemen, password, is_active';
+        if ($this->db->field_exists('auth_source', 'users')) {
+            $select .= ', auth_source, ldap_dn';
+        }
+
+        $user = $this->db
+            ->select($select)
             ->where('email', $email)
             ->where('is_active', 1)
             ->get('users')
             ->row();
+
+        if ($user && !isset($user->auth_source)) {
+            $user->auth_source = 'local';
+            $user->ldap_dn = null;
+        }
+
+        return $user;
     }
 
     /**
@@ -21,12 +33,24 @@ class Auth_model extends CI_Model
      */
     public function check_login_by_username($username)
     {
-        return $this->db
-            ->select('id_user, id_role, nama, username, email, foto, jabatan, no_hp, departemen, password, is_active, auth_source, ldap_dn')
+        $select = 'id_user, id_role, nama, username, email, foto, jabatan, no_hp, departemen, password, is_active';
+        if ($this->db->field_exists('auth_source', 'users')) {
+            $select .= ', auth_source, ldap_dn';
+        }
+
+        $user = $this->db
+            ->select($select)
             ->where('username', $username)
             ->where('is_active', 1)
             ->get('users')
             ->row();
+
+        if ($user && !isset($user->auth_source)) {
+            $user->auth_source = 'local';
+            $user->ldap_dn = null;
+        }
+
+        return $user;
     }
 
     /**
