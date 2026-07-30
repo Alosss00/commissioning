@@ -663,6 +663,10 @@ class Pengajuan extends CI_Controller
             echo json_encode(['status' => 'error', 'message' => 'Tujuan dan email pemohon wajib diisi.']);
             return;
         }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['status' => 'error', 'message' => 'Format email pemohon tidak valid.']);
+            return;
+        }
         if (empty($alasan_edit)) {
             echo json_encode(['status' => 'error', 'message' => 'Jelaskan tindakan perbaikan / alasan pengajuan ulang.']);
             return;

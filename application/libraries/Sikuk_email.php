@@ -81,8 +81,8 @@ class Sikuk_email
             $p->email_pemohon,
             '[Submitted] Pengajuan Commissioning Baru — Unit ' . $p->no_polisi,
             $this->_wrap(
-                'Halo ' . $p->nama_pemohon . ',',
-                'Pengajuan commissioning untuk unit <strong>' . $p->no_polisi . '</strong> berhasil didaftarkan.',
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> berhasil didaftarkan.',
                 'Saat ini data sedang dalam tahap <strong>Pengecekan Berkas Awal</strong> oleh Departemen Manager.'
                     . ' Anda akan menerima notifikasi jika terdapat pembaruan status pengajuan ini.',
                 $this->_info_unit($p),
@@ -97,8 +97,8 @@ class Sikuk_email
                 $mgr->email,
                 '[Menunggu Approval] Pengecekan Berkas Awal Commissioning — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Yth. ' . $mgr->nama . ',',
-                    'Terdapat <strong>pengajuan commissioning baru</strong> dari Admin Departemen/Kontraktor untuk unit <strong>' . $p->no_polisi . '</strong>.',
+                    'Yth. ' . htmlspecialchars($mgr->nama) . ',',
+                    'Terdapat <strong>pengajuan commissioning baru</strong> dari Admin Departemen/Kontraktor untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
                     'Mohon kesediaannya untuk melakukan pengecekan berkas awal. Jika data tidak sesuai, Anda dapat mengembalikan pengajuan ini ke pemohon.',
                     $this->_info_unit($p),
                     $this->_btn_link('Lihat & Proses Pengajuan', $this->base_url . '/approval/manager')
@@ -120,8 +120,8 @@ class Sikuk_email
             $p->email_pemohon,
             '[Revisi Diperlukan] Pengajuan Commissioning Dikembalikan — Unit ' . $p->no_polisi,
             $this->_wrap(
-                'Halo ' . $p->nama_pemohon . ',',
-                'Terdapat kekurangan atau kesalahan pada pengajuan commissioning unit <strong>' . $p->no_polisi . '</strong>.',
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Terdapat kekurangan atau kesalahan pada pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
                 'Pengajuan Anda <strong>dikembalikan</strong> oleh <strong>Departemen Manager</strong>.'
                     . $this->_catatan_box($catatan),
                 'Mohon segera lakukan perbaikan data atau lengkapi persyaratan fisik unit, lalu ajukan kembali melalui sistem.',
@@ -144,8 +144,8 @@ class Sikuk_email
             $p->email_pemohon,
             '[Progress] Update Pengajuan Commissioning — Unit ' . $p->no_polisi,
             $this->_wrap(
-                'Halo ' . $p->nama_pemohon . ',',
-                'Pengajuan commissioning untuk unit <strong>' . $p->no_polisi . '</strong> telah disetujui pada tahap sebelumnya'
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah disetujui pada tahap sebelumnya'
                     . ' dan kini berlanjut ke tahap:',
                 '<div style="text-align:center;margin:18px 0;">
                     <span style="background:#1a73e8;color:#fff;padding:8px 22px;border-radius:20px;font-size:15px;font-weight:bold;">'
@@ -176,8 +176,8 @@ class Sikuk_email
                 $mgr->email,
                 '[Dikembalikan] Review Ulang Data Commissioning — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Yth. ' . $mgr->nama . ',',
-                    'Pengajuan unit <strong>' . $p->no_polisi . '</strong> <strong>dikembalikan</strong> oleh Admin OHS karena terdapat'
+                    'Yth. ' . htmlspecialchars($mgr->nama) . ',',
+                    'Pengajuan unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh Admin OHS karena terdapat'
                         . ' kekurangan dokumen atau ketidaksesuaian standar fisik (hasil inspeksi).',
                     $this->_catatan_box($catatan, 'Catatan Admin OHS'),
                     'Mohon tinjau kembali data ini dan koordinasikan dengan Admin Departemen/Kontraktor untuk perbaikan.',
@@ -207,8 +207,8 @@ class Sikuk_email
                 $adm->email,
                 '[Tugas Baru] Verifikasi Dokumen Commissioning — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Halo ' . $adm->nama . ',',
-                    'Pengajuan unit <strong>' . $p->no_polisi . '</strong> telah disetujui oleh Dept Manager.',
+                    'Halo ' . htmlspecialchars($adm->nama) . ',',
+                    'Pengajuan unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah disetujui oleh Dept Manager.',
                     'Mohon lakukan <strong>pengecekan dokumen kelengkapan</strong>. Jika disetujui, silakan <strong>buat jadwal inspeksi</strong> untuk tim Mekanik di dalam sistem.',
                     $this->_info_unit($p),
                     $this->_btn_link('Verifikasi Sekarang', $this->base_url . '/approval/admin_ohs')
@@ -232,8 +232,8 @@ class Sikuk_email
                 $adm->email,
                 '[Review Hasil] Inspeksi Mekanik Selesai — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Halo ' . $adm->nama . ',',
-                    'Tim Mekanik telah selesai melakukan <strong>inspeksi kelayakan</strong> pada unit <strong>' . $p->no_polisi . '</strong>.',
+                    'Halo ' . htmlspecialchars($adm->nama) . ',',
+                    'Tim Mekanik telah selesai melakukan <strong>inspeksi kelayakan</strong> pada unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
                     'Mohon tinjau ulang hasil pengujian tersebut. Jika ada kekurangan perlengkapan standar, silakan kembalikan data ke Dept Manager.'
                         . ' Jika sesuai, teruskan ke OHS Manager.',
                     $this->_info_unit($p),
@@ -258,8 +258,8 @@ class Sikuk_email
                 $adm->email,
                 '[Revisi Approval] Data Commissioning Dikembalikan — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Halo ' . $adm->nama . ',',
-                    'Data hasil inspeksi untuk unit <strong>' . $p->no_polisi . '</strong> <strong>dikembalikan</strong>'
+                    'Halo ' . htmlspecialchars($adm->nama) . ',',
+                    'Data hasil inspeksi untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong>'
                         . ' oleh <strong>' . htmlspecialchars($dari) . '</strong> karena terdapat kesalahan/kekurangan data persetujuan.',
                     $this->_catatan_box($catatan),
                     'Mohon periksa kembali kelengkapan administrasi hasil inspeksi ini sebelum diajukan ulang.',
@@ -285,8 +285,8 @@ class Sikuk_email
                 $adm->email,
                 '[Final Approved] Segera Terbitkan Stiker Akses — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Halo ' . $adm->nama . ',',
-                    'KTT telah memberikan <strong>Final Approval</strong> untuk unit <strong>' . $p->no_polisi . '</strong>.',
+                    'Halo ' . htmlspecialchars($adm->nama) . ',',
+                    'KTT telah memberikan <strong>Final Approval</strong> untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
                     '<div style="text-align:center;margin:18px 0;">
                         <span style="background:#34a853;color:#fff;padding:10px 28px;border-radius:20px;font-size:16px;font-weight:bold;">
                             ✅ KENDARAAN LAYAK OPERASI
@@ -318,8 +318,8 @@ class Sikuk_email
             $mekanik->email,
             '[Order Inspeksi] Pengujian Kelayakan Kendaraan — Unit ' . $p->no_polisi,
             $this->_wrap(
-                'Halo ' . $mekanik->nama . ',',
-                'Admin OHS telah menjadwalkan <strong>inspeksi kelayakan commissioning</strong> untuk unit <strong>' . $p->no_polisi . '</strong>.',
+                'Halo ' . htmlspecialchars($mekanik->nama) . ',',
+                'Admin OHS telah menjadwalkan <strong>inspeksi kelayakan commissioning</strong> untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
                 '<table style="width:100%;border-collapse:collapse;margin:12px 0;">
                     <tr>
                         <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;width:140px;border:1px solid #e0e0e0;">Kendaraan</td>
@@ -363,8 +363,8 @@ class Sikuk_email
                 $s->email,
                 '[Menunggu Approval] Pengecekan Akhir Commissioning — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Yth. ' . $s->nama . ',',
-                    'Data inspeksi kendaraan dan kelengkapan dokumen untuk unit <strong>' . $p->no_polisi . '</strong>'
+                    'Yth. ' . htmlspecialchars($s->nama) . ',',
+                    'Data inspeksi kendaraan dan kelengkapan dokumen untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>'
                         . ' telah diverifikasi oleh Admin OHS.',
                     'Mohon lakukan <strong>pengecekan akhir</strong>. Jika sesuai, silakan berikan persetujuan agar data dapat diteruskan ke KTT.'
                         . ' Jika ada kekurangan, Anda dapat mengembalikannya ke Admin OHS.',
@@ -394,8 +394,8 @@ class Sikuk_email
                 $ktt->email,
                 '[Menunggu Final Approval] Otorisasi Commissioning — Unit ' . $p->no_polisi,
                 $this->_wrap(
-                    'Yth. Bapak/Ibu ' . $ktt->nama . ',',
-                    'Terlampir data pengajuan commissioning untuk unit <strong>' . $p->no_polisi . '</strong>'
+                    'Yth. Bapak/Ibu ' . htmlspecialchars($ktt->nama) . ',',
+                    'Terlampir data pengajuan commissioning untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>'
                         . ' yang telah melewati tahapan <strong>inspeksi mekanik</strong> dan disetujui oleh <strong>OHS Manager</strong>.',
                     'Mohon kesediaannya untuk melakukan tinjauan dan memberikan <strong>Final Approval</strong>.'
                         . ' Jika terdapat ketidaksesuaian data, Anda dapat mengembalikan pengajuan ini ke Admin OHS.',
@@ -435,7 +435,7 @@ class Sikuk_email
             $p->email_pemohon,
             '[Final Approved] Stiker Akses Commissioning Telah Diterbitkan — Unit ' . $p->no_polisi,
             $this->_wrap(
-                'Yth. ' . $p->nama_pemohon . ',',
+                'Yth. ' . htmlspecialchars($p->nama_pemohon) . ',',
                 'Kami informasikan bahwa proses commissioning untuk kendaraan Anda telah <strong>selesai</strong> dan stiker akses resmi diterbitkan.',
                 '<div style="text-align:center;margin:18px 0;">
                     <span style="background:#34a853;color:#fff;padding:10px 28px;border-radius:20px;font-size:16px;font-weight:bold;">
@@ -779,14 +779,7 @@ class Sikuk_email
             'charset'          => 'utf-8',
             'newline'          => "\r\n",
             'crlf'             => "\r\n",
-            'wordwrap'         => false,
-            'smtp_conn_options' => [
-                'ssl' => [
-                    'verify_peer'      => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                ]
-            ]
+            'wordwrap'         => false
         ];
     }
 }
