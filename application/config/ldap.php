@@ -7,9 +7,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | -------------------------------------------------------------------
 | Environment: ARCHIMINING (Active Directory)
 | Host: archimining.local (Port 636 / LDAPS)
-| Base DN: DC=archimining,DC=local
 | -------------------------------------------------------------------
 */
+
+if (file_exists(APPPATH . 'config/ldap_env.php')) {
+    include_once APPPATH . 'config/ldap_env.php';
+}
 
 $config['ldap'] = array(
 

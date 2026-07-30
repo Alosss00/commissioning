@@ -50,7 +50,30 @@ class Auth extends CI_Controller
 			? $this->Auth_model->check_login_by_email($identity)
 			: $this->Auth_model->check_login_by_username($identity);
 
-		if (!$user || !password_verify($password, $user->password)) {
+		if (!$user) {
+			$this->session->set_userdata('login_attempt', $attempt + 1);
+			echo json_encode(['status' => 'error', 'message' => 'Username / Password salah!']);
+			return;
+		}
+
+		// ── Percabangan LDAP vs Local ───────────────────────────
+		$auth_source = !empty($user->auth_source) ? $user->auth_source : 'local';
+		$authenticated = false;
+
+		if ($auth_source === 'ldap') {
+			$this->load->library('ldap_auth');
+			$ldap_attrs = $this->ldap_auth->authenticate($user->username ?? $identity, $password);
+			if ($ldap_attrs !== false) {
+				$authenticated = true;
+				if (isset($ldap_attrs['dn']) && $user->ldap_dn !== $ldap_attrs['dn']) {
+					$this->db->where('id_user', $user->id_user)->update('users', ['ldap_dn' => $ldap_attrs['dn']]);
+				}
+			}
+		} else {
+			$authenticated = password_verify($password, $user->password);
+		}
+
+		if (!$authenticated) {
 			$this->session->set_userdata('login_attempt', $attempt + 1);
 			echo json_encode(['status' => 'error', 'message' => 'Username / Password salah!']);
 			return;
