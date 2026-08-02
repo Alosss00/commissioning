@@ -167,10 +167,11 @@ class Sikuk_email
      */
     public function notif_ditolak_admin_ohs_ke_manager($id_pengajuan, $catatan = '')
     {
-        $p       = $this->_get_pengajuan($id_pengajuan);
+        $p        = $this->_get_pengajuan($id_pengajuan);
         $managers = $this->_get_users_by_role(6);
         if (!$p) return false;
 
+        // 1. Notif ke Dept Manager (Next Approver untuk review ulang)
         foreach ($managers as $mgr) {
             $this->_send(
                 $mgr->email,
@@ -186,6 +187,23 @@ class Sikuk_email
                 )
             );
         }
+
+        // 2. Notif ke Pemohon / Admin Dept
+        if (!empty($p->email_pemohon)) {
+            $this->_send(
+                $p->email_pemohon,
+                '[Dikembalikan] Pengajuan Commissioning Dikembalikan ke Dept Manager — Unit ' . $p->no_polisi,
+                $this->_wrap(
+                    'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                    'Pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh <strong>Admin OHS</strong> ke Departemen Manager.',
+                    $this->_catatan_box($catatan, 'Catatan Admin OHS'),
+                    'Mohon koordinasikan dengan Dept Manager Anda untuk perbaikan data atau fisik unit.',
+                    $this->_info_unit($p),
+                    $this->_btn_link('Pantau Status Pengajuan', $this->base_url . '/pengajuan')
+                )
+            );
+        }
+
         return true;
     }
 
@@ -253,6 +271,7 @@ class Sikuk_email
         $admins = $this->_get_users_by_role(5);
         if (!$p) return false;
 
+        // 1. Notif ke Admin OHS
         foreach ($admins as $adm) {
             $this->_send(
                 $adm->email,
@@ -268,6 +287,23 @@ class Sikuk_email
                 )
             );
         }
+
+        // 2. Notif ke Pemohon / Admin Dept
+        if (!empty($p->email_pemohon)) {
+            $this->_send(
+                $p->email_pemohon,
+                '[Update Status] Pengajuan Commissioning Dikembalikan — Unit ' . $p->no_polisi,
+                $this->_wrap(
+                    'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                    'Pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh <strong>' . htmlspecialchars($dari) . '</strong> ke Admin OHS untuk perbaikan data.',
+                    $this->_catatan_box($catatan),
+                    'Silakan pantau status pengajuan di sistem untuk pembaruan selanjutnya.',
+                    $this->_info_unit($p),
+                    $this->_btn_link('Pantau Status Pengajuan', $this->base_url . '/pengajuan')
+                )
+            );
+        }
+
         return true;
     }
 
@@ -404,6 +440,160 @@ class Sikuk_email
                 )
             );
         }
+        return true;
+    }
+
+    /**
+     * [B] KTT ke-1 approve → KTT ke-2 diminta final approval
+     */
+    public function notif_menunggu_ktt_2($id_pengajuan, $id_ktt_1 = 0)
+    {
+        $p    = $this->_get_pengajuan($id_pengajuan);
+        $ktts = $this->_get_users_by_role(2);
+        if (!$p) return false;
+
+        foreach ($ktts as $ktt) {
+            if ((int)$ktt->id_user === (int)$id_ktt_1) continue;
+            if (empty($ktt->email)) continue;
+
+            $this->_send(
+                $ktt->email,
+                '[Menunggu Approval KTT Ke-2] Otorisasi Commissioning — Unit ' . $p->no_polisi,
+                $this->_wrap(
+                    'Yth. Bapak/Ibu ' . htmlspecialchars($ktt->nama) . ',',
+                    'Pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah disetujui oleh <strong>KTT Pertama</strong>.',
+                    'Sebagai bagian dari Dual KTT Approval, mohon kesediaannya untuk memberikan persetujuan sebagai <strong>KTT Kedua (ACC Final)</strong>.',
+                    $this->_info_unit($p),
+                    $this->_btn_link('Berikan Final Approval', $this->base_url . '/approval/ktt')
+                )
+            );
+        }
+        return true;
+    }
+
+    /**
+     * [C] Verifikasi Perbaikan disetujui → Notif Inspektor/Mekanik untuk Pengujian Ulang
+     */
+    public function notif_siap_inspeksi_ulang($id_pengajuan)
+    {
+        $p          = $this->_get_pengajuan($id_pengajuan);
+        $inspektors = $this->_get_users_by_role(4);
+        if (!$p) return false;
+
+        foreach ($inspektors as $ins) {
+            if (empty($ins->email)) continue;
+
+            $this->_send(
+                $ins->email,
+                '[Siap Pengujian Ulang] Verifikasi Perbaikan Disetujui — Unit ' . $p->no_polisi,
+                $this->_wrap(
+                    'Halo ' . htmlspecialchars($ins->nama) . ',',
+                    'Perbaikan fisik unit kendaraan <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah diverifikasi dan disetujui.',
+                    'Unit kini berstatus <strong>Siap Pengujian Ulang</strong>. Silakan lakukan pengujian checklist kelayakan ulang.',
+                    $this->_info_unit($p),
+                    $this->_btn_link('Buka Form Inspeksi Ulang', $this->base_url . '/checklist/form/' . $id_pengajuan)
+                )
+            );
+        }
+        return true;
+    }
+
+    /**
+     * [D] Permohonan Pencabutan Stiker → Notif Pemohon & Next Approver
+     */
+    public function notif_request_cabut_stiker($id_cabut)
+    {
+        $c = $this->CI->db
+            ->select('ps.*, sr.nomor_sticker, pu.id_pengajuan, pu.email_pemohon,
+                      u_pem.nama AS nama_pemohon, k.no_polisi, t.nama_tipe AS jenis_kendaraan')
+            ->from('pencabutan_stiker ps')
+            ->join('sticker_release sr', 'sr.id_sticker = ps.id_sticker',            'left')
+            ->join('pengajuan_uji pu',   'pu.id_pengajuan = ps.id_pengajuan',        'left')
+            ->join('users u_pem',        'u_pem.id_user = pu.id_pemohon',            'left')
+            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
+            ->where('ps.id_cabut', (int)$id_cabut)
+            ->get()->row();
+
+        if (!$c) return false;
+
+        $status = $c->status_request;
+
+        // 1. Informasikan Pemohon mengenai status permohonan pencabutan stiker
+        if (!empty($c->email_pemohon)) {
+            $status_desc_pemohon = [
+                'menunggu_ohs_supt' => 'Permohonan pencabutan stiker unit sedang menunggu verifikasi OHS Superintendent.',
+                'menunggu_ktt_1'    => 'Permohonan pencabutan stiker unit sedang menunggu approval KTT Pertama.',
+                'menunggu_ktt_2'    => 'Approval KTT Pertama selesai, sedang menunggu approval KTT Kedua.',
+                'siap_dicabut'      => 'Approval Dual KTT selesai. Permohonan pencabutan stiker SIAP DIEKSEKUSI oleh Admin OHS.',
+                'ditolak'           => 'Permohonan pencabutan stiker DITOLAK. Catatan: ' . htmlspecialchars($c->catatan_penolakan ?? '-'),
+            ];
+
+            $this->_send(
+                $c->email_pemohon,
+                '[Pencabutan Stiker] Update Status Permohonan — Unit ' . $c->no_polisi,
+                $this->_wrap(
+                    'Halo ' . htmlspecialchars($c->nama_pemohon) . ',',
+                    $status_desc_pemohon[$status] ?? 'Terdapat pembaruan status permohonan pencabutan stiker unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong>.',
+                    '<div style="background:#fff3cd;color:#856404;padding:12px 16px;border-radius:4px;border:1px solid #ffeeba;">'
+                    . '<strong>Nomor Stiker:</strong> ' . htmlspecialchars($c->nomor_sticker ?? '-') . '<br>'
+                    . '<strong>Alasan Pencabutan:</strong> ' . htmlspecialchars($c->alasan ?? '-')
+                    . '</div>',
+                    $this->_btn_link('Lihat Detail Pencabutan', $this->base_url . '/approval/pencabutan')
+                )
+            );
+        }
+
+        // 2. Kirim notifikasi tugas ke Approver Selanjutnya
+        if ($status === 'menunggu_ohs_supt') {
+            $supts = $this->_get_users_by_role(3);
+            foreach ($supts as $s) {
+                if (empty($s->email)) continue;
+                $this->_send(
+                    $s->email,
+                    '[Tugas Approval] Permohonan Pencabutan Stiker — Unit ' . $c->no_polisi,
+                    $this->_wrap(
+                        'Yth. ' . htmlspecialchars($s->nama) . ',',
+                        'Terdapat permohonan pencabutan stiker untuk unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> (Stiker #' . htmlspecialchars($c->nomor_sticker ?? '-') . ').',
+                        'Alasan: ' . htmlspecialchars($c->alasan),
+                        'Mohon verifikasi permohonan tersebut di sistem.',
+                        $this->_btn_link('Verifikasi Pencabutan', $this->base_url . '/approval/pencabutan')
+                    )
+                );
+            }
+        } elseif ($status === 'menunggu_ktt_1' || $status === 'menunggu_ktt_2') {
+            $ktts = $this->_get_users_by_role(2);
+            foreach ($ktts as $ktt) {
+                if (empty($ktt->email)) continue;
+                $this->_send(
+                    $ktt->email,
+                    '[Tugas Approval KTT] Permohonan Pencabutan Stiker — Unit ' . $c->no_polisi,
+                    $this->_wrap(
+                        'Yth. Bapak/Ibu ' . htmlspecialchars($ktt->nama) . ',',
+                        'Permohonan pencabutan stiker unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> membutuhkan approval KTT.',
+                        'Alasan: ' . htmlspecialchars($c->alasan),
+                        'Mohon kesediaannya melakukan approval melalui sistem.',
+                        $this->_btn_link('Approval Pencabutan', $this->base_url . '/approval/pencabutan')
+                    )
+                );
+            }
+        } elseif ($status === 'siap_dicabut') {
+            $admins = $this->_get_users_by_role(5);
+            foreach ($admins as $adm) {
+                if (empty($adm->email)) continue;
+                $this->_send(
+                    $adm->email,
+                    '[Eksekusi Pencabutan] Dual KTT Approval Selesai — Unit ' . $c->no_polisi,
+                    $this->_wrap(
+                        'Halo ' . htmlspecialchars($adm->nama) . ',',
+                        'Permohonan pencabutan stiker unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> telah disetujui penuh oleh KTT.',
+                        'Silakan lakukan <strong>Eksekusi Pencabutan Stiker</strong> di sistem.',
+                        $this->_btn_link('Eksekusi Pencabutan', $this->base_url . '/approval/pencabutan')
+                    )
+                );
+            }
+        }
+
         return true;
     }
 

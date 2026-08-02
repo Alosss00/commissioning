@@ -537,6 +537,16 @@ class Approval extends CI_Controller
             $this->_audit('approve_ktt', $id_pengajuan);
             if ($new_status === 'acc_ktt') {
                 $this->_notif_pemohon($id_pengajuan, 'ktt', 'approve', $catatan);
+            } else {
+                if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+                    try {
+                        $this->load->library('sikuk_email');
+                        $this->sikuk_email->notif_progress($id_pengajuan, 'Persetujuan KTT Ke-1 Berhasil — Menunggu Persetujuan KTT Ke-2');
+                        $this->sikuk_email->notif_menunggu_ktt_2($id_pengajuan, $id_ktt);
+                    } catch (Throwable $e) {
+                        log_message('error', '[Approval KTT 1 Notif] Exception: ' . $e->getMessage());
+                    }
+                }
             }
 
             $redirect_url = site_url('approval/ktt');
@@ -758,6 +768,14 @@ class Approval extends CI_Controller
         }
 
         $this->_audit('request_cabut_stiker', $id_pengajuan);
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            try {
+                $this->load->library('sikuk_email');
+                $this->sikuk_email->notif_request_cabut_stiker($id_cabut);
+            } catch (Throwable $e) {
+                log_message('error', '[request_cabut Notif] Exception: ' . $e->getMessage());
+            }
+        }
 
         $msg_map = [
             4 => 'Permohonan pencabutan stiker berhasil dikirim. Menunggu verifikasi dari OHS Superintendent.',
@@ -840,6 +858,14 @@ class Approval extends CI_Controller
         }
 
         $this->_audit('approve_cabut_stiker', $c->id_pengajuan);
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            try {
+                $this->load->library('sikuk_email');
+                $this->sikuk_email->notif_request_cabut_stiker($id_cabut);
+            } catch (Throwable $e) {
+                log_message('error', '[approve_cabut Notif] Exception: ' . $e->getMessage());
+            }
+        }
 
         echo json_encode([
             'status'  => 'success',
@@ -873,6 +899,14 @@ class Approval extends CI_Controller
         ]);
 
         $this->_audit('reject_cabut_stiker', $c->id_pengajuan);
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            try {
+                $this->load->library('sikuk_email');
+                $this->sikuk_email->notif_request_cabut_stiker($id_cabut);
+            } catch (Throwable $e) {
+                log_message('error', '[reject_cabut Notif] Exception: ' . $e->getMessage());
+            }
+        }
 
         echo json_encode([
             'status'  => 'success',
