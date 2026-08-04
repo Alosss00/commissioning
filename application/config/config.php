@@ -546,9 +546,9 @@ if (file_exists(APPPATH . 'config/email_env.php')) {
 } else {
     $config['sikuk_email_from'] = 'alosjo123@gmail.com';
     $config['sikuk_email_name'] = 'Commissioning Appointment System';
-    $config['sikuk_smtp_host']   = 'smtp.gmail.com';
-    $config['sikuk_smtp_port']   = 587;
-    $config['sikuk_smtp_crypto'] = 'tls';
+    $config['sikuk_smtp_host']   = 'ssl://smtp.gmail.com';
+    $config['sikuk_smtp_port']   = 465;
+    $config['sikuk_smtp_crypto'] = 'ssl';
     $config['sikuk_smtp_user']   = 'alosjo123@gmail.com';
-    $config['sikuk_smtp_pass']   = '';
+    $config['sikuk_smtp_pass']   = 'bubhmqwjuzrtvfop';
 }

@@ -957,13 +957,23 @@ class Sikuk_email
      */
     private function _smtp_config()
     {
+        $host   = $this->CI->config->item('sikuk_smtp_host') ?: 'ssl://smtp.gmail.com';
+        $port   = (int) ($this->CI->config->item('sikuk_smtp_port') ?: 465);
+        $crypto = $this->CI->config->item('sikuk_smtp_crypto') ?: 'ssl';
+        $user   = $this->CI->config->item('sikuk_smtp_user') ?: 'alosjo123@gmail.com';
+        $pass   = $this->CI->config->item('sikuk_smtp_pass') ?: 'bubhmqwjuzrtvfop';
+
+        if ($port === 465 && strpos($host, 'ssl://') === false) {
+            $host = 'ssl://' . $host;
+        }
+
         return [
             'protocol'         => 'smtp',
-            'smtp_host'        => $this->CI->config->item('sikuk_smtp_host'),
-            'smtp_port'        => $this->CI->config->item('sikuk_smtp_port'),
-            'smtp_user'        => $this->CI->config->item('sikuk_smtp_user'),
-            'smtp_pass'        => $this->CI->config->item('sikuk_smtp_pass'),
-            'smtp_crypto'      => $this->CI->config->item('sikuk_smtp_crypto'),
+            'smtp_host'        => $host,
+            'smtp_port'        => $port,
+            'smtp_user'        => $user,
+            'smtp_pass'        => $pass,
+            'smtp_crypto'      => $crypto,
             'smtp_timeout'     => 60,
             'smtp_keepalive'   => true,
             'mailtype'         => 'html',
