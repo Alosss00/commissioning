@@ -14,7 +14,7 @@ class Audit_model extends CI_Model
      */
     public function get_filtered_logs($filter = [])
     {
-        $this->db->select('al.id_audit, al.id_user, al.aksi, al.tabel, al.id_ref, al.created_at, u.nama AS nama_user, u.username, u.email AS user_email')
+        $this->db->select('al.*, u.nama AS nama_user, u.username, u.email AS user_email')
             ->from('audit_log al')
             ->join('users u', 'u.id_user = al.id_user', 'left');
 
