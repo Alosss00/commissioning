@@ -213,12 +213,17 @@ class Pengajuan extends CI_Controller
         $this->form_validation->set_rules('tujuan', 'Tujuan Penggunaan', 
             'required|max_length[1000]');
         $this->form_validation->set_rules('email_pemohon', 'Email Pemohon', 
-            'required|valid_email|max_length[100]');
+            'valid_email|max_length[100]');
 
         if (!$this->form_validation->run()) {
             $errors = str_replace(['<p>', '</p>'], ['<li>', '</li>'], validation_errors());
             echo json_encode($response('error', '<strong>Validasi Gagal:</strong><ul>' . $errors . '</ul>'));
             return;
+        }
+
+        $email_pemohon = trim($this->input->post('email_pemohon') ?? '');
+        if (empty($email_pemohon)) {
+            $email_pemohon = trim($this->session->userdata('email') ?? '');
         }
 
         $id_kendaraan = 0;
@@ -365,7 +370,7 @@ class Pengajuan extends CI_Controller
         $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
             'id_kendaraan'            => $id_kendaraan,
             'id_pemohon'              => $id_user,
-            'email_pemohon'           => $this->input->post('email_pemohon'),
+            'email_pemohon'           => $email_pemohon,
             'tipe_pengajuan'          => $this->input->post('tipe_pengajuan'),
             'tipe_akses'              => $this->input->post('tipe_akses'),
             'tujuan'                  => $this->input->post('tujuan'),

@@ -913,7 +913,8 @@ class Sikuk_email
     {
         return $this->CI->db
             ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.status,
-                      u.nama AS nama_pemohon, pu.email_pemohon AS email_pemohon,
+                      COALESCE(NULLIF(TRIM(pu.email_pemohon), ""), NULLIF(TRIM(u.email), "")) AS email_pemohon,
+                      COALESCE(NULLIF(TRIM(u.nama), ""), "Pemohon") AS nama_pemohon,
                       k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
             ->from('pengajuan_uji pu')
             ->join('users u',          'u.id_user = pu.id_pemohon',                 'left')
