@@ -113,7 +113,7 @@ class Audit extends CI_Controller
                 $time_ago       = time_ago($a->created_at);
                 $user_name      = html_escape($a->nama_user ?? 'System / Anonymous');
                 $color          = aksi_color($a->aksi);
-                $label          = aksi_label($a->aksi, $user_name, $a->id_ref);
+                $label          = aksi_label($a->aksi, $user_name, $a->id_ref, $a->tabel ?? '');
 
                 $html_rows .= '<tr>';
                 $html_rows .= '<td class="text-center small text-muted">' . $row_num . '</td>';

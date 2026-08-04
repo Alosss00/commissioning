@@ -29,9 +29,37 @@ if (!function_exists('aksi_color')) {
 }
 
 if (!function_exists('aksi_label')) {
-    function aksi_label($aksi, $nama, $id_ref)
+    function aksi_label($aksi, $nama, $id_ref, $tabel = '')
     {
+        $CI = &get_instance();
         $no = !empty($id_ref) ? '#PU-' . str_pad($id_ref, 4, '0', STR_PAD_LEFT) : '';
+        
+        // Format untuk Pengajuan Unit
+        if ($tabel === 'pengajuan_uji' || strpos($aksi, 'pengajuan') !== false || strpos($aksi, 'inspeksi') !== false || strpos($aksi, 'manager') !== false || strpos($aksi, 'ohs') !== false || strpos($aksi, 'ktt') !== false || strpos($aksi, 'jadwal') !== false) {
+            $pengajuan = $CI->db->select('k.nomor_unit')
+                ->from('pengajuan_uji pu')
+                ->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left')
+                ->where('pu.id_pengajuan', $id_ref)
+                ->get()->row();
+            if ($pengajuan && !empty($pengajuan->nomor_unit)) {
+                $no = '#' . $pengajuan->nomor_unit;
+            }
+        } 
+        // Format untuk Aktivasi User
+        elseif ($tabel === 'users' || $aksi === 'Aktifkan Akun' || $aksi === 'Nonaktifkan Akun') {
+            $target = $CI->db->select('u.nama, GROUP_CONCAT(r.nama_role SEPARATOR ", ") AS roles')
+                ->from('users u')
+                ->join('user_roles ur', 'ur.id_user = u.id_user', 'left')
+                ->join('roles r', 'r.id_role = ur.id_role', 'left')
+                ->where('u.id_user', $id_ref)
+                ->group_by('u.id_user')
+                ->get()->row();
+            if ($target) {
+                $role_str = !empty($target->roles) ? strtolower($target->roles) : 'user';
+                $no = '#' . $target->nama . ' (' . $role_str . ')';
+            }
+        }
+
         $map = [
             'buat_pengajuan'          => "<strong>$nama</strong> membuat pengajuan baru <a href='" . site_url('pengajuan') . "' class='fw-bold text-dark'>$no</a>",
             'resubmit_pengajuan'      => "<strong>$nama</strong> mengajukan ulang <a href='" . site_url('pengajuan') . "' class='fw-bold text-dark'>$no</a>",
@@ -50,7 +78,12 @@ if (!function_exists('aksi_label')) {
             'login'                   => "<strong>$nama</strong> berhasil login ke sistem",
             'logout'                  => "<strong>$nama</strong> keluar dari sistem (logout)",
         ];
-        return isset($map[$aksi]) ? $map[$aksi] : "<strong>$nama</strong> melakukan aksi <em>" . html_escape($aksi) . "</em> " . ($no ? "<a href='" . site_url('pengajuan') . "' class='fw-bold text-dark'>$no</a>" : "");
+        
+        if ($aksi === 'Aktifkan Akun' || $aksi === 'Nonaktifkan Akun') {
+            return "<strong>$nama</strong> melakukan aksi $aksi <span class='fw-bold text-dark'>$no</span>";
+        }
+        
+        return isset($map[$aksi]) ? $map[$aksi] : "<strong>$nama</strong> melakukan aksi <em>" . html_escape($aksi) . "</em> " . ($no ? "<span class='fw-bold text-dark'>$no</span>" : "");
     }
 }
 
