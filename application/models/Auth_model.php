@@ -75,7 +75,7 @@ class Auth_model extends CI_Model
      */
     public function auto_provision_ldap_user($username, $ldap_attrs = [])
     {
-        $email     = !empty($ldap_attrs['email']) ? $ldap_attrs['email'] : $username . '@archimining.local';
+        $email     = !empty($ldap_attrs['email']) ? $ldap_attrs['email'] : $username . '@archimining.com';
         $full_name = !empty($ldap_attrs['full_name']) ? $ldap_attrs['full_name'] : ucfirst($username);
 
         $data_user = [

@@ -34,7 +34,7 @@ class Ldap_auth
 
 		$default_config = [
 			'enabled'          => true,
-			'host'             => 'ldaps://archimining.local',
+			'host'             => 'ldaps://archimining.com',
 			'port'             => 636,
 			'use_starttls'     => false,
 			'protocol_version' => 3,
@@ -130,12 +130,13 @@ class Ldap_auth
 			$bind_success = @ldap_bind($this->conn, $user_dn, $password);
 		}
 
-		// Step 3: Fallback Active Directory UPN Bind (username@archimining.local, ARCHIMINING\username, username)
+		// Step 3: Fallback Active Directory UPN Bind (username@archimining.com, ARCHIMINING\username, username)
 		if (!$bind_success) {
 			$domain = !empty($this->config['domain']) ? $this->config['domain'] : 'ARCHIMINING';
 			$upn_candidates = [
-				$username . '@' . strtolower($domain) . '.local',
+				$username . '@' . strtolower($domain) . '.com',
 				$domain . '\\' . $username,
+				$username . '@archimining.com',
 				$username . '@archimining.local',
 				$username
 			];
@@ -165,7 +166,7 @@ class Ldap_auth
 			$attrs = [
 				'dn'          => $user_dn,
 				'username'    => $username,
-				'email'       => $username . '@archimining.local',
+				'email'       => $username . '@archimining.com',
 				'full_name'   => ucfirst($username),
 				'employee_id' => null
 			];
@@ -262,7 +263,7 @@ class Ldap_auth
 			$out['full_name'] = isset($entries[0]['displayname'][0]) ? $entries[0]['displayname'][0] : (isset($entries[0]['cn'][0]) ? $entries[0]['cn'][0] : ucfirst($username));
 		}
 		if (empty($out['email'])) {
-			$out['email'] = isset($entries[0]['mail'][0]) ? $entries[0]['mail'][0] : $username . '@archimining.local';
+			$out['email'] = isset($entries[0]['mail'][0]) ? $entries[0]['mail'][0] : $username . '@archimining.com';
 		}
 
 		return $out;

@@ -6,7 +6,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | LDAP Authentication Configuration
 | -------------------------------------------------------------------
 | Environment: ARCHIMINING (Active Directory)
-| Host: archimining.local (Port 636 / LDAPS)
+| Host: archimining.com (Port 636 / LDAPS)
 | -------------------------------------------------------------------
 */
 
@@ -20,7 +20,7 @@ $config['ldap'] = array(
 	'enabled'          => true,
 
 	// Use ldaps:// (port 636) whenever possible
-	'host'             => getenv('LDAP_HOST') ? 'ldaps://' . str_replace(['ldaps://', 'ldap://'], '', getenv('LDAP_HOST')) : 'ldaps://archimining.local',
+	'host'             => getenv('LDAP_HOST') ? 'ldaps://' . str_replace(['ldaps://', 'ldap://'], '', getenv('LDAP_HOST')) : 'ldaps://archimining.com',
 	'port'             => getenv('LDAP_PORT') ? (int)getenv('LDAP_PORT') : 636,
 	'use_starttls'     => false,
 
