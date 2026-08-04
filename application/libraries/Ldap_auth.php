@@ -24,6 +24,7 @@ class Ldap_auth
 	protected $CI;
 	protected $config;
 	protected $conn = false;
+	protected $last_error = '';
 
 	public function __construct()
 	{
@@ -58,8 +59,14 @@ class Ldap_auth
 		$this->config = array_merge($default_config, is_array($cfg) ? $cfg : []);
 
 		if (!extension_loaded('ldap')) {
+			$this->last_error = 'Ekstensi PHP php-ldap belum aktif di server hosting.';
 			log_message('error', 'Ldap_auth: php-ldap extension is not loaded.');
 		}
+	}
+
+	public function get_last_error()
+	{
+		return $this->last_error;
 	}
 
 	/**
@@ -71,18 +78,21 @@ class Ldap_auth
 	 */
 	public function authenticate($username, $password)
 	{
+		$this->last_error = '';
+
 		if (empty($this->config['enabled'])) {
+			$this->last_error = 'Modul otentikasi LDAP sedang dinonaktifkan di konfigurasi.';
 			return false;
 		}
 
-		// Reject empty password BEFORE any LDAP call — prevents the
-		// classic "unauthenticated bind" bypass.
 		if ($username === '' || $password === '') {
-			log_message('info', 'Ldap_auth: rejected empty username/password before bind.');
+			$this->last_error = 'Username dan password tidak boleh kosong.';
 			return false;
 		}
 
 		if (!extension_loaded('ldap')) {
+			$this->last_error = 'Ekstensi PHP php-ldap belum diaktifkan pada server hosting.';
+			log_message('error', 'Ldap_auth: php-ldap extension is not loaded.');
 			return false;
 		}
 
@@ -104,15 +114,8 @@ class Ldap_auth
 						$user_dn = $entries[0]['dn'];
 					}
 				}
-			}
-		}
-
-		// Optional: require membership in a specific group
-		if ($user_dn && !empty($this->config['required_group_dn'])) {
-			if (!$this->is_member_of($user_dn, $this->config['required_group_dn'])) {
-				log_message('info', "Ldap_auth: {$user_dn} is not a member of required group.");
-				$this->close();
-				return false;
+			} else {
+				log_message('error', 'Ldap_auth: service account bind failed. Error: ' . @ldap_error($this->conn));
 			}
 		}
 
@@ -127,13 +130,14 @@ class Ldap_auth
 			$bind_success = @ldap_bind($this->conn, $user_dn, $password);
 		}
 
-		// Step 3: Fallback Active Directory UPN Bind (username@archimining.local & ARCHIMINING\username)
+		// Step 3: Fallback Active Directory UPN Bind (username@archimining.local, ARCHIMINING\username, username)
 		if (!$bind_success) {
 			$domain = !empty($this->config['domain']) ? $this->config['domain'] : 'ARCHIMINING';
 			$upn_candidates = [
 				$username . '@' . strtolower($domain) . '.local',
 				$domain . '\\' . $username,
-				$username . '@archimining.local'
+				$username . '@archimining.local',
+				$username
 			];
 
 			foreach ($upn_candidates as $upn) {
@@ -148,7 +152,9 @@ class Ldap_auth
 		}
 
 		if (!$bind_success) {
-			log_message('info', "Ldap_auth: password verification failed for username {$username}.");
+			$err_msg = @ldap_error($this->conn);
+			$this->last_error = 'Otentikasi ke server LDAP gagal: ' . ($err_msg ? $err_msg : 'Username atau password domain tidak sesuai.');
+			log_message('info', "Ldap_auth: password verification failed for username {$username}. LDAP Error: {$err_msg}");
 			$this->close();
 			return false;
 		}
