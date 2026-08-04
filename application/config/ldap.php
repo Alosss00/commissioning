@@ -33,11 +33,11 @@ $config['ldap'] = array(
 	'domain'           => getenv('LDAP_DOMAIN') ?: 'ARCHIMINING',
 
 	// Base DN to search under
-	'base_dn'          => getenv('LDAP_BASE_DN') ?: 'DC=archimining,DC=local',
+	'base_dn'          => getenv('LDAP_BASE_DN') ?: 'DC=archimining,DC=com',
 
 	// Service (bind) account used ONLY to search for the user's DN.
 	// bind_password is read from environment variable LDAP_BIND_PASSWORD
-	'bind_dn'          => getenv('LDAP_BIND_DN') ?: 'CN=svc-ujikelayakan,OU=Service Accounts,DC=archimining,DC=local',
+	'bind_dn'          => getenv('LDAP_BIND_DN') ?: 'CN=svc-ujikelayakan,OU=Service Accounts,DC=archimining,DC=com',
 	'bind_password'    => getenv('LDAP_BIND_PASSWORD'),
 
 	// Attribute used as the login username (sAMAccountName for Active Directory)
