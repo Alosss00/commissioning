@@ -957,15 +957,14 @@ class Sikuk_email
      */
     private function _smtp_config()
     {
-        $host   = $this->CI->config->item('sikuk_smtp_host') ?: 'ssl://smtp.gmail.com';
+        $host   = $this->CI->config->item('sikuk_smtp_host') ?: 'smtp.gmail.com';
         $port   = (int) ($this->CI->config->item('sikuk_smtp_port') ?: 465);
         $crypto = $this->CI->config->item('sikuk_smtp_crypto') ?: 'ssl';
         $user   = $this->CI->config->item('sikuk_smtp_user') ?: 'alosjo123@gmail.com';
         $pass   = $this->CI->config->item('sikuk_smtp_pass') ?: 'bubhmqwjuzrtvfop';
 
-        if ($port === 465 && strpos($host, 'ssl://') === false) {
-            $host = 'ssl://' . $host;
-        }
+        // Bersihkan prefix ssl:// atau tls:// dari host agar CodeIgniter Email library tidak menghasilkan double prefix ssl://ssl://
+        $host   = preg_replace('/^(ssl|tls):\/\//i', '', $host);
 
         return [
             'protocol'         => 'smtp',
