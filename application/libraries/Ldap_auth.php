@@ -154,7 +154,7 @@ class Ldap_auth
 		}
 
 		// Success — pull mapped attributes if available
-		$attrs = $this->fetch_attributes($user_dn);
+		$attrs = $this->fetch_attributes($user_dn, $username);
 		if (empty($attrs)) {
 			$attrs = [
 				'dn'          => $user_dn,
@@ -216,15 +216,29 @@ class Ldap_auth
 		return isset($entries['count']) && $entries['count'] > 0;
 	}
 
-	protected function fetch_attributes($user_dn)
+	protected function fetch_attributes($user_dn, $username = '')
 	{
 		$want = array_values($this->config['attr_map']);
 		$want[] = $this->config['user_attribute'];
+		$want[] = 'cn';
+		$want[] = 'displayname';
+		$want[] = 'mail';
 
-		$search = @ldap_read($this->conn, $user_dn, '(objectClass=*)', $want);
+		$search = false;
+		if (strpos($user_dn, '=') !== false) {
+			$search = @ldap_read($this->conn, $user_dn, '(objectClass=*)', $want);
+		}
+
+		if ($search === false && !empty($username)) {
+			$safe_username = ldap_escape($username, '', LDAP_ESCAPE_FILTER);
+			$filter = sprintf($this->config['search_filter'], $safe_username);
+			$search = @ldap_search($this->conn, $this->config['base_dn'], $filter, $want);
+		}
+
 		if ($search === false) {
 			return array();
 		}
+
 		$entries = ldap_get_entries($this->conn, $search);
 		if (!isset($entries[0])) {
 			return array();
@@ -237,6 +251,14 @@ class Ldap_auth
 				? $entries[0][$ldap_attr_lc][0]
 				: null;
 		}
+
+		if (empty($out['full_name'])) {
+			$out['full_name'] = isset($entries[0]['displayname'][0]) ? $entries[0]['displayname'][0] : (isset($entries[0]['cn'][0]) ? $entries[0]['cn'][0] : ucfirst($username));
+		}
+		if (empty($out['email'])) {
+			$out['email'] = isset($entries[0]['mail'][0]) ? $entries[0]['mail'][0] : $username . '@archimining.local';
+		}
+
 		return $out;
 	}
 
