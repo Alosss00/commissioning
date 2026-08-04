@@ -42,7 +42,7 @@ class Auth extends CI_Controller
 
 
 
-		// Cek user
+		// Cek user di DB lokal
 		$identity = $this->input->post('identity', TRUE);
 		$password = $this->input->post('password', TRUE);
 
@@ -50,32 +50,39 @@ class Auth extends CI_Controller
 			? $this->Auth_model->check_login_by_email($identity)
 			: $this->Auth_model->check_login_by_username($identity);
 
-		if (!$user) {
-			$this->session->set_userdata('login_attempt', $attempt + 1);
-			echo json_encode(['status' => 'error', 'message' => 'Username / Password salah!']);
-			return;
-		}
-
-		// ── Percabangan LDAP vs Local ───────────────────────────
-		$auth_source = !empty($user->auth_source) ? $user->auth_source : 'local';
 		$authenticated = false;
 
-		if ($auth_source === 'ldap') {
+		// Jika user belum ada di DB lokal, coba autentikasi ke LDAP dulu (JIT Provisioning)
+		if (!$user) {
 			$this->load->library('ldap_auth');
-			$ldap_attrs = $this->ldap_auth->authenticate($user->username ?? $identity, $password);
+			$ldap_attrs = $this->ldap_auth->authenticate($identity, $password);
 			if ($ldap_attrs !== false) {
-				$authenticated = true;
-				if (isset($ldap_attrs['dn']) && isset($user->ldap_dn) && $user->ldap_dn !== $ldap_attrs['dn']) {
-					if ($this->db->field_exists('ldap_dn', 'users')) {
-						$this->db->where('id_user', $user->id_user)->update('users', ['ldap_dn' => $ldap_attrs['dn']]);
-					}
+				$user = $this->Auth_model->auto_provision_ldap_user($identity, $ldap_attrs);
+				if ($user) {
+					$authenticated = true;
 				}
 			}
 		} else {
-			$authenticated = password_verify($password, $user->password);
+			// User ada di DB lokal — cek auth_source
+			$auth_source = !empty($user->auth_source) ? $user->auth_source : 'local';
+
+			if ($auth_source === 'ldap') {
+				$this->load->library('ldap_auth');
+				$ldap_attrs = $this->ldap_auth->authenticate($user->username ?? $identity, $password);
+				if ($ldap_attrs !== false) {
+					$authenticated = true;
+					if (isset($ldap_attrs['dn']) && isset($user->ldap_dn) && $user->ldap_dn !== $ldap_attrs['dn']) {
+						if ($this->db->field_exists('ldap_dn', 'users')) {
+							$this->db->where('id_user', $user->id_user)->update('users', ['ldap_dn' => $ldap_attrs['dn']]);
+						}
+					}
+				}
+			} else {
+				$authenticated = password_verify($password, $user->password);
+			}
 		}
 
-		if (!$authenticated) {
+		if (!$user || !$authenticated) {
 			$this->session->set_userdata('login_attempt', $attempt + 1);
 			echo json_encode(['status' => 'error', 'message' => 'Username / Password salah!']);
 			return;

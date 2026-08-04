@@ -145,9 +145,20 @@ class Ldap_auth
 
 	protected function connect()
 	{
-		$this->conn = @ldap_connect($this->config['host'], $this->config['port']);
+		// Bypass certificate verification for internal Active Directory (.local) domain controllers
+		putenv('LDAPTLS_REQCERT=never');
+		if (defined('LDAP_OPT_X_TLS_REQUIRE_CERT') && defined('LDAP_OPT_X_TLS_NEVER')) {
+			@ldap_set_option(NULL, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
+		}
+
+		$host = $this->config['host'];
+		if ($this->config['port'] == 636 && strpos($host, 'ldaps://') === false && strpos($host, 'ldap://') === false) {
+			$host = 'ldaps://' . $host;
+		}
+
+		$this->conn = @ldap_connect($host, $this->config['port']);
 		if (!$this->conn) {
-			log_message('error', 'Ldap_auth: ldap_connect failed for host ' . $this->config['host']);
+			log_message('error', 'Ldap_auth: ldap_connect failed for host ' . $host);
 			return false;
 		}
 

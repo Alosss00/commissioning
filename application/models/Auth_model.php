@@ -68,4 +68,40 @@ class Auth_model extends CI_Model
             ->get()
             ->result();
     }
+
+    /**
+     * Otomatis mendaftarkan user baru dari LDAP ke DB lokal (JIT Provisioning)
+     */
+    public function auto_provision_ldap_user($username, $ldap_attrs = [])
+    {
+        $email     = !empty($ldap_attrs['email']) ? $ldap_attrs['email'] : $username . '@archimining.local';
+        $full_name = !empty($ldap_attrs['full_name']) ? $ldap_attrs['full_name'] : ucfirst($username);
+
+        $data_user = [
+            'id_role'     => 2, // Default Role: Pemohon / User Dept
+            'nama'        => $full_name,
+            'username'    => $username,
+            'email'       => $email,
+            'password'    => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            'auth_source' => 'ldap',
+            'ldap_dn'     => $ldap_attrs['dn'] ?? null,
+            'is_active'   => 1,
+            'created_at'  => date('Y-m-d H:i:s')
+        ];
+
+        $this->db->insert('users', $data_user);
+        $id_user = $this->db->insert_id();
+
+        if ($id_user) {
+            if ($this->db->table_exists('user_roles')) {
+                $this->db->insert('user_roles', [
+                    'id_user' => $id_user,
+                    'id_role' => 2
+                ]);
+            }
+            return $this->check_login_by_username($username);
+        }
+
+        return false;
+    }
 }

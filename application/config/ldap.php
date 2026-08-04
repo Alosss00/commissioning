@@ -56,7 +56,7 @@ $config['ldap'] = array(
 	// Optional: group DN whose members are allowed to log in at all.
 	'required_group_dn' => null,
 
-	// JIT provisioning: false (users must be pre-created by admin)
-	'jit_provisioning' => false,
+	// JIT provisioning: true (otomatis daftarkan user Active Directory saat login pertama)
+	'jit_provisioning' => true,
 	'default_role'     => 'pemohon',
 );
