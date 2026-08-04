@@ -64,40 +64,25 @@ class Ldap_auth
 			return false;
 		}
 
-		// Step 1: bind as service account
-		if (!@ldap_bind($this->conn, $this->config['bind_dn'], $this->config['bind_password'])) {
-			log_message('error', 'Ldap_auth: service account bind failed. Check bind_dn/bind_password.');
-			$this->close();
-			return false;
-		}
-
-		// Step 2: search for the user's DN, escaping the filter value
-		// against LDAP filter injection (RFC 4515 escaping)
+		// Step 1: Search via Service Account (if configured), or fallback to Direct Active Directory Bind
 		$safe_username = ldap_escape($username, '', LDAP_ESCAPE_FILTER);
-		$filter = sprintf($this->config['search_filter'], $safe_username);
+		$user_dn = null;
 
-		$search = @ldap_search($this->conn, $this->config['base_dn'], $filter, array('dn'));
-		if ($search === false) {
-			log_message('error', 'Ldap_auth: search failed for filter ' . $filter);
-			$this->close();
-			return false;
+		if (!empty($this->config['bind_dn']) && !empty($this->config['bind_password'])) {
+			if (@ldap_bind($this->conn, $this->config['bind_dn'], $this->config['bind_password'])) {
+				$filter = sprintf($this->config['search_filter'], $safe_username);
+				$search = @ldap_search($this->conn, $this->config['base_dn'], $filter, array('dn'));
+				if ($search !== false) {
+					$entries = ldap_get_entries($this->conn, $search);
+					if (isset($entries['count']) && $entries['count'] === 1) {
+						$user_dn = $entries[0]['dn'];
+					}
+				}
+			}
 		}
 
-		$entries = ldap_get_entries($this->conn, $search);
-		if (!isset($entries['count']) || $entries['count'] !== 1) {
-			// 0 matches = no such user; >1 matches = ambiguous filter/config.
-			// Both are treated as auth failure without distinguishing which,
-			// so the login form can't be used to enumerate valid usernames.
-			log_message('info', "Ldap_auth: user lookup returned {$entries['count']} results for {$safe_username}.");
-			$this->close();
-			return false;
-		}
-
-		$user_dn = $entries[0]['dn'];
-
-		// Optional: require membership in a specific group before allowing
-		// the bind-as-user step at all.
-		if (!empty($this->config['required_group_dn'])) {
+		// Optional: require membership in a specific group
+		if ($user_dn && !empty($this->config['required_group_dn'])) {
 			if (!$this->is_member_of($user_dn, $this->config['required_group_dn'])) {
 				log_message('info', "Ldap_auth: {$user_dn} is not a member of required group.");
 				$this->close();
@@ -105,25 +90,54 @@ class Ldap_auth
 			}
 		}
 
-		// Step 3: re-bind as the found DN using the password the user
-		// supplied. This is the step that actually verifies the password —
-		// the service account bind above never validates the user's secret.
-		// Re-connect fresh so a bound service-account connection is never
-		// reused to attempt a user bind (avoids state leakage across binds).
+		// Step 2: Re-connect fresh and verify user password
 		$this->close();
 		if (!$this->connect()) {
 			return false;
 		}
 
-		if (!@ldap_bind($this->conn, $user_dn, $password)) {
-			log_message('info', "Ldap_auth: password verification failed for {$user_dn}.");
+		$bind_success = false;
+		if ($user_dn) {
+			$bind_success = @ldap_bind($this->conn, $user_dn, $password);
+		}
+
+		// Step 3: Fallback Active Directory UPN Bind (username@archimining.local & ARCHIMINING\username)
+		if (!$bind_success) {
+			$domain = !empty($this->config['domain']) ? $this->config['domain'] : 'ARCHIMINING';
+			$upn_candidates = [
+				$username . '@' . strtolower($domain) . '.local',
+				$domain . '\\' . $username,
+				$username . '@archimining.local'
+			];
+
+			foreach ($upn_candidates as $upn) {
+				$this->close();
+				if (!$this->connect()) continue;
+				if (@ldap_bind($this->conn, $upn, $password)) {
+					$bind_success = true;
+					$user_dn = $upn;
+					break;
+				}
+			}
+		}
+
+		if (!$bind_success) {
+			log_message('info', "Ldap_auth: password verification failed for username {$username}.");
 			$this->close();
 			return false;
 		}
 
-		// Success — pull mapped attributes for the caller to use when
-		// creating/updating the local shadow user record.
+		// Success — pull mapped attributes if available
 		$attrs = $this->fetch_attributes($user_dn);
+		if (empty($attrs)) {
+			$attrs = [
+				'dn'          => $user_dn,
+				'username'    => $username,
+				'email'       => $username . '@archimining.local',
+				'full_name'   => ucfirst($username),
+				'employee_id' => null
+			];
+		}
 		$this->close();
 
 		return $attrs;
