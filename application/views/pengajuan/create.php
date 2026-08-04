@@ -606,8 +606,10 @@
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="bi bi-envelope"></i></span>
                                                     <input type="email" class="form-control inp-email-pemohon"
+                                                        id="email_pemohon_<?= $s ?>" name="email_pemohon_<?= $s ?>"
                                                         value="<?= html_escape($user['email'] ?? '') ?>" placeholder="nama@perusahaan.com">
                                                 </div>
+                                                <small class="text-muted" style="font-size:11px;">Notifikasi perkembangan pengajuan akan dikirimkan ke email ini.</small>
                                                 <div class="text-danger small mt-1 err-email-pemohon"></div>
                                             </div>
                                             <div class="col-md-6">
@@ -1263,7 +1265,8 @@
                 $tab.find('.err-tujuan').text('Tujuan penggunaan wajib diisi.');
                 errors = true;
             }
-            if (!$tab.find('.inp-email-pemohon').val().trim()) {
+            var valEmailPemohon = ($('#email_pemohon_' + s).val() || $tab.find('.inp-email-pemohon').val() || '').trim();
+            if (!valEmailPemohon) {
                 $tab.find('.err-email-pemohon').text('Email pemohon wajib diisi.');
                 errors = true;
             }
@@ -1310,7 +1313,7 @@
                 fd.append('tipe_pengajuan', $tab.find('.tipe-pengajuan-radio:checked').val());
                 fd.append('tipe_akses', tipaAkses);
                 fd.append('tujuan', $tab.find('.inp-tujuan').val());
-                fd.append('email_pemohon', $tab.find('.inp-email-pemohon').val());
+                fd.append('email_pemohon', valEmailPemohon);
                 fd.append('pernah_maintenance_luar', maintenanceLuar);
 
                 if (modeUnit === 'baru') {
