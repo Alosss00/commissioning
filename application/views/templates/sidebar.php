@@ -311,6 +311,12 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                 </a>
             </li>
 
+            <li class="nav-item">
+                <a class="nav-link <?= is_active('audit') ?>" href="<?= site_url('audit') ?>">
+                    <i class="bi bi-clock-history"></i><span>Log Aktivitas Sistem</span>
+                </a>
+            </li>
+
         <?php endif; ?>
 
     </ul>

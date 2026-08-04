@@ -558,9 +558,12 @@ function aksi_color($aksi)
                 <?php endif; ?>
 
                 <!-- AKTIVITAS TERBARU -->
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Aktivitas Terbaru <span>| Log Sistem</span></h5>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="card-title mb-0 pt-0 pb-0">Aktivitas Terbaru <span>| Log Sistem</span></h5>
+                            <a href="<?= site_url('audit') ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1" style="font-size: 11px;">
+                                <i class="bi bi-clock-history me-1"></i>Lihat Seluruh Log
+                            </a>
+                        </div>
                         <?php if (empty($aktivitas)): ?>
                             <p class="text-muted text-center py-3 small">Belum ada aktivitas.</p>
                         <?php else: ?>
