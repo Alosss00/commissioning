@@ -106,7 +106,7 @@
                                 </div>
 
                                 <!-- Search Keywords -->
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold small">Pencarian Kata Kunci</label>
                                     <div class="input-group input-group-sm">
                                         <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -114,13 +114,23 @@
                                     </div>
                                 </div>
 
+                                <!-- Limit Options (10/25/50/100/200/500) -->
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold small">Tampilkan Data</label>
+                                    <select class="form-select form-select-sm" name="limit" id="inpLimit">
+                                        <?php foreach ([10, 25, 50, 100, 200, 500] as $l_opt): ?>
+                                            <option value="<?= $l_opt ?>" <?= ($limit == $l_opt) ? 'selected' : '' ?>><?= $l_opt ?> Baris / Halaman</option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
                                 <!-- Action Buttons -->
-                                <div class="col-md-5 d-flex align-items-end gap-2">
+                                <div class="col-md-4 d-flex align-items-end gap-2">
                                     <button type="button" id="btnApplyFilter" class="btn btn-primary btn-sm px-3">
                                         <i class="bi bi-filter me-1"></i>Terapkan Filter
                                     </button>
                                     <a href="<?= site_url('audit') ?>" class="btn btn-outline-secondary btn-sm px-3">
-                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filter
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
                                     </a>
                                 </div>
 
@@ -132,6 +142,15 @@
                 <!-- TABEL DATA AUDIT LOG -->
                 <div class="card border-0 shadow-sm">
                     <div class="card-body pt-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <span class="text-muted small" id="infoEntries">
+                                Memuat data baris <?= number_format($total_logs > 0 ? 1 : 0) ?> s/d <?= number_format(min($limit, $total_logs)) ?> dari total <?= number_format($total_logs) ?> data
+                            </span>
+                            <div class="badge bg-light text-dark border px-3 py-2">
+                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Optimasi N+1: Query Eager Single-JOIN Active (0 Subqueries)
+                            </div>
+                        </div>
 
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0" id="tableAuditLog">
@@ -179,6 +198,23 @@
                             </table>
                         </div>
 
+                        <!-- PAGINATION CONTROLS -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2 border-top pt-3">
+                            <div class="small text-muted" id="infoPageSummary">
+                                Halaman <strong id="lblCurrentPage">1</strong> dari <strong id="lblTotalPages"><?= max(1, $total_pages) ?></strong>
+                            </div>
+                            <nav aria-label="Navigasi Halaman Audit Log">
+                                <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                                    <li class="page-item disabled" id="btnPagePrev">
+                                        <button class="page-link" type="button" data-page="1"><i class="bi bi-chevron-left me-1"></i>Sebelumnya</button>
+                                    </li>
+                                    <li class="page-item disabled" id="btnPageNext">
+                                        <button class="page-link" type="button" data-page="2">Berikutnya<i class="bi bi-chevron-right ms-1"></i></button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+
                     </div>
                 </div>
 
@@ -191,7 +227,9 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
 
-        // Handler Toggle Tampilan Input Filter berdasarkan Mode
+        var currentPage = 1;
+        var totalPages = <?= max(1, $total_pages) ?>;
+
         function toggleFilterInputs() {
             var mode = $('#filterMode').val();
             if (mode === 'hari') {
@@ -212,10 +250,12 @@
             toggleFilterInputs();
         });
 
-        // AJAX Filter Request
-        $('#btnApplyFilter').on('click', function() {
+        function loadAuditLogs(pageTarget) {
+            currentPage = pageTarget || 1;
             var mode = $('#filterMode').val();
             var postData = {
+                page: currentPage,
+                limit: $('#inpLimit').val(),
                 id_user: $('#inpUser').val(),
                 aksi: $('#inpAksi').val(),
                 search: $('#inpSearch').val()
@@ -241,6 +281,24 @@
                     if (res.status === 'success') {
                         $('#tbodyAuditLog').html(res.html);
                         $('#badgeTotalLogs').text('Total: ' + new Intl.NumberFormat().format(res.total) + ' Aktivitas');
+                        $('#infoEntries').text('Memuat data baris ' + new Intl.NumberFormat().format(res.start_num) + ' s/d ' + new Intl.NumberFormat().format(res.end_num) + ' dari total ' + new Intl.NumberFormat().format(res.total) + ' data');
+                        
+                        totalPages = max(1, res.total_pages);
+                        $('#lblCurrentPage').text(res.page);
+                        $('#lblTotalPages').text(totalPages);
+
+                        // Update pagination buttons
+                        if (res.page <= 1) {
+                            $('#btnPagePrev').addClass('disabled').find('button').data('page', 1);
+                        } else {
+                            $('#btnPagePrev').removeClass('disabled').find('button').data('page', res.page - 1);
+                        }
+
+                        if (res.page >= totalPages) {
+                            $('#btnPageNext').addClass('disabled').find('button').data('page', totalPages);
+                        } else {
+                            $('#btnPageNext').removeClass('disabled').find('button').data('page', res.page + 1);
+                        }
                     } else {
                         toastr.error('Gagal mengambil data log.');
                     }
@@ -249,13 +307,36 @@
                     toastr.error('Terjadi kesalahan server saat memuat log.');
                 }
             });
+        }
+
+        function max(a, b) {
+            return a > b ? a : b;
+        }
+
+        // Terapkan Filter Button
+        $('#btnApplyFilter').on('click', function() {
+            loadAuditLogs(1);
+        });
+
+        // Limit Selector Change
+        $('#inpLimit').on('change', function() {
+            loadAuditLogs(1);
+        });
+
+        // Pagination Buttons Click
+        $(document).on('click', '#paginationControls button', function(e) {
+            e.preventDefault();
+            var targetPage = $(this).data('page');
+            if (targetPage && !$(this).parent().hasClass('disabled')) {
+                loadAuditLogs(targetPage);
+            }
         });
 
         // Allow pressing Enter in search field
         $('#inpSearch').on('keypress', function(e) {
             if (e.which === 13) {
                 e.preventDefault();
-                $('#btnApplyFilter').click();
+                loadAuditLogs(1);
             }
         });
 

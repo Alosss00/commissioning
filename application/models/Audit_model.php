@@ -10,11 +10,11 @@ class Audit_model extends CI_Model
     }
 
     /**
-     * Ambil data audit log terfilter
+     * N+1 Optimized Query: Ambil data audit log terfilter dalam 1 single Eager JOIN query
      */
     public function get_filtered_logs($filter = [])
     {
-        $this->db->select('al.*, u.nama AS nama_user, u.username, u.email AS user_email')
+        $this->db->select('al.id_audit, al.id_user, al.aksi, al.tabel, al.id_ref, al.created_at, u.nama AS nama_user, u.username, u.email AS user_email')
             ->from('audit_log al')
             ->join('users u', 'u.id_user = al.id_user', 'left');
 
@@ -42,7 +42,7 @@ class Audit_model extends CI_Model
             $this->db->where('al.aksi', $filter['aksi']);
         }
 
-        // Search kata kunci (pencarian serbaguna)
+        // Search kata kunci
         if (!empty($filter['search'])) {
             $s = $filter['search'];
             $this->db->group_start()
@@ -55,16 +55,16 @@ class Audit_model extends CI_Model
 
         $this->db->order_by('al.created_at', 'DESC');
 
-        if (!empty($filter['limit'])) {
-            $offset = !empty($filter['offset']) ? (int)$filter['offset'] : 0;
-            $this->db->limit((int)$filter['limit'], $offset);
-        }
+        // Batasi jumlah data (Limit & Offset pagination)
+        $limit  = !empty($filter['limit']) ? (int)$filter['limit'] : 25;
+        $offset = !empty($filter['offset']) ? (int)$filter['offset'] : 0;
+        $this->db->limit($limit, $offset);
 
         return $this->db->get()->result();
     }
 
     /**
-     * Hitung total log terfilter (untuk statistik/pagination)
+     * Hitung total log terfilter untuk statistik & pagination
      */
     public function count_filtered_logs($filter = [])
     {
@@ -100,7 +100,7 @@ class Audit_model extends CI_Model
     }
 
     /**
-     * Ambil daftar semua user untuk dropdown filter
+     * Ambil daftar user untuk dropdown filter
      */
     public function get_all_users()
     {
