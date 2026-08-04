@@ -38,8 +38,8 @@ class Ldap_auth
 			'port'             => 636,
 			'use_starttls'     => false,
 			'protocol_version' => 3,
-			'network_timeout'  => 5,
-			'time_limit'       => 5,
+			'network_timeout'  => 2,
+			'time_limit'       => 2,
 			'domain'           => 'ARCHIMINING',
 			'base_dn'          => 'DC=archimining,DC=com',
 			'bind_dn'          => 'CN=svc-ujikelayakan,OU=Service Accounts,DC=archimining,DC=com',
@@ -142,12 +142,17 @@ class Ldap_auth
 			];
 
 			foreach ($upn_candidates as $upn) {
-				$this->close();
-				if (!$this->connect()) continue;
 				if (@ldap_bind($this->conn, $upn, $password)) {
 					$bind_success = true;
 					$user_dn = $upn;
 					break;
+				} else {
+					// Hentikan perulangan jika terjadi Network Error (host mati/unreachable), 
+					// jangan buang-buang waktu mencoba UPN lain jika server tidak bisa dihubungi.
+					$err_no = ldap_errno($this->conn);
+					if (in_array($err_no, [81, 85, -1])) {
+						break;
+					}
 				}
 			}
 		}

@@ -26,8 +26,8 @@ $config['ldap'] = array(
 
 	// Network/protocol hardening
 	'protocol_version' => 3,
-	'network_timeout'  => 5,   // seconds
-	'time_limit'       => 5,   // seconds
+	'network_timeout'  => 2,   // seconds
+	'time_limit'       => 2,   // seconds
 
 	// Active Directory Domain
 	'domain'           => getenv('LDAP_DOMAIN') ?: 'ARCHIMINING',
