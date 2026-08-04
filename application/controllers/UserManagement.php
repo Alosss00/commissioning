@@ -252,6 +252,19 @@ class UserManagement extends CI_Controller
             return;
         }
         $ok = $this->user_model->toggle_active($id);
+        
+        if ($ok) {
+            $user = $this->user_model->get_by_id($id);
+            $aksi = $user->is_active ? 'Aktifkan Akun' : 'Nonaktifkan Akun';
+            $this->db->insert('audit_log', [
+                'id_user' => $this->session->userdata('id_user'),
+                'aksi' => $aksi,
+                'tabel' => 'users',
+                'id_ref' => $id,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+
         echo json_encode($ok ? ['status' => 'success'] : ['status' => 'error', 'message' => 'Gagal.']);
     }
 

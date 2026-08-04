@@ -306,10 +306,11 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
         <?php endif; ?>
 
         <!-- ================= ADMIN ================= -->
-        <?php if ($isAdmin): ?>
+        <?php if ($isAdmin || $isKTT || $isOHSSupt): ?>
 
             <li class="nav-heading">Administrasi</li>
 
+            <?php if ($isAdmin): ?>
             <li class="nav-item">
                 <a class="nav-link <?= is_active('usermanagement') ?>" href="<?= site_url('usermanagement') ?>">
                     <i class="bi bi-people"></i><span>Manajemen User</span>
@@ -321,6 +322,7 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                     <i class="bi bi-shield-lock"></i><span>Hak Akses</span>
                 </a>
             </li>
+            <?php endif; ?>
 
             <li class="nav-item">
                 <a class="nav-link <?= is_active('audit') ?>" href="<?= site_url('audit') ?>">

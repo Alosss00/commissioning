@@ -13,6 +13,17 @@ class Audit extends CI_Controller
         if (!$this->session->userdata('id_user')) {
             redirect('auth/login');
         }
+
+        $roles_raw = $this->session->userdata('roles');
+        $role_int  = (int) $this->session->userdata('role');
+        $roles     = is_array($roles_raw) ? array_map('intval', $roles_raw) : ($role_int > 0 ? [$role_int] : []);
+        
+        // 1=Super Admin, 2=KTT, 3=OHS Supt
+        $allowed = array_intersect([1, 2, 3], $roles);
+        if (empty($allowed)) {
+            $this->session->set_flashdata('error', 'Akses ditolak.');
+            redirect('dashboard');
+        }
     }
 
     /**
