@@ -28,8 +28,34 @@ class Ldap_auth
 	public function __construct()
 	{
 		$this->CI =& get_instance();
-		$this->CI->config->load('ldap', TRUE);
-		$this->config = $this->CI->config->item('ldap');
+		@$this->CI->config->load('ldap', TRUE, TRUE);
+		$cfg = $this->CI->config->item('ldap');
+
+		$default_config = [
+			'enabled'          => true,
+			'host'             => 'ldaps://archimining.local',
+			'port'             => 636,
+			'use_starttls'     => false,
+			'protocol_version' => 3,
+			'network_timeout'  => 5,
+			'time_limit'       => 5,
+			'domain'           => 'ARCHIMINING',
+			'base_dn'          => 'DC=archimining,DC=local',
+			'bind_dn'          => 'CN=svc-ujikelayakan,OU=Service Accounts,DC=archimining,DC=local',
+			'bind_password'    => getenv('LDAP_BIND_PASSWORD'),
+			'user_attribute'   => 'sAMAccountName',
+			'search_filter'    => '(sAMAccountName=%s)',
+			'attr_map'         => [
+				'email'       => 'mail',
+				'full_name'   => 'displayName',
+				'employee_id' => 'employeeNumber',
+			],
+			'required_group_dn' => null,
+			'jit_provisioning'  => true,
+			'default_role'      => 'pemohon',
+		];
+
+		$this->config = array_merge($default_config, is_array($cfg) ? $cfg : []);
 
 		if (!extension_loaded('ldap')) {
 			log_message('error', 'Ldap_auth: php-ldap extension is not loaded.');
@@ -45,7 +71,7 @@ class Ldap_auth
 	 */
 	public function authenticate($username, $password)
 	{
-		if (!$this->config['enabled']) {
+		if (empty($this->config['enabled'])) {
 			return false;
 		}
 
