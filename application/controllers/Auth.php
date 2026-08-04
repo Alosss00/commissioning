@@ -14,13 +14,21 @@ class Auth extends CI_Controller
 	public function index()
 	{
 		if ($this->session->userdata('logged_in')) redirect('dashboard');
+
+		// Reset login_attempt jika sudah lewat dari 5 menit (300 detik)
+		$last_attempt_time = $this->session->userdata('last_attempt_time');
+		if ($last_attempt_time && (time() - $last_attempt_time > 300)) {
+			$this->session->unset_userdata('login_attempt');
+			$this->session->unset_userdata('last_attempt_time');
+		}
+
 		$this->load->view('auth/index');
 	}
 
 	public function login()
 	{
 		if ($this->input->method() !== 'post') {
-			redirect('auth'); // atau langsung ke index login
+			redirect('auth');
 			return;
 		}
 
@@ -33,14 +41,21 @@ class Auth extends CI_Controller
 			return;
 		}
 
-		// Cek brute-force
-		$attempt = $this->session->userdata('login_attempt') ?? 0;
-		if ($attempt >= 5) {
-			echo json_encode(['status' => 'error', 'message' => 'Terlalu banyak percobaan login. Silakan refresh halaman.']);
+		// Cek brute-force perlindungan percobaan login
+		$attempt = (int) ($this->session->userdata('login_attempt') ?? 0);
+		$last_attempt_time = $this->session->userdata('last_attempt_time');
+
+		if ($attempt >= 5 && $last_attempt_time && (time() - $last_attempt_time < 300)) {
+			$sisa_detik = 300 - (time() - $last_attempt_time);
+			$sisa_menit = ceil($sisa_detik / 60);
+			echo json_encode(['status' => 'error', 'message' => "Terlalu banyak percobaan gagal. Silakan tunggu {$sisa_menit} menit lagi sebelum mencoba kembali."]);
 			return;
+		} elseif ($attempt >= 5) {
+			// Reset percobaan jika sudah melewati 5 menit
+			$attempt = 0;
+			$this->session->unset_userdata('login_attempt');
+			$this->session->unset_userdata('last_attempt_time');
 		}
-
-
 
 		// Cek user di DB lokal
 		$identity = $this->input->post('identity', TRUE);
@@ -84,6 +99,7 @@ class Auth extends CI_Controller
 
 		if (!$user || !$authenticated) {
 			$this->session->set_userdata('login_attempt', $attempt + 1);
+			$this->session->set_userdata('last_attempt_time', time());
 			echo json_encode(['status' => 'error', 'message' => 'Username / Password salah!']);
 			return;
 		}
