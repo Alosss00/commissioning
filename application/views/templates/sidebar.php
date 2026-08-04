@@ -128,6 +128,17 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
             </a>
         </li>
 
+        <?php if (empty($_roles) || $_role_int === 0): ?>
+            <!-- User Baru LDAP (Menunggu Role dari Admin) — Hanya Tampil Dashboard -->
+            <li class="nav-heading text-warning mt-3">Status Akses Akun</li>
+            <li class="nav-item px-3 py-2 bg-light border rounded text-muted small me-3 ms-2">
+                <i class="bi bi-clock-history text-warning me-1"></i>Menunggu Penetapan Role oleh Administrator
+            </li>
+            </ul>
+            </aside>
+            <?php return; ?>
+        <?php endif; ?>
+
         <!-- ================= PENGAJUAN ================= -->
         <li class="nav-heading">Pengajuan</li>
 

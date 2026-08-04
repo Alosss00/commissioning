@@ -111,6 +111,8 @@ class UserManagement extends CI_Controller
                 foreach (explode(', ', $u->roles_label) as $r) {
                     $roles_html .= '<span class="badge bg-light text-dark border me-1" style="font-size:11px;">' . $r . '</span>';
                 }
+            } else {
+                $roles_html = '<span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Menunggu Role (LDAP)</span>';
             }
             $status = $u->is_active
                 ? '<span class="badge bg-success">Aktif</span>'

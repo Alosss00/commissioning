@@ -112,6 +112,25 @@ function aksi_color($aksi)
         </nav>
     </div>
 
+    <?php 
+    $_role_int = (int) $this->session->userdata('role');
+    $_roles_raw = $this->session->userdata('roles');
+    $isPendingLDAP = (empty($_roles_raw) && $_role_int === 0) || ($_role_int === 0);
+    ?>
+
+    <?php if ($isPendingLDAP): ?>
+        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4 p-3 rounded-3">
+            <i class="bi bi-clock-history fs-1 text-warning me-3"></i>
+            <div>
+                <h5 class="alert-heading fw-bold mb-1">Akun Terdaftar via Active Directory LDAP (ARCHIMINING)</h5>
+                <p class="mb-0 small text-dark">
+                    Selamat datang, <strong><?= html_escape($user['nama'] ?? $this->session->userdata('nama')) ?></strong>. Akun Anda berhasil terdaftar melalui server LDAP. 
+                    Saat ini akun Anda <strong>menunggu penetapan Role / Hak Akses</strong> oleh Administrator. Silakan hubungi Administrator sistem untuk mendapatkan akses ke modul pengajuan & inspeksi.
+                </p>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <section class="section dashboard">
         <div class="row">
 

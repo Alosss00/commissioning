@@ -119,15 +119,21 @@ class Auth extends CI_Controller
 
 		// Jika belum ada di user_roles, fallback ke kolom id_role
 		if (empty($roles_raw)) {
-			$roles_ids   = [(int) $user->id_role];
-			$role_map    = [1 => 'Administrator', 2 => 'User / Dept', 3 => 'Mekanik', 4 => 'Admin OHS', 5 => 'KTT'];
-			$roles_names = [isset($role_map[$user->id_role]) ? $role_map[$user->id_role] : 'User'];
+			if ((int)$user->id_role === 0) {
+				$roles_ids   = [];
+				$roles_names = ['Menunggu Penetapan Role (LDAP)'];
+				$primary_role = 0;
+			} else {
+				$roles_ids   = [(int) $user->id_role];
+				$role_map    = [1 => 'Administrator', 2 => 'User / Dept', 3 => 'Mekanik', 4 => 'Admin OHS', 5 => 'KTT'];
+				$roles_names = [isset($role_map[$user->id_role]) ? $role_map[$user->id_role] : 'User'];
+				$primary_role = (int)$user->id_role;
+			}
 		} else {
 			$roles_ids   = array_map(fn($r) => (int)$r->id_role, $roles_raw);
 			$roles_names = array_map(fn($r) => $r->nama_role,    $roles_raw);
+			$primary_role = !empty($roles_ids) ? min($roles_ids) : (int)$user->id_role;
 		}
-
-		$primary_role = !empty($roles_ids) ? min($roles_ids) : (int)$user->id_role;
 
 		// ── Set session ────────────────────────────────────────
 		$this->session->unset_userdata('login_attempt');

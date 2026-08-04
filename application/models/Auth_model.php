@@ -71,6 +71,7 @@ class Auth_model extends CI_Model
 
     /**
      * Otomatis mendaftarkan user baru dari LDAP ke DB lokal (JIT Provisioning)
+     * User baru diberi id_role = 0 (Menunggu penetapan Role oleh Administrator)
      */
     public function auto_provision_ldap_user($username, $ldap_attrs = [])
     {
@@ -78,7 +79,7 @@ class Auth_model extends CI_Model
         $full_name = !empty($ldap_attrs['full_name']) ? $ldap_attrs['full_name'] : ucfirst($username);
 
         $data_user = [
-            'id_role'     => 2, // Default Role: Pemohon / User Dept
+            'id_role'     => 0, // Pending Role: Menunggu penetapan role dari Admin
             'nama'        => $full_name,
             'username'    => $username,
             'email'       => $email,
@@ -93,12 +94,6 @@ class Auth_model extends CI_Model
         $id_user = $this->db->insert_id();
 
         if ($id_user) {
-            if ($this->db->table_exists('user_roles')) {
-                $this->db->insert('user_roles', [
-                    'id_user' => $id_user,
-                    'id_role' => 2
-                ]);
-            }
             return $this->check_login_by_username($username);
         }
 
