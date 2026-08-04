@@ -8,7 +8,7 @@ class Audit extends CI_Controller
         parent::__construct();
         $this->load->model('audit_model');
         $this->load->library('session');
-        $this->load->helper(['url', 'html', 'auth_helper', 'pengajuan_helper']);
+        $this->load->helper(['url', 'html', 'auth', 'pengajuan']);
         
         if (!$this->session->userdata('id_user')) {
             redirect('auth/login');
