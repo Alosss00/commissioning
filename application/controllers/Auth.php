@@ -91,6 +91,9 @@ class Auth extends CI_Controller
 							$this->db->where('id_user', $user->id_user)->update('users', ['ldap_dn' => $ldap_attrs['dn']]);
 						}
 					}
+				} else {
+					// Fallback: jika pengguna telah memperbarui password personal melalui menu Profil
+					$authenticated = password_verify($password, $user->password);
 				}
 			} else {
 				$authenticated = password_verify($password, $user->password);

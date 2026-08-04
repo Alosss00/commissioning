@@ -133,16 +133,35 @@ class Profil extends CI_Controller
             return;
         }
 
-        // Verifikasi password lama
-        $user = $this->db->select('password')->where('id_user', $id_user)->get('users')->row();
-        if (!$user || !password_verify($lama, $user->password)) {
+        // Verifikasi password lama (cek ke hash DB lokal & LDAP server jika akun LDAP)
+        $user = $this->db->select('username, password, auth_source')->where('id_user', $id_user)->get('users')->row();
+        $is_old_valid = false;
+
+        if ($user) {
+            if (password_verify($lama, $user->password)) {
+                $is_old_valid = true;
+            } elseif (!empty($user->auth_source) && $user->auth_source === 'ldap') {
+                $this->load->library('ldap_auth');
+                $ldap_attrs = $this->ldap_auth->authenticate($user->username, $lama);
+                if ($ldap_attrs !== false) {
+                    $is_old_valid = true;
+                }
+            }
+        }
+
+        if (!$is_old_valid) {
             echo json_encode(['status' => 'error', 'message' => 'Password lama tidak sesuai.']);
             return;
         }
 
-        $ok = $this->user_model->update($id_user, ['password' => password_hash($baru, PASSWORD_BCRYPT)]);
+        // Simpan password baru terenkripsi ke database sistem
+        $new_hash = password_hash($baru, PASSWORD_BCRYPT);
+        $ok = $this->user_model->update($id_user, [
+            'password' => $new_hash
+        ]);
+
         echo json_encode($ok
-            ? ['status' => 'success', 'message' => 'Password berhasil diubah. Silakan login ulang.']
-            : ['status' => 'error', 'message' => 'Gagal mengubah password.']);
+            ? ['status' => 'success', 'message' => 'Password berhasil diperbarui dan disimpan ke database sistem. Silakan login ulang.']
+            : ['status' => 'error', 'message' => 'Gagal menyimpan password baru.']);
     }
 }
