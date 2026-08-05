@@ -111,6 +111,45 @@ if (!function_exists('badge_status')) {
     }
 }
 
+if (!function_exists('level_label')) {
+    function level_label($level)
+    {
+        $map = [
+            'pengajuan_baru'     => ['warning text-dark', 'Review Manager'],
+            'pengajuan_ulang'    => ['warning text-dark', 'Review Manager'],
+            'ditolak_admin_ohs'  => ['warning text-dark', 'Review Manager'],
+            'diterima_manager'   => ['info text-dark',    'Review Admin OHS'],
+            'selesai_inspeksi'   => ['info text-dark',    'Review Hasil'],
+            'acc_ktt'            => ['dark',              'Release Stiker'],
+            'diterima_admin_ohs' => ['info text-dark',    'OHS Superintendent'],
+            'ditolak_ohs_supt'   => ['info text-dark',    'OHS Superintendent'],
+            'diterima_ohs_supt'  => ['dark',              'KTT'],
+            'dijadwalkan'        => ['primary',           'Mekanik'],
+            'ditolak_manager'    => ['danger',            'Ditolak'],
+        ];
+        $c = isset($map[$level]) ? $map[$level] : ['secondary', $level];
+        return '<span class="badge bg-' . $c[0] . '" style="font-size:10px;">' . $c[1] . '</span>';
+    }
+}
+
+if (!function_exists('approval_route')) {
+    function approval_route($status)
+    {
+        $map = [
+            'pengajuan_baru'     => 'approval/manager',
+            'pengajuan_ulang'    => 'approval/manager',
+            'ditolak_admin_ohs'  => 'approval/manager',
+            'diterima_manager'   => 'approval/admin_ohs',
+            'selesai_inspeksi'   => 'approval/admin_hasil',
+            'acc_ktt'            => 'approval/admin_ohs',
+            'diterima_admin_ohs' => 'approval/ohs_supt',
+            'diterima_ohs_supt'  => 'approval/ktt',
+            'dijadwalkan'        => 'jadwal',
+        ];
+        return isset($map[$status]) ? $map[$status] : 'pengajuan';
+    }
+}
+
 if (!function_exists('badge_tipe_akses')) {
     function badge_tipe_akses($tipe, $extra_style = '')
     {
