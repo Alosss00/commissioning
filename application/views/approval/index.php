@@ -96,7 +96,10 @@
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <span class="fw-semibold"><?= html_escape($row->no_polisi) ?></span><br>
+                                                    <span class="fw-semibold"><?= html_escape($row->no_polisi) ?></span>
+                                                    <?php if (!empty($row->tipe_akses)): ?>
+                                                        <span class="badge bg-info text-white ms-1" style="font-size:10px;"><?= html_escape(strtoupper($row->tipe_akses)) ?></span>
+                                                    <?php endif; ?><br>
                                                     <small class="text-muted">No. Unit: </small><span class="badge bg-dark font-monospace" style="font-size:11px;"><?= html_escape(!empty($row->nomor_unit) ? $row->nomor_unit : '-') ?></span><br>
                                                     <small class="text-muted">
                                                         <?= html_escape($row->jenis_kendaraan ?? '') ?>

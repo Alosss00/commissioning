@@ -555,6 +555,7 @@
                     var badgeUnit = d.is_unit_baru == 1 ?
                         '<span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Unit Baru</span>' :
                         '<span class="badge bg-secondary">Unit Lama</span>';
+                    var badgeAkses = d.tipe_akses ? '<span class="badge bg-info text-white">' + String(d.tipe_akses).toUpperCase() + '</span>' : '—';
                     $('#modalDetailBody').html(
                         '<table class="table table-sm table-borderless mb-0">' +
                         '<tr><td class="text-muted fw-semibold" width="130">No. Polisi</td><td><span class="badge bg-dark font-monospace fs-6">' + d.no_polisi + '</span></td></tr>' +
@@ -565,6 +566,7 @@
                         '<tr><td class="text-muted fw-semibold">Tahun</td><td>' + (d.tahun || '—') + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Perusahaan</td><td>' + (d.perusahaan || '—') + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Tipe Unit</td><td>' + badgeUnit + '</td></tr>' +
+                        '<tr><td class="text-muted fw-semibold">Tipe Akses</td><td>' + badgeAkses + '</td></tr>' +
                         '</table>'
                     );
                 },

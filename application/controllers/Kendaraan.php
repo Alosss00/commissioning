@@ -111,9 +111,13 @@ class Kendaraan extends CI_Controller
         $no   = $start + 1;
 
         foreach ($rows as $row) {
-            $badge_unit = $row->is_unit_baru
+            $badge_akses = !empty($row->tipe_akses)
+                ? '<br><span class="badge bg-info text-white mt-1">' . html_escape(strtoupper($row->tipe_akses)) . '</span>'
+                : '';
+
+            $badge_unit = ($row->is_unit_baru
                 ? '<span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Unit Baru</span>'
-                : '<span class="badge bg-secondary text-white">Unit Lama</span>';
+                : '<span class="badge bg-secondary text-white">Unit Lama</span>') . $badge_akses;
 
             $stiker    = $stiker_map[$row->id_kendaraan] ?? null;
             $sisa_html = $this->_render_sisa_stiker($stiker);

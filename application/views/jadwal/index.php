@@ -86,7 +86,14 @@
                                             <strong class="text-primary"><?= html_escape($a->no_polisi) ?></strong>
                                             <br><small class="text-muted">#PU-<?= str_pad($a->id_pengajuan, 4, '0', STR_PAD_LEFT) ?></small>
                                         </td>
-                                        <td><small><?= html_escape($a->jenis_kendaraan) ?> — <?= html_escape($a->merk) ?> <?= html_escape($a->tipe) ?></small></td>
+                                        <td>
+                                            <small>
+                                                <?= html_escape($a->jenis_kendaraan) ?> — <?= html_escape($a->merk) ?> <?= html_escape($a->tipe) ?>
+                                                <?php if (!empty($a->tipe_akses)): ?>
+                                                    <span class="badge bg-info text-white ms-1" style="font-size:10px;"><?= html_escape(strtoupper($a->tipe_akses)) ?></span>
+                                                <?php endif; ?>
+                                            </small>
+                                        </td>
                                         <td><small><?= html_escape($a->nama_pemohon) ?></small></td>
                                         <td><small><?= date('d M Y', strtotime($a->tanggal_pengajuan)) ?></small></td>
                                         <td class="text-center">
@@ -149,6 +156,9 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div>
                                                 <span class="fw-bold text-primary small"><?= html_escape($j->no_polisi) ?></span>
+                                                <?php if (!empty($j->tipe_akses)): ?>
+                                                    <span class="badge bg-info text-white ms-1" style="font-size:9px;"><?= html_escape(strtoupper($j->tipe_akses)) ?></span>
+                                                <?php endif; ?>
                                                 <span class="ms-1 text-muted small"><?= html_escape($j->jenis_kendaraan) ?></span>
                                             </div>
                                             <span class="badge <?= $badge_color ?> small"><?= $badge_label ?></span>

@@ -874,6 +874,10 @@ class Sikuk_email
                 <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->tipe_pengajuan) ? $p->tipe_pengajuan : 'N/A') . '</td>
             </tr>
             <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tipe Akses</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;"><span style="background:#6c757d;color:#ffffff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">' . htmlspecialchars(!empty($p->tipe_akses) ? strtoupper($p->tipe_akses) : 'N/A') . '</span></td>
+            </tr>
+            <tr>
                 <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Jenis Kendaraan</td>
                 <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->jenis_kendaraan) ? $p->jenis_kendaraan : 'N/A') . '</td>
             </tr>

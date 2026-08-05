@@ -62,6 +62,7 @@ class Kendaraan_model extends CI_Model
     {
         $this->db
             ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe,
+                      (SELECT pu_sub.tipe_akses FROM pengajuan_uji pu_sub WHERE pu_sub.id_kendaraan = k.id_kendaraan ORDER BY pu_sub.id_pengajuan DESC LIMIT 1) AS tipe_akses,
                       COUNT(pu_all.id_pengajuan) AS total_pengajuan,
                       MAX(pu_lulus.tgl_acc_ktt)  AS tgl_lulus')
             ->from('kendaraan k')
@@ -185,7 +186,8 @@ class Kendaraan_model extends CI_Model
     public function get_by_id($id)
     {
         return $this->db
-            ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe, t.id_tipe_kendaraan')
+            ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe, t.id_tipe_kendaraan,
+                      (SELECT pu_sub.tipe_akses FROM pengajuan_uji pu_sub WHERE pu_sub.id_kendaraan = k.id_kendaraan ORDER BY pu_sub.id_pengajuan DESC LIMIT 1) AS tipe_akses')
             ->from('kendaraan k')
             ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
             ->where('k.id_kendaraan', (int) $id)

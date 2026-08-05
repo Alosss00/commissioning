@@ -24,14 +24,19 @@
                                 style="width:50px;height:50px;font-size:1.3rem;">
                                 <i class="bi bi-tools"></i>
                             </div>
-                            <div>
-                                <h5 class="mb-0 fw-bold"><?= html_escape($pengajuan->no_polisi) ?></h5>
-                                <small class="text-muted">
-                                    <?= html_escape($pengajuan->jenis_kendaraan) ?> —
-                                    <?= html_escape($pengajuan->merk) ?> <?= html_escape($pengajuan->tipe) ?>
-                                    (<?= $pengajuan->tahun ?>)
-                                </small>
-                            </div>
+                             <div>
+                                 <h5 class="mb-0 fw-bold">
+                                     <?= html_escape($pengajuan->no_polisi) ?>
+                                     <?php if (!empty($pengajuan->tipe_akses)): ?>
+                                         <span class="badge bg-info text-white ms-1" style="font-size:11px;"><?= html_escape(strtoupper($pengajuan->tipe_akses)) ?></span>
+                                     <?php endif; ?>
+                                 </h5>
+                                 <small class="text-muted">
+                                     <?= html_escape($pengajuan->jenis_kendaraan) ?> —
+                                     <?= html_escape($pengajuan->merk) ?> <?= html_escape($pengajuan->tipe) ?>
+                                     (<?= $pengajuan->tahun ?>)
+                                 </small>
+                             </div>
                             <div class="ms-auto text-end">
                                 <span class="badge bg-danger text-white px-3 py-2">
                                     <i class="bi bi-x-circle me-1"></i>Tidak Lulus Inspeksi

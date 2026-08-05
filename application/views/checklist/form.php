@@ -27,7 +27,12 @@
                                         <i class="bi bi-truck"></i>
                                     </div>
                                     <div>
-                                        <h5 class="mb-0 fw-bold"><?= html_escape($pengajuan->no_polisi) ?></h5>
+                                        <h5 class="mb-0 fw-bold">
+                                            <?= html_escape($pengajuan->no_polisi) ?>
+                                            <?php if (!empty($pengajuan->tipe_akses)): ?>
+                                                <span class="badge bg-info text-white ms-1" style="font-size:11px;"><?= html_escape(strtoupper($pengajuan->tipe_akses)) ?></span>
+                                            <?php endif; ?>
+                                        </h5>
                                         <small class="text-muted">
                                             <?= html_escape($pengajuan->jenis_kendaraan) ?> —
                                             <?= html_escape($pengajuan->merk) ?> <?= html_escape($pengajuan->tipe) ?>

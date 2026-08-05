@@ -493,7 +493,8 @@ class Pengajuan extends CI_Controller
                 'nomor_unit'      => '<span class="badge bg-dark font-monospace">' . html_escape($row->nomor_unit ?? '-') . '</span>',
                 'no_polisi'       => '<span class="badge bg-secondary font-monospace">' . html_escape($row->no_polisi) . '</span>',
                 'jenis_kendaraan' => html_escape($row->jenis_kendaraan) . '<br><small class="text-muted">' . html_escape($row->merk) . ' ' . html_escape($row->tipe) . '</small>',
-                'unit_baru'       => $row->is_unit_baru ? '<span class="badge bg-warning text-dark">Unit Baru</span>' : '<span class="badge bg-secondary">Unit Lama</span>',
+                'unit_baru'       => ($row->is_unit_baru ? '<span class="badge bg-warning text-dark">Unit Baru</span>' : '<span class="badge bg-secondary">Unit Lama</span>')
+                                    . (!empty($row->tipe_akses) ? '<br><span class="badge bg-info text-white mt-1">' . html_escape(strtoupper($row->tipe_akses)) . '</span>' : ''),
                 'status'          => $this->_badge_status($row->status),
                 'tgl_pengajuan'   => date('d M Y', strtotime($row->tanggal_pengajuan)) . '<br><small class="text-muted">' . date('H:i', strtotime($row->tanggal_pengajuan)) . '</small>',
                 'aksi'            => $this->_tombol_aksi($row),
