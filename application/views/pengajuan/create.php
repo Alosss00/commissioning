@@ -81,7 +81,7 @@
                                             <span class="step-badge">1</span>
                                             Tipe Pengajuan / <em class="fw-normal text-muted">Commissioning Type</em>
                                             <?php
-                                            $tab_badge_class = ['mining' => 'bg-danger', 'non_mining' => 'bg-secondary', 'underground' => 'bg-dark'];
+                                            $tab_badge_class = ['mining' => 'bg-danger', 'non_mining' => 'bg-success', 'underground' => 'bg-secondary'];
                                             $tab_icon        = ['mining' => 'minecart-loaded', 'non_mining' => 'building', 'underground' => 'arrow-down-circle'];
                                             ?>
                                             <span class="badge ms-auto <?= $tab_badge_class[$tabKey] ?? 'bg-secondary' ?> px-3 py-1 text-white" style="font-size:11px;">
@@ -702,22 +702,34 @@
         color: rgba(255, 255, 255, .75) !important;
     }
 
+    #tab-mining-btn.active {
+        background: #dc3545;
+        border-color: #dc3545;
+    }
+
+    #tab-mining-btn:hover:not(.active) {
+        color: #dc3545;
+        background: #fdf2f2;
+    }
+
     #tab-nonmining-btn.active {
-        background: #495057;
-        border-color: #495057;
+        background: #198754;
+        border-color: #198754;
     }
 
     #tab-nonmining-btn:hover:not(.active) {
-        color: #495057;
+        color: #198754;
+        background: #f2f9f5;
     }
 
     #tab-underground-btn.active {
-        background: #212529;
-        border-color: #212529;
+        background: #6c757d;
+        border-color: #6c757d;
     }
 
     #tab-underground-btn:hover:not(.active) {
-        color: #212529;
+        color: #6c757d;
+        background: #f4f5f6;
     }
 
     .tab-content-akses {
