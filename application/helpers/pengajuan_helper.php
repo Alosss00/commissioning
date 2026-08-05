@@ -110,3 +110,26 @@ if (!function_exists('badge_status')) {
         return '<span class="badge bg-' . $c[0] . '">' . $c[1] . '</span>';
     }
 }
+
+if (!function_exists('badge_tipe_akses')) {
+    function badge_tipe_akses($tipe, $extra_style = '')
+    {
+        if (empty($tipe)) return '<span class="text-muted small">—</span>';
+        $key = strtolower(trim($tipe));
+        if ($key === 'mining' || (strpos($key, 'mining') !== false && strpos($key, 'non') === false)) {
+            $bg = 'bg-danger';
+            $label = 'MINING ACCESS';
+        } elseif (strpos($key, 'non') !== false || $key === 'non_mining') {
+            $bg = 'bg-success';
+            $label = 'NON MINING';
+        } elseif (strpos($key, 'underground') !== false) {
+            $bg = 'bg-secondary';
+            $label = 'UNDERGROUND';
+        } else {
+            $bg = 'bg-secondary';
+            $label = strtoupper($tipe);
+        }
+        $style = $extra_style ? ' style="' . $extra_style . '"' : '';
+        return '<span class="badge ' . $bg . ' text-white"' . $style . '>' . html_escape($label) . '</span>';
+    }
+}

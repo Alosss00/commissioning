@@ -31,9 +31,21 @@
 <!-- PENTING: simple-datatables.js di-HAPUS karena konflik dengan jQuery DataTables -->
 <script src="<?= base_url('assets/js/main.js') ?>"></script>
 
-<!-- 6. Patch: nonaktifkan Simple DataTables bawaan NiceAdmin (konflik) -->
-<script src="<?= base_url('assets/js/main.patch.js') ?>"></script>
-
+<!-- Global JS Helper Tipe Akses Badge -->
+<script>
+function renderBadgeTipeAkses(v) {
+    if (!v) return '<span class="text-muted small">—</span>';
+    var key = String(v).toLowerCase().trim();
+    if (key === 'mining' || (key.indexOf('mining') >= 0 && key.indexOf('non') < 0)) {
+        return '<span class="badge bg-danger text-white">MINING ACCESS</span>';
+    } else if (key.indexOf('non') >= 0 || key === 'non_mining') {
+        return '<span class="badge bg-success text-white">NON MINING</span>';
+    } else if (key.indexOf('underground') >= 0) {
+        return '<span class="badge bg-secondary text-white">UNDERGROUND</span>';
+    }
+    return '<span class="badge bg-secondary text-white">' + String(v).toUpperCase() + '</span>';
+}
+</script>
 </body>
 
 </html>

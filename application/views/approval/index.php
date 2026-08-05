@@ -97,9 +97,7 @@
                                                 </td>
                                                 <td>
                                                     <span class="fw-semibold"><?= html_escape($row->no_polisi) ?></span>
-                                                    <?php if (!empty($row->tipe_akses)): ?>
-                                                        <span class="badge bg-info text-white ms-1" style="font-size:10px;"><?= html_escape(strtoupper($row->tipe_akses)) ?></span>
-                                                    <?php endif; ?><br>
+                                                    <?= badge_tipe_akses($row->tipe_akses, 'font-size:10px;') ?><br>
                                                     <small class="text-muted">No. Unit: </small><span class="badge bg-dark font-monospace" style="font-size:11px;"><?= html_escape(!empty($row->nomor_unit) ? $row->nomor_unit : '-') ?></span><br>
                                                     <small class="text-muted">
                                                         <?= html_escape($row->jenis_kendaraan ?? '') ?>
@@ -371,7 +369,7 @@
                         '<span class="text-muted">' + (d.email_pemohon || '—') + '</span></div>' +
                         '<div class="mt-2">' +
                         '<span class="badge bg-info text-white me-1">' + tipeLabel + '</span>' +
-                        '<span class="badge bg-secondary text-white"><i class="bi ' + aksesIcon.split(' ')[0] + ' me-1"></i>' + d.tipe_akses + '</span>' +
+                        renderBadgeTipeAkses(d.tipe_akses) +
                         '</div></div>' +
                         (res.tgl_expired ?
                             '<div class="alert alert-info py-2 small"><i class="bi bi-calendar-check me-1"></i>' +

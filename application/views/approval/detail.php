@@ -152,17 +152,7 @@
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted d-block">Tipe Akses</small>
-                                        <?php
-                                        $akses_map = [
-                                            'mining'      => ['bg-danger',    'bi-minecart-loaded',   'Mining Access'],
-                                            'non_mining'  => ['bg-secondary', 'bi-building',          'Non Mining'],
-                                            'underground' => ['bg-dark',      'bi-arrow-down-circle', 'Underground'],
-                                        ];
-                                        $ak = $akses_map[$pengajuan->tipe_akses] ?? ['bg-secondary', 'bi-circle', $pengajuan->tipe_akses];
-                                        ?>
-                                        <span class="badge <?= $ak[0] ?> text-white">
-                                            <i class="bi <?= $ak[1] ?> me-1"></i><?= $ak[2] ?>
-                                        </span>
+                                        <?= badge_tipe_akses($pengajuan->tipe_akses) ?>
                                     </div>
                                     <div class="col-12">
                                         <small class="text-muted d-block">Tujuan Penggunaan</small>

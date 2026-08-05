@@ -875,7 +875,22 @@ class Sikuk_email
             </tr>
             <tr>
                 <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tipe Akses</td>
-                <td style="padding:6px 12px;border:1px solid #e0e0e0;"><span style="background:#6c757d;color:#ffffff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">' . htmlspecialchars(!empty($p->tipe_akses) ? strtoupper($p->tipe_akses) : 'N/A') . '</span></td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . (function($ta_val) {
+                    $ta = strtolower($ta_val ?? '');
+                    $bg_color = '#6c757d';
+                    $label = strtoupper($ta_val ?: 'N/A');
+                    if ($ta === 'mining' || (strpos($ta, 'mining') !== false && strpos($ta, 'non') === false)) {
+                        $bg_color = '#dc3545';
+                        $label = 'MINING ACCESS';
+                    } elseif (strpos($ta, 'non') !== false || $ta === 'non_mining') {
+                        $bg_color = '#198754';
+                        $label = 'NON MINING';
+                    } elseif (strpos($ta, 'underground') !== false) {
+                        $bg_color = '#6c757d';
+                        $label = 'UNDERGROUND';
+                    }
+                    return '<span style="background:' . $bg_color . ';color:#ffffff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">' . htmlspecialchars($label) . '</span>';
+                })($p->tipe_akses ?? '') . '</td>
             </tr>
             <tr>
                 <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Jenis Kendaraan</td>

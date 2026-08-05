@@ -64,9 +64,7 @@
                                                 </td>
                                                 <td>
                                                     <?= html_escape($row->jenis_kendaraan) ?>
-                                                    <?php if (!empty($row->tipe_akses)): ?>
-                                                        <span class="badge bg-info text-white ms-1" style="font-size:10px;"><?= html_escape(strtoupper($row->tipe_akses)) ?></span>
-                                                    <?php endif; ?>
+                                                    <?= badge_tipe_akses($row->tipe_akses, 'font-size:10px;') ?>
                                                     <br><small class="text-muted"><?= html_escape($row->merk) ?> <?= html_escape($row->tipe) ?> (<?= $row->tahun ?>)</small>
                                                 </td>
                                                 <td><?= html_escape($row->nama_pemohon) ?></td>

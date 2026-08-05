@@ -550,7 +550,7 @@
                 '<strong>' + (d.nama_pemohon || '—') + '</strong><br>' +
                 '<span class="text-muted small">' + (d.email_pemohon || '—') + '</span>' +
                 '<div class="mt-2"><span class="badge bg-info text-white me-1">' + tipeLabel + '</span>' +
-                '<span class="badge bg-secondary text-white">' + (d.tipe_akses || '') + '</span></div>' +
+                renderBadgeTipeAkses(d.tipe_akses) + '</div>' +
                 '</div>' +
                 (res.tgl_expired ? '<div class="alert alert-info py-2 small mb-0"><i class="bi bi-calendar-check me-1"></i><strong>Expired:</strong> ' + res.tgl_expired + ' (6 bulan dari ACC KTT)</div>' : '') +
                 '</div></div>' +
@@ -733,7 +733,7 @@
                 '<div class="col-6"><small class="text-muted d-block">Nomor Unit</small><strong class="small">' + valOrDash(d.nomor_unit) + '</strong></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Perusahaan</small><strong class="small">' + valOrDash(d.perusahaan) + '</strong></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Tipe Pengajuan</small><span class="badge bg-primary text-white">' + tipeLabel + '</span></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Tipe Akses</small><span class="badge bg-info text-white">' + valOrDash(d.tipe_akses ? String(d.tipe_akses).toUpperCase() : '') + '</span></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Tipe Akses</small>' + renderBadgeTipeAkses(d.tipe_akses) + '</div>' +
                 '</div></div></div>';
 
             // ── Info Pemohon ──────────────────────────────────────────────

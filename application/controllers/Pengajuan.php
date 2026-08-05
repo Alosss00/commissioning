@@ -489,9 +489,7 @@ class Pengajuan extends CI_Controller
                 ? '<span class="badge bg-info text-white">Pengajuan Ulang</span>'
                 : '<span class="badge bg-primary text-white">Pengajuan Baru</span>';
 
-            $badge_akses = !empty($row->tipe_akses)
-                ? '<span class="badge bg-secondary text-white">' . html_escape(strtoupper($row->tipe_akses)) . '</span>'
-                : '<span class="text-muted small">—</span>';
+            $badge_akses = badge_tipe_akses($row->tipe_akses);
 
             $data_rows[] = [
                 'no'              => $no++,

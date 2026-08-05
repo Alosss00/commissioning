@@ -94,7 +94,8 @@ $autoload['helper'] = array(
     'form',
     'security',
     'text',
-    'auth'
+    'auth',
+    'pengajuan'
 );
 
 /*

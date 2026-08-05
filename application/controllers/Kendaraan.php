@@ -112,7 +112,7 @@ class Kendaraan extends CI_Controller
 
         foreach ($rows as $row) {
             $badge_akses = !empty($row->tipe_akses)
-                ? '<br><span class="badge bg-info text-white mt-1">' . html_escape(strtoupper($row->tipe_akses)) . '</span>'
+                ? '<br>' . badge_tipe_akses($row->tipe_akses, 'margin-top:4px;')
                 : '';
 
             $badge_unit = ($row->is_unit_baru
