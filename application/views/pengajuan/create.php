@@ -474,8 +474,6 @@
                                                                                 'nomor_unit'        => $k->nomor_unit ?? '',
                                                                                 'model_unit'        => $k->model_unit ?? $k->tipe ?? '',
                                                                                 'perusahaan'        => $k->perusahaan ?? '',
-                                                                                'last_nomor_mesin'  => $k->last_nomor_mesin ?? '',
-                                                                                'last_nomor_rangka' => $k->last_nomor_rangka ?? '',
                                                                                 'last_tujuan'       => $k->last_tujuan ?? '',
                                                                                 'status_stiker'     => $k->status_stiker ?? '',
                                                                                 'tgl_expired'       => $k->tgl_expired ?? '',
@@ -884,10 +882,6 @@
             $tab.find('.lama-nopol').text(d.no_polisi || '—');
             $tab.find('.lama-perusahaan').text(d.perusahaan || '—');
             $tab.find('.lama-tahun').text(d.tahun || '—');
-
-            // Auto-fill nomor rangka & mesin dari data terakhir
-            $tab.find('.inp-nomor-rangka-lama').val(d.last_nomor_rangka || '');
-            $tab.find('.inp-nomor-mesin-lama').val(d.last_nomor_mesin || '');
 
             // Auto-fill tujuan penggunaan
             if (d.last_tujuan) {
@@ -1311,7 +1305,6 @@
                 if (modeUnit === 'baru') {
                     // Flag N/A untuk field opsional
                     fd.append('is_na_no_polisi', $('#na_no_polisi_' + s).prop('checked') ? '1' : '0');
-                    fd.append('is_na_nomor_mesin', $('#na_nomor_mesin_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_model_unit', $('#na_model_unit_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_stnk', $('#na_stnk_' + s).prop('checked') ? '1' : '0');
                     fd.append('is_na_foto', $('#na_all_foto_' + s).prop('checked') ? '1' : '0');
@@ -1324,16 +1317,12 @@
                     fd.append('nomor_unit', $tab.find('.inp-nomor-unit').val().trim());
                     fd.append('merk', $tab.find('.inp-merk').val());
                     fd.append('model_unit', $('#na_model_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-model-unit').val());
-                    fd.append('nomor_rangka', 'N/A');
-                    fd.append('nomor_mesin', 'N/A');
                     fd.append('no_polisi', $('#na_no_polisi_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-no-polisi').val().toUpperCase());
                     fd.append('perusahaan', $('#perusahaan_' + s).val());
                     fd.append('tahun', $tab.find('.inp-tahun').val());
 
                 } else {
                     fd.append('id_kendaraan', $('#id_kendaraan_' + s).val());
-                    fd.append('nomor_rangka', $tab.find('.inp-nomor-rangka-lama').val());
-                    fd.append('nomor_mesin', $tab.find('.inp-nomor-mesin-lama').val());
                 }
 
                 // File upload — lampiran Sertifikasi, STNK & foto 4 sisi & maintenance record (Unit Baru & Unit Lama)
