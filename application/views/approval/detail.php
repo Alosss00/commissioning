@@ -133,18 +133,6 @@
                                             <strong><?= html_escape($pengajuan->perusahaan) ?></strong>
                                         </div>
                                     <?php endif; ?>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Nomor Rangka</small>
-                                        <span class="small font-monospace">
-                                            <?= html_escape($pengajuan->nomor_rangka ?: '—') ?>
-                                        </span>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Nomor Mesin</small>
-                                        <span class="small font-monospace">
-                                            <?= html_escape($pengajuan->nomor_mesin ?: '—') ?>
-                                        </span>
-                                    </div>
                                     <div class="col-12">
                                         <hr class="my-1">
                                     </div>

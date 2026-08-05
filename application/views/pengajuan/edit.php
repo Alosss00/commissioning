@@ -230,14 +230,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                 <strong><?= html_escape($pengajuan->nomor_unit) ?></strong>
                                             </div>
                                         <?php endif; ?>
-                                        <div class="col-6 col-md-3">
-                                            <small class="text-muted d-block">No. Rangka</small>
-                                            <strong class="small"><?= html_escape($pengajuan->nomor_rangka) ?></strong>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <small class="text-muted d-block">No. Mesin</small>
-                                            <strong class="small"><?= html_escape($pengajuan->nomor_mesin) ?></strong>
-                                        </div>
+
                                         <?php if (!empty($kendaraan->perusahaan)): ?>
                                             <div class="col-6 col-md-3">
                                                 <small class="text-muted d-block">Perusahaan</small>

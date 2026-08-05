@@ -235,7 +235,6 @@ class Pengajuan extends CI_Controller
         if ($mode_unit === 'baru') {
             // Ambil flag N/A dari form
             $is_na_no_polisi    = $this->input->post('is_na_no_polisi') == '1';
-            $is_na_nomor_mesin  = $this->input->post('is_na_nomor_mesin') == '1';
             $is_na_nomor_unit   = $this->input->post('is_na_nomor_unit') == '1';
             $is_na_model_unit   = $this->input->post('is_na_model_unit') == '1';
             $is_na_stnk         = $this->input->post('is_na_stnk') == '1';
@@ -244,7 +243,6 @@ class Pengajuan extends CI_Controller
             $jenis_kendaraan = $this->input->post('jenis_kendaraan');
             $nomor_unit      = trim($this->input->post('nomor_unit') ?? '');
             $merk            = trim($this->input->post('merk') ?? '');
-            $nomor_rangka    = trim($this->input->post('nomor_rangka') ?? '') ?: 'N/A';
             $perusahaan      = $this->input->post('perusahaan');
             $tahun           = $this->input->post('tahun');
 
@@ -375,8 +373,8 @@ class Pengajuan extends CI_Controller
             'tipe_akses'              => $this->input->post('tipe_akses'),
             'tujuan'                  => $this->input->post('tujuan'),
             'pernah_maintenance_luar' => $pernah_maintenance_luar,
-            'nomor_rangka'            => $mode_unit === 'baru' ? trim($this->input->post('nomor_rangka') ?? '') : trim($this->input->post('nomor_rangka') ?? ''),
-            'nomor_mesin'             => $mode_unit === 'baru' ? ($nomor_mesin ?? '') : trim($this->input->post('nomor_mesin') ?? ''),
+            'nomor_rangka'            => 'N/A',
+            'nomor_mesin'             => 'N/A',
             'status'                  => ($mode_unit === 'baru') ? 'pengajuan_baru' : 'pengajuan_ulang',
             'tanggal_pengajuan'       => date('Y-m-d H:i:s'),
         ]);

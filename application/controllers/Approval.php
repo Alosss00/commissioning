@@ -126,7 +126,6 @@ class Approval extends CI_Controller
             ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.tgl_acc_ktt,
                 k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe AS tipe_kendaraan,
                 k.tahun, k.nomor_unit, k.perusahaan,
-                pu.nomor_mesin, pu.nomor_rangka,
                 u.nama AS nama_pemohon, u.email AS email_pemohon')
             ->from('pengajuan_uji pu')
             ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')

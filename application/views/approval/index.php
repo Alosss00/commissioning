@@ -364,8 +364,6 @@
                         '<tr><td class="text-muted fw-semibold">Tahun</td><td>' + (d.tahun || '—') + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Nomor Unit</td><td>' + (d.nomor_unit || '—') + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Perusahaan</td><td>' + (d.perusahaan || '—') + '</td></tr>' +
-                        '<tr><td class="text-muted fw-semibold">No. Rangka</td><td class="small">' + (d.nomor_rangka || '—') + '</td></tr>' +
-                        '<tr><td class="text-muted fw-semibold">No. Mesin</td><td class="small">' + (d.nomor_mesin || '—') + '</td></tr>' +
                         '</table></div></div>' +
                         '<div class="col-md-6"><div class="bg-light rounded p-3 mb-2">' +
                         '<h6 class="fw-bold text-success mb-2"><i class="bi bi-person me-2"></i>Pemohon</h6>' +

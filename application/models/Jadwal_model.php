@@ -71,7 +71,7 @@ class Jadwal_model extends CI_Model
         $this->db->select('
             j.*,
             pu.tipe_pengajuan, pu.tipe_akses, pu.status AS status_pengajuan,
-            pu.nomor_mesin, pu.nomor_rangka, pu.tujuan,
+            pu.tujuan,
             k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe AS tipe_kendaraan, k.tahun,
             u_pemohon.nama  AS nama_pemohon, u_pemohon.email AS email_pemohon,
             u_ins.nama      AS nama_inspektor_user,

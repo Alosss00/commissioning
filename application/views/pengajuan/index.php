@@ -544,8 +544,6 @@
                 '<tr><td class="text-muted fw-semibold">Tahun</td><td>' + (d.tahun || '—') + '</td></tr>' +
                 '<tr><td class="text-muted fw-semibold">Nomor Unit</td><td>' + (d.nomor_unit || '—') + '</td></tr>' +
                 '<tr><td class="text-muted fw-semibold">Perusahaan</td><td>' + (d.perusahaan || '—') + '</td></tr>' +
-                '<tr><td class="text-muted fw-semibold">No. Rangka</td><td class="small">' + (d.nomor_rangka || '—') + '</td></tr>' +
-                '<tr><td class="text-muted fw-semibold">No. Mesin</td><td class="small">' + (d.nomor_mesin || '—') + '</td></tr>' +
                 '</table></div></div>' +
                 '<div class="col-md-6"><div class="bg-light rounded p-3 mb-2">' +
                 '<h6 class="fw-bold text-success mb-2"><i class="bi bi-person me-2"></i>Pemohon</h6>' +
@@ -734,8 +732,6 @@
                 '<div class="col-6"><small class="text-muted d-block">Tahun</small><strong class="small">' + valOrDash(d.tahun) + '</strong></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Nomor Unit</small><strong class="small">' + valOrDash(d.nomor_unit) + '</strong></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Perusahaan</small><strong class="small">' + valOrDash(d.perusahaan) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Nomor Rangka</small><span class="small font-monospace">' + valOrDash(d.nomor_rangka) + '</span></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Nomor Mesin</small><span class="small font-monospace">' + valOrDash(d.nomor_mesin) + '</span></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Tipe Pengajuan</small><span class="badge bg-primary text-white">' + tipeLabel + '</span></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Tipe Akses</small><span class="badge bg-info text-white">' + valOrDash(d.tipe_akses ? String(d.tipe_akses).toUpperCase() : '') + '</span></div>' +
                 '</div></div></div>';
