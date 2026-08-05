@@ -233,15 +233,7 @@
                                                         <i class="bi bi-award-fill me-1"></i>Upload Sertifikasi Alat Berat (SIA / SIO / Layak Operasi)
                                                         <span class="badge bg-warning text-dark ms-1">Wajib Alat Berat</span>
                                                     </label>
-                                                    <!-- N/A toggle untuk Sertifikasi -->
-                                                    <div class="form-check mb-2">
-                                                        <input class="form-check-input inp-na-foto" type="checkbox"
-                                                            id="na_sertifikasi_<?= $s ?>" data-ftype="sertifikasi" data-s="<?= $s ?>">
-                                                        <label class="form-check-label small text-muted" for="na_sertifikasi_<?= $s ?>">
-                                                            N/A — Sertifikasi Alat Berat belum tersedia / dalam proses
-                                                        </label>
-                                                    </div>
-                                                    <div class="border border-warning bg-light p-3 rounded d-flex align-items-center gap-3 flex-wrap upload-row na-upload-wrap" id="box_sertifikasi_<?= $s ?>">
+                                                    <div class="border border-warning bg-light p-3 rounded d-flex align-items-center gap-3 flex-wrap upload-row na-upload-wrap mt-2" id="box_sertifikasi_<?= $s ?>">
                                                         <i class="bi bi-patch-check-fill text-warning flex-shrink-0" style="font-size:2rem;"></i>
                                                         <div class="flex-grow-1">
                                                             <input type="file" class="form-control form-control-sm inp-sertifikasi"
@@ -1345,10 +1337,8 @@
                 }
 
                 // File upload — lampiran Sertifikasi, STNK & foto 4 sisi & maintenance record (Unit Baru & Unit Lama)
-                if (!$('#na_sertifikasi_' + s).prop('checked')) {
-                    var elSert = document.getElementById('lampiran_sertifikasi_' + s);
-                    if (elSert && elSert.files[0]) fd.append('lampiran_sertifikasi', elSert.files[0]);
-                }
+                var elSert = document.getElementById('lampiran_sertifikasi_' + s);
+                if (elSert && elSert.files[0]) fd.append('lampiran_sertifikasi', elSert.files[0]);
                 if (!$('#na_stnk_' + s).prop('checked')) {
                     var elStnk = document.getElementById('lampiran_stnk_' + s);
                     if (elStnk && elStnk.files[0]) fd.append('lampiran_stnk', elStnk.files[0]);
