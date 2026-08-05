@@ -79,10 +79,10 @@ class Sikuk_email
         // 1. Konfirmasi ke Admin Dept / Pemohon
         $this->_send(
             $p->email_pemohon,
-            '[Submitted] Pengajuan Commissioning Baru — Unit ' . $p->no_polisi,
+            '[Submitted] Pengajuan Commissioning Baru — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
             $this->_wrap(
                 'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
-                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> berhasil didaftarkan.',
+                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> berhasil didaftarkan.',
                 'Saat ini data sedang dalam tahap <strong>Pengecekan Berkas Awal</strong> oleh Departemen Manager.'
                     . ' Anda akan menerima notifikasi jika terdapat pembaruan status pengajuan ini.',
                 $this->_info_unit($p),
@@ -95,10 +95,10 @@ class Sikuk_email
         foreach ($managers as $mgr) {
             $this->_send(
                 $mgr->email,
-                '[Menunggu Approval] Pengecekan Berkas Awal Commissioning — Unit ' . $p->no_polisi,
+                '[Menunggu Approval] Pengecekan Berkas Awal Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Yth. ' . htmlspecialchars($mgr->nama) . ',',
-                    'Terdapat <strong>pengajuan commissioning baru</strong> dari Admin Departemen/Kontraktor untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
+                    'Terdapat <strong>pengajuan commissioning baru</strong> dari Admin Departemen/Kontraktor untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>.',
                     'Mohon kesediaannya untuk melakukan pengecekan berkas awal. Jika data tidak sesuai, Anda dapat mengembalikan pengajuan ini ke pemohon.',
                     $this->_info_unit($p),
                     $this->_btn_link('Lihat & Proses Pengajuan', $this->base_url . '/approval/manager')
@@ -118,10 +118,10 @@ class Sikuk_email
 
         return $this->_send(
             $p->email_pemohon,
-            '[Revisi Diperlukan] Pengajuan Commissioning Dikembalikan — Unit ' . $p->no_polisi,
+            '[Revisi Diperlukan] Pengajuan Commissioning Dikembalikan — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
             $this->_wrap(
                 'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
-                'Terdapat kekurangan atau kesalahan pada pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
+                'Terdapat kekurangan atau kesalahan pada pengajuan commissioning unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>.',
                 'Pengajuan Anda <strong>dikembalikan</strong> oleh <strong>Departemen Manager</strong>.'
                     . $this->_catatan_box($catatan),
                 'Mohon segera lakukan perbaikan data atau lengkapi persyaratan fisik unit, lalu ajukan kembali melalui sistem.',
@@ -142,10 +142,10 @@ class Sikuk_email
 
         return $this->_send(
             $p->email_pemohon,
-            '[Progress] Update Pengajuan Commissioning — Unit ' . $p->no_polisi,
+            '[Progress] Update Pengajuan Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
             $this->_wrap(
                 'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
-                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah disetujui pada tahap sebelumnya'
+                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> telah disetujui pada tahap sebelumnya'
                     . ' dan kini berlanjut ke tahap:',
                 '<div style="text-align:center;margin:18px 0;">
                     <span style="background:#1a73e8;color:#fff;padding:8px 22px;border-radius:20px;font-size:15px;font-weight:bold;">'
@@ -175,10 +175,10 @@ class Sikuk_email
         foreach ($managers as $mgr) {
             $this->_send(
                 $mgr->email,
-                '[Dikembalikan] Review Ulang Data Commissioning — Unit ' . $p->no_polisi,
+                '[Dikembalikan] Review Ulang Data Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Yth. ' . htmlspecialchars($mgr->nama) . ',',
-                    'Pengajuan unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh Admin OHS karena terdapat'
+                    'Pengajuan unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh Admin OHS karena terdapat'
                         . ' kekurangan dokumen atau ketidaksesuaian standar fisik (hasil inspeksi).',
                     $this->_catatan_box($catatan, 'Catatan Admin OHS'),
                     'Mohon tinjau kembali data ini dan koordinasikan dengan Admin Departemen/Kontraktor untuk perbaikan.',
@@ -192,10 +192,10 @@ class Sikuk_email
         if (!empty($p->email_pemohon)) {
             $this->_send(
                 $p->email_pemohon,
-                '[Dikembalikan] Pengajuan Commissioning Dikembalikan ke Dept Manager — Unit ' . $p->no_polisi,
+                '[Dikembalikan] Pengajuan Commissioning Dikembalikan ke Dept Manager — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
-                    'Pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh <strong>Admin OHS</strong> ke Departemen Manager.',
+                    'Pengajuan commissioning unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh <strong>Admin OHS</strong> ke Departemen Manager.',
                     $this->_catatan_box($catatan, 'Catatan Admin OHS'),
                     'Mohon koordinasikan dengan Dept Manager Anda untuk perbaikan data atau fisik unit.',
                     $this->_info_unit($p),
@@ -223,10 +223,10 @@ class Sikuk_email
         foreach ($admins as $adm) {
             $this->_send(
                 $adm->email,
-                '[Tugas Baru] Verifikasi Dokumen Commissioning — Unit ' . $p->no_polisi,
+                '[Tugas Baru] Verifikasi Dokumen Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($adm->nama) . ',',
-                    'Pengajuan unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah disetujui oleh Dept Manager.',
+                    'Pengajuan unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> telah disetujui oleh Dept Manager.',
                     'Mohon lakukan <strong>pengecekan dokumen kelengkapan</strong>. Jika disetujui, silakan <strong>buat jadwal inspeksi</strong> untuk tim Mekanik di dalam sistem.',
                     $this->_info_unit($p),
                     $this->_btn_link('Verifikasi Sekarang', $this->base_url . '/approval/admin_ohs')
@@ -248,10 +248,10 @@ class Sikuk_email
         foreach ($admins as $adm) {
             $this->_send(
                 $adm->email,
-                '[Review Hasil] Inspeksi Mekanik Selesai — Unit ' . $p->no_polisi,
+                '[Review Hasil] Inspeksi Mekanik Selesai — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($adm->nama) . ',',
-                    'Tim Mekanik telah selesai melakukan <strong>inspeksi kelayakan</strong> pada unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
+                    'Tim Mekanik telah selesai melakukan <strong>inspeksi kelayakan</strong> pada unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>.',
                     'Mohon tinjau ulang hasil pengujian tersebut. Jika ada kekurangan perlengkapan standar, silakan kembalikan data ke Dept Manager.'
                         . ' Jika sesuai, teruskan ke OHS Manager.',
                     $this->_info_unit($p),
@@ -275,10 +275,10 @@ class Sikuk_email
         foreach ($admins as $adm) {
             $this->_send(
                 $adm->email,
-                '[Revisi Approval] Data Commissioning Dikembalikan — Unit ' . $p->no_polisi,
+                '[Revisi Approval] Data Commissioning Dikembalikan — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($adm->nama) . ',',
-                    'Data hasil inspeksi untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong>'
+                    'Data hasil inspeksi untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> <strong>dikembalikan</strong>'
                         . ' oleh <strong>' . htmlspecialchars($dari) . '</strong> karena terdapat kesalahan/kekurangan data persetujuan.',
                     $this->_catatan_box($catatan),
                     'Mohon periksa kembali kelengkapan administrasi hasil inspeksi ini sebelum diajukan ulang.',
@@ -292,10 +292,10 @@ class Sikuk_email
         if (!empty($p->email_pemohon)) {
             $this->_send(
                 $p->email_pemohon,
-                '[Update Status] Pengajuan Commissioning Dikembalikan — Unit ' . $p->no_polisi,
+                '[Update Status] Pengajuan Commissioning Dikembalikan — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
-                    'Pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh <strong>' . htmlspecialchars($dari) . '</strong> ke Admin OHS untuk perbaikan data.',
+                    'Pengajuan commissioning unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> <strong>dikembalikan</strong> oleh <strong>' . htmlspecialchars($dari) . '</strong> ke Admin OHS untuk perbaikan data.',
                     $this->_catatan_box($catatan),
                     'Silakan pantau status pengajuan di sistem untuk pembaruan selanjutnya.',
                     $this->_info_unit($p),
@@ -319,10 +319,10 @@ class Sikuk_email
         foreach ($admins as $adm) {
             $this->_send(
                 $adm->email,
-                '[Final Approved] Segera Terbitkan Stiker Akses — Unit ' . $p->no_polisi,
+                '[Final Approved] Segera Terbitkan Stiker Akses — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($adm->nama) . ',',
-                    'KTT telah memberikan <strong>Final Approval</strong> untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
+                    'KTT telah memberikan <strong>Final Approval</strong> untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>.',
                     '<div style="text-align:center;margin:18px 0;">
                         <span style="background:#34a853;color:#fff;padding:10px 28px;border-radius:20px;font-size:16px;font-weight:bold;">
                             ✅ KENDARAAN LAYAK OPERASI
@@ -352,14 +352,14 @@ class Sikuk_email
 
         return $this->_send(
             $mekanik->email,
-            '[Order Inspeksi] Pengujian Kelayakan Kendaraan — Unit ' . $p->no_polisi,
+            '[Order Inspeksi] Pengujian Kelayakan Kendaraan — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
             $this->_wrap(
                 'Halo ' . htmlspecialchars($mekanik->nama) . ',',
-                'Admin OHS telah menjadwalkan <strong>inspeksi kelayakan commissioning</strong> untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>.',
+                'Admin OHS telah menjadwalkan <strong>inspeksi kelayakan commissioning</strong> untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>.',
                 '<table style="width:100%;border-collapse:collapse;margin:12px 0;">
                     <tr>
                         <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;width:140px;border:1px solid #e0e0e0;">Kendaraan</td>
-                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->no_polisi) . ' — ' . htmlspecialchars($p->jenis_kendaraan) . '</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . ' — ' . htmlspecialchars($p->jenis_kendaraan) . '</td>
                     </tr>
                     <tr>
                         <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Jadwal</td>
@@ -397,10 +397,10 @@ class Sikuk_email
         foreach ($supte as $s) {
             $this->_send(
                 $s->email,
-                '[Menunggu Approval] Pengecekan Akhir Commissioning — Unit ' . $p->no_polisi,
+                '[Menunggu Approval] Pengecekan Akhir Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Yth. ' . htmlspecialchars($s->nama) . ',',
-                    'Data inspeksi kendaraan dan kelengkapan dokumen untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>'
+                    'Data inspeksi kendaraan dan kelengkapan dokumen untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>'
                         . ' telah diverifikasi oleh Admin OHS.',
                     'Mohon lakukan <strong>pengecekan akhir</strong>. Jika sesuai, silakan berikan persetujuan agar data dapat diteruskan ke KTT.'
                         . ' Jika ada kekurangan, Anda dapat mengembalikannya ke Admin OHS.',
@@ -428,10 +428,10 @@ class Sikuk_email
         foreach ($ktts as $ktt) {
             $this->_send(
                 $ktt->email,
-                '[Menunggu Final Approval] Otorisasi Commissioning — Unit ' . $p->no_polisi,
+                '[Menunggu Final Approval] Otorisasi Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Yth. Bapak/Ibu ' . htmlspecialchars($ktt->nama) . ',',
-                    'Terlampir data pengajuan commissioning untuk unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong>'
+                    'Terlampir data pengajuan commissioning untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong>'
                         . ' yang telah melewati tahapan <strong>inspeksi mekanik</strong> dan disetujui oleh <strong>OHS Manager</strong>.',
                     'Mohon kesediaannya untuk melakukan tinjauan dan memberikan <strong>Final Approval</strong>.'
                         . ' Jika terdapat ketidaksesuaian data, Anda dapat mengembalikan pengajuan ini ke Admin OHS.',
@@ -458,10 +458,10 @@ class Sikuk_email
 
             $this->_send(
                 $ktt->email,
-                '[Menunggu Approval KTT Ke-2] Otorisasi Commissioning — Unit ' . $p->no_polisi,
+                '[Menunggu Approval KTT Ke-2] Otorisasi Commissioning — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Yth. Bapak/Ibu ' . htmlspecialchars($ktt->nama) . ',',
-                    'Pengajuan commissioning unit <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah disetujui oleh <strong>KTT Pertama</strong>.',
+                    'Pengajuan commissioning unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> telah disetujui oleh <strong>KTT Pertama</strong>.',
                     'Sebagai bagian dari Dual KTT Approval, mohon kesediaannya untuk memberikan persetujuan sebagai <strong>KTT Kedua (ACC Final)</strong>.',
                     $this->_info_unit($p),
                     $this->_btn_link('Berikan Final Approval', $this->base_url . '/approval/ktt')
@@ -485,10 +485,10 @@ class Sikuk_email
 
             $this->_send(
                 $ins->email,
-                '[Siap Pengujian Ulang] Verifikasi Perbaikan Disetujui — Unit ' . $p->no_polisi,
+                '[Siap Pengujian Ulang] Verifikasi Perbaikan Disetujui — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($ins->nama) . ',',
-                    'Perbaikan fisik unit kendaraan <strong>' . htmlspecialchars($p->no_polisi) . '</strong> telah diverifikasi dan disetujui.',
+                    'Perbaikan fisik unit kendaraan <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> telah diverifikasi dan disetujui.',
                     'Unit kini berstatus <strong>Siap Pengujian Ulang</strong>. Silakan lakukan pengujian checklist kelayakan ulang.',
                     $this->_info_unit($p),
                     $this->_btn_link('Buka Form Inspeksi Ulang', $this->base_url . '/checklist/form/' . $id_pengajuan)
@@ -531,15 +531,15 @@ class Sikuk_email
 
             $this->_send(
                 $c->email_pemohon,
-                '[Pencabutan Stiker] Update Status Permohonan — Unit ' . $c->no_polisi,
+                '[Pencabutan Stiker] Update Status Permohonan — Unit ' . (!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi),
                 $this->_wrap(
                     'Halo ' . htmlspecialchars($c->nama_pemohon) . ',',
-                    $status_desc_pemohon[$status] ?? 'Terdapat pembaruan status permohonan pencabutan stiker unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong>.',
+                    $status_desc_pemohon[$status] ?? 'Terdapat pembaruan status permohonan pencabutan stiker unit <strong>' . htmlspecialchars(!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi) . '</strong>.',
                     '<div style="background:#fff3cd;color:#856404;padding:12px 16px;border-radius:4px;border:1px solid #ffeeba;">'
                     . '<strong>Nomor Stiker:</strong> ' . htmlspecialchars($c->nomor_sticker ?? '-') . '<br>'
                     . '<strong>Alasan Pencabutan:</strong> ' . htmlspecialchars($c->alasan ?? '-')
                     . '</div>',
-                    $this->_btn_link('Lihat Detail Pencabutan', $this->base_url . '/approval/pencabutan')
+                    $this->_btn_link('Lihat Detail Pencabutan', $this->base_url . '/approval/detail/ktt/' . $c->id_pengajuan)
                 )
             );
         }
@@ -551,13 +551,13 @@ class Sikuk_email
                 if (empty($s->email)) continue;
                 $this->_send(
                     $s->email,
-                    '[Tugas Approval] Permohonan Pencabutan Stiker — Unit ' . $c->no_polisi,
+                    '[Tugas Approval] Permohonan Pencabutan Stiker — Unit ' . (!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi),
                     $this->_wrap(
                         'Yth. ' . htmlspecialchars($s->nama) . ',',
-                        'Terdapat permohonan pencabutan stiker untuk unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> (Stiker #' . htmlspecialchars($c->nomor_sticker ?? '-') . ').',
+                        'Terdapat permohonan pencabutan stiker untuk unit <strong>' . htmlspecialchars(!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi) . '</strong> (Stiker #' . htmlspecialchars($c->nomor_sticker ?? '-') . ').',
                         'Alasan: ' . htmlspecialchars($c->alasan),
                         'Mohon verifikasi permohonan tersebut di sistem.',
-                        $this->_btn_link('Verifikasi Pencabutan', $this->base_url . '/approval/pencabutan')
+                        $this->_btn_link('Verifikasi Pencabutan', $this->base_url . '/approval/detail/ktt/' . $c->id_pengajuan)
                     )
                 );
             }
@@ -567,13 +567,13 @@ class Sikuk_email
                 if (empty($ktt->email)) continue;
                 $this->_send(
                     $ktt->email,
-                    '[Tugas Approval KTT] Permohonan Pencabutan Stiker — Unit ' . $c->no_polisi,
+                    '[Tugas Approval KTT] Permohonan Pencabutan Stiker — Unit ' . (!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi),
                     $this->_wrap(
                         'Yth. Bapak/Ibu ' . htmlspecialchars($ktt->nama) . ',',
-                        'Permohonan pencabutan stiker unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> membutuhkan approval KTT.',
+                        'Permohonan pencabutan stiker unit <strong>' . htmlspecialchars(!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi) . '</strong> membutuhkan approval KTT.',
                         'Alasan: ' . htmlspecialchars($c->alasan),
                         'Mohon kesediaannya melakukan approval melalui sistem.',
-                        $this->_btn_link('Approval Pencabutan', $this->base_url . '/approval/pencabutan')
+                        $this->_btn_link('Approval Pencabutan', $this->base_url . '/approval/detail/ktt/' . $c->id_pengajuan)
                     )
                 );
             }
@@ -583,12 +583,12 @@ class Sikuk_email
                 if (empty($adm->email)) continue;
                 $this->_send(
                     $adm->email,
-                    '[Eksekusi Pencabutan] Dual KTT Approval Selesai — Unit ' . $c->no_polisi,
+                    '[Eksekusi Pencabutan] Dual KTT Approval Selesai — Unit ' . (!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi),
                     $this->_wrap(
                         'Halo ' . htmlspecialchars($adm->nama) . ',',
-                        'Permohonan pencabutan stiker unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> telah disetujui penuh oleh KTT.',
+                        'Permohonan pencabutan stiker unit <strong>' . htmlspecialchars(!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi) . '</strong> telah disetujui penuh oleh KTT.',
                         'Silakan lakukan <strong>Eksekusi Pencabutan Stiker</strong> di sistem.',
-                        $this->_btn_link('Eksekusi Pencabutan', $this->base_url . '/approval/pencabutan')
+                        $this->_btn_link('Eksekusi Pencabutan', $this->base_url . '/approval/detail/ktt/' . $c->id_pengajuan)
                     )
                 );
             }
@@ -607,15 +607,15 @@ class Sikuk_email
     public function notif_stiker_keluar($id_pengajuan)
     {
         $p = $this->CI->db
-            ->select('pu.id_pengajuan, pu.tipe_pengajuan,
-                      u.nama AS nama_pemohon, u.email AS email_pemohon,
-                      k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe,
-                      sr.nomor_sticker, sr.tanggal_release')
+            ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.status, pu.tujuan,
+                      COALESCE(NULLIF(TRIM(pu.email_pemohon), ""), NULLIF(TRIM(u.email), "")) AS email_pemohon,
+                      COALESCE(NULLIF(TRIM(u.nama), ""), "Pemohon") AS nama_pemohon,
+                      (SELECT GROUP_CONCAT(r.nama_role SEPARATOR ", ") FROM user_roles ur JOIN roles r ON r.id_role = ur.id_role WHERE ur.id_user = u.id_user) AS role_pemohon,
+                      k.no_polisi, k.nomor_unit, k.perusahaan, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
             ->from('pengajuan_uji pu')
-            ->join('users u',            'u.id_user = pu.id_pemohon',                 'left')
-            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left')
-            ->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
-            ->join('sticker_release sr', 'sr.id_pengajuan = pu.id_pengajuan',         'left')
+            ->join('users u',          'u.id_user = pu.id_pemohon',                 'left')
+            ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
             ->where('pu.id_pengajuan', $id_pengajuan)
             ->get()->row();
 
@@ -623,7 +623,7 @@ class Sikuk_email
 
         return $this->_send(
             $p->email_pemohon,
-            '[Final Approved] Stiker Akses Commissioning Telah Diterbitkan — Unit ' . $p->no_polisi,
+            '[Final Approved] Stiker Akses Commissioning Telah Diterbitkan — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
             $this->_wrap(
                 'Yth. ' . htmlspecialchars($p->nama_pemohon) . ',',
                 'Kami informasikan bahwa proses commissioning untuk kendaraan Anda telah <strong>selesai</strong> dan stiker akses resmi diterbitkan.',
@@ -635,7 +635,7 @@ class Sikuk_email
                 '<table style="width:100%;border-collapse:collapse;margin:12px 0;">
                     <tr>
                         <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;width:140px;border:1px solid #e0e0e0;">No. Polisi</td>
-                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->no_polisi) . '</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</td>
                     </tr>
                     <tr>
                         <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Jenis</td>
@@ -716,10 +716,10 @@ class Sikuk_email
         $pengaju_label = $role_label_map[$c->role_pemohon] ?? 'Petugas';
         $nama_pengaju  = $c->nama_pengaju ? $c->nama_pengaju . ' (' . $pengaju_label . ')' : $pengaju_label;
 
-        $subject = '[Pencabutan Stiker] Stiker Kelayakan Unit ' . $c->no_polisi . ' Resmi Dicabut';
+        $subject = '[Pencabutan Stiker] Stiker Kelayakan Unit ' . (!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi) . ' Resmi Dicabut';
         $body = $this->_wrap(
             'Pemberitahuan Pencabutan Stiker Kelayakan Operasional',
-            'Stiker kelayakan operasional untuk unit <strong>' . htmlspecialchars($c->no_polisi) . '</strong> telah <strong>RESMI DICABUT</strong> oleh Admin OHS.',
+            'Stiker kelayakan operasional untuk unit <strong>' . htmlspecialchars(!empty($c->nomor_unit) ? $c->nomor_unit : $c->no_polisi) . '</strong> telah <strong>RESMI DICABUT</strong> oleh Admin OHS.',
             '<div style="background:#f8d7da;color:#721c24;padding:12px 16px;border-radius:4px;border:1px solid #f5c6cb;">'
             . '<strong>Nomor Stiker:</strong> ' . htmlspecialchars($c->nomor_sticker ?? '-') . '<br>'
             . '<strong>Pengaju Pencabutan:</strong> ' . htmlspecialchars($nama_pengaju) . '<br>'
@@ -862,22 +862,45 @@ class Sikuk_email
                 </td>
             </tr>
             <tr>
-                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;width:140px;border:1px solid #e0e0e0;">No. Polisi</td>
-                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->no_polisi) . '</td>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;width:140px;border:1px solid #e0e0e0;">Nomor Lambung</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : 'N/A') . '</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">No. Polisi</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->no_polisi) ? $p->no_polisi : 'N/A') . '</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tipe Pengajuan</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->tipe_pengajuan) ? $p->tipe_pengajuan : 'N/A') . '</td>
             </tr>
             <tr>
                 <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Jenis Kendaraan</td>
-                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->jenis_kendaraan) . '</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->jenis_kendaraan) ? $p->jenis_kendaraan : 'N/A') . '</td>
             </tr>
             <tr>
-                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Merk / Tipe</td>
-                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->merk) . ' ' . htmlspecialchars($p->tipe) . '</td>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Merk</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->merk) ? $p->merk : 'N/A') . '</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tipe / Model</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->tipe) ? $p->tipe : 'N/A') . '</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tahun</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->tahun) ? $p->tahun : 'N/A') . '</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Perusahaan</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->perusahaan) ? $p->perusahaan : 'N/A') . '</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tujuan Pengajuan</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->tujuan) ? $p->tujuan : 'N/A') . '</td>
             </tr>
             <tr>
                 <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Pemohon</td>
-                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->nama_pemohon) . '</td>
+                <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($p->nama_pemohon) . ' <br><small style="color:#6c757d;">(' . htmlspecialchars(!empty($p->role_pemohon) ? $p->role_pemohon : 'Pemohon') . ')</small></td>
             </tr>
-           
         </table>';
     }
 
@@ -912,10 +935,11 @@ class Sikuk_email
     private function _get_pengajuan($id_pengajuan)
     {
         return $this->CI->db
-            ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.status,
+            ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.status, pu.tujuan,
                       COALESCE(NULLIF(TRIM(pu.email_pemohon), ""), NULLIF(TRIM(u.email), "")) AS email_pemohon,
                       COALESCE(NULLIF(TRIM(u.nama), ""), "Pemohon") AS nama_pemohon,
-                      k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
+                      (SELECT GROUP_CONCAT(r.nama_role SEPARATOR ", ") FROM user_roles ur JOIN roles r ON r.id_role = ur.id_role WHERE ur.id_user = u.id_user) AS role_pemohon,
+                      k.no_polisi, k.nomor_unit, k.perusahaan, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
             ->from('pengajuan_uji pu')
             ->join('users u',          'u.id_user = pu.id_pemohon',                 'left')
             ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')
