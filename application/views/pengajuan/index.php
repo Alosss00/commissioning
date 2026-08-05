@@ -118,7 +118,8 @@
                                         <th>No. Unit</th>
                                         <th>No. Polisi</th>
                                         <th>Kendaraan</th>
-                                        <th>Tipe Unit</th>
+                                        <th>Tipe Pengajuan</th>
+                                        <th>Tipe Akses</th>
                                         <th>Status</th>
                                         <th>Tgl Pengajuan</th>
                                         <th width="140">Aksi</th>
@@ -287,7 +288,12 @@
                     data: 'jenis_kendaraan'
                 },
                 {
-                    data: 'unit_baru',
+                    data: 'tipe_pengajuan',
+                    className: 'text-center',
+                    orderable: false
+                },
+                {
+                    data: 'tipe_akses',
                     className: 'text-center',
                     orderable: false
                 },
@@ -307,7 +313,7 @@
                 },
             ],
             order: [
-                [8, 'desc']
+                [9, 'desc']
             ],
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
