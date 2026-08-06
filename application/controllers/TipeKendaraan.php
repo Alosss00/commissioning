@@ -1,24 +1,32 @@
 <?php
 
 /**
- * TipeKendaraan Controller
- * Perubahan v2:
- *   - save() menerima kolom doc_no, title_id, title_en,
- *     doc_name_id, doc_name_en, tgl_terbit, tgl_review, no_revisi
- *   - get_data() expose kolom baru ke DataTable
- *   - get_doc_info() AJAX baru — untuk preview di modal
+ * Controller TipeKendaraan
+ * 
+ * Pengelolaan master data tipe kendaraan/unit (Light Vehicle, Dump Truck, Excavator, dll).
+ * Menangani:
+ * - Menampilkan daftar tipe kendaraan dan metadata dokumen teknis
+ * - Menambah dan mengedit tipe kendaraan, penandaan status alat berat, dan nomor revisi dokumen
+ * - Mengubah status aktif/non-aktif tipe kendaraan
+ * - Menghapus tipe kendaraan yang tidak terikat dengan data kendaraan aktif
  */
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class TipeKendaraan extends CI_Controller
 {
+    /**
+     * Konstruktor Controller TipeKendaraan
+     * Memuat library, helper, dan memverifikasi hak akses pengguna (Role 1 & 5).
+     */
     public function __construct()
     {
         parent::__construct();
         $this->load->library(['session', 'form_validation']);
         $this->load->helper(['url', 'form']);
 
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
 
         $roles = $this->_roles();
         if (!$this->_has([1, 5], $roles)) {
@@ -29,28 +37,45 @@ class TipeKendaraan extends CI_Controller
         $this->_check_schema_alat_berat();
     }
 
+    /**
+     * Helper privat memastikan keberadaan kolom is_alat_berat pada tabel tipe_kendaraan.
+     * 
+     * @return void
+     */
     private function _check_schema_alat_berat()
     {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+
         if (!$this->db->field_exists('is_alat_berat', 'tipe_kendaraan')) {
             $this->db->query("ALTER TABLE `tipe_kendaraan` ADD COLUMN `is_alat_berat` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`");
             $this->db->query("UPDATE `tipe_kendaraan` SET `is_alat_berat` = 1 WHERE LOWER(nama_tipe) REGEXP 'excavator|dump truck|hd|dozer|bulldozer|grader|loader|crane|forklift|scraper|compactor|backhoe|heavy|alat berat' OR LOWER(kode_tipe) REGEXP 'ex|dt|hd|dz|bd|gr|ld|cr|fl|he'");
         }
     }
 
-    // ── INDEX ──────────────────────────────────────────────────────────────────
+    /**
+     * Halaman Utama Master Tipe Kendaraan
+     * 
+     * @return void Render view tipekendaraan/index
+     */
     public function index()
     {
         $data = [
             'title' => 'Master Tipe Kendaraan',
             'user'  => $this->session->userdata(),
         ];
-        $this->load->view('templates/header',     $data);
-        $this->load->view('templates/sidebar',    $data);
-        $this->load->view('tipekendaraan/index',  $data);
-        $this->load->view('templates/footer',     $data);
+        $this->load->view('templates/header',    $data);
+        $this->load->view('templates/sidebar',   $data);
+        $this->load->view('tipekendaraan/index', $data);
+        $this->load->view('templates/footer',    $data);
     }
 
-    // ── AJAX: DataTable ────────────────────────────────────────────────────────
+    /**
+     * Endpoint AJAX DataTables untuk mengambil daftar tipe kendaraan beserta jumlah unit terikat.
+     * 
+     * @return void Response JSON DataTables + CSRF token
+     */
     public function get_data()
     {
         if (!$this->input->is_ajax_request()) show_404();
@@ -98,206 +123,177 @@ class TipeKendaraan extends CI_Controller
 
             $btn_toggle = $r->is_active
                 ? '<button class="btn btn-sm btn-outline-warning py-0 btn-toggle"
-                    data-id="' . $r->id_tipe_kendaraan . '" title="Nonaktifkan">
-                    <i class="bi bi-eye-slash"></i></button>'
+                    data-id="'     . $r->id_tipe_kendaraan . '"
+                    data-active="1"
+                    title="Nonaktifkan"><i class="bi bi-eye-slash"></i></button>'
                 : '<button class="btn btn-sm btn-outline-success py-0 btn-toggle"
-                    data-id="' . $r->id_tipe_kendaraan . '" title="Aktifkan">
-                    <i class="bi bi-eye"></i></button>';
+                    data-id="'     . $r->id_tipe_kendaraan . '"
+                    data-active="0"
+                    title="Aktifkan"><i class="bi bi-eye"></i></button>';
 
-            $btn_delete = '<button class="btn btn-sm btn-outline-danger py-0 btn-delete"
-                data-id="' . $r->id_tipe_kendaraan . '"
-                data-nama="' . html_escape($r->nama_tipe) . '" title="Hapus">
-                <i class="bi bi-trash"></i></button>';
+            $btn_del = ($r->total_kendaraan == 0 && $r->total_template == 0)
+                ? '<button class="btn btn-sm btn-outline-danger py-0 btn-delete"
+                    data-id="'   . $r->id_tipe_kendaraan . '"
+                    data-nama="' . html_escape($r->nama_tipe) . '"
+                    title="Hapus"><i class="bi bi-trash"></i></button>'
+                : '';
 
             $data[] = [
-                'id'              => $r->id_tipe_kendaraan,
-                'nama_tipe'       => html_escape($r->nama_tipe) . $badge_alat_berat,
-                'kode_tipe'       => $r->kode_tipe
-                    ? '<span class="badge bg-secondary font-monospace">' . html_escape($r->kode_tipe) . '</span>'
-                    : '<span class="text-muted">—</span>',
-                'doc_no'          => $badge_doc,
-                'status'          => $badge_status,
-                'total_kendaraan' => '<span class="badge bg-primary rounded-pill">'   . $r->total_kendaraan . '</span>',
-                'total_template'  => '<span class="badge bg-info rounded-pill">'      . $r->total_template  . '</span>',
-                'total_mekanik'   => '<span class="badge bg-secondary rounded-pill">' . $r->total_mekanik   . '</span>',
-                'aksi'            => '<div class="d-flex gap-1 justify-content-center">'
-                    . $btn_edit . $btn_toggle . $btn_delete
-                    . '</div>',
+                'id_tipe_kendaraan' => $r->id_tipe_kendaraan,
+                'nama_tipe'         => '<strong>' . html_escape($r->nama_tipe) . '</strong>' . $badge_alat_berat,
+                'kode_tipe'         => '<span class="badge bg-light text-dark font-monospace border">' . html_escape($r->kode_tipe ?? '-') . '</span>',
+                'doc_no'            => $badge_doc,
+                'no_revisi'         => html_escape($r->no_revisi ?? '01'),
+                'total_kendaraan'   => '<span class="badge bg-light text-dark border">' . $r->total_kendaraan . ' unit</span>',
+                'total_template'    => '<span class="badge bg-light text-dark border">' . $r->total_template . ' template</span>',
+                'total_mekanik'     => '<span class="badge bg-light text-dark border">' . $r->total_mekanik . ' orang</span>',
+                'is_active'         => $badge_status,
+                'aksi'              => '<div class="d-flex gap-1">' . $btn_edit . $btn_toggle . $btn_del . '</div>',
             ];
         }
 
-        $output = ['data' => $data];
-        $output['csrf_hash'] = $this->security->get_csrf_hash();
-        echo json_encode($output);
+        echo json_encode(['data' => $data, 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
-    // ── AJAX: simpan (insert / update) ─────────────────────────────────────────
+    /**
+     * Endpoint AJAX Simpan (Insert / Update) Master Tipe Kendaraan.
+     * 
+     * @return void Response JSON status simpan
+     */
     public function save()
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $id         = (int)   $this->input->post('id_tipe_kendaraan');
-        $nama_tipe  = trim($this->input->post('nama_tipe')    ?? '');
-        $kode_tipe  = strtoupper(trim($this->input->post('kode_tipe') ?? '')) ?: null;
-
-        // ── Kolom dokumen PDF ──────────────────────────────────────────────────
-        $doc_no      = trim($this->input->post('doc_no')      ?? '') ?: null;
-        $title_id    = trim($this->input->post('title_id')    ?? '') ?: null;
-        $title_en    = trim($this->input->post('title_en')    ?? '') ?: null;
-        $doc_name_id = trim($this->input->post('doc_name_id') ?? '') ?: null;
-        $doc_name_en = trim($this->input->post('doc_name_en') ?? '') ?: null;
-        $tgl_terbit  = trim($this->input->post('tgl_terbit')  ?? '') ?: null;
-        $tgl_review  = trim($this->input->post('tgl_review')  ?? '') ?: null;
-        $no_revisi   = trim($this->input->post('no_revisi')   ?? '') ?: '01';
-
-        // ── Validasi wajib ─────────────────────────────────────────────────────
-        if (empty($nama_tipe)) {
-            echo json_encode(['status' => 'error', 'message' => 'Nama tipe wajib diisi.']);
-            return;
-        }
-        if (strlen($nama_tipe) > 100) {
-            echo json_encode(['status' => 'error', 'message' => 'Nama tipe maksimal 100 karakter.']);
-            return;
-        }
-
-        // Cek duplikat nama
-        $this->db->where('LOWER(nama_tipe) = LOWER(' . $this->db->escape($nama_tipe) . ')', null, false);
-        if ($id) $this->db->where('id_tipe_kendaraan !=', $id);
-        if ($this->db->count_all_results('tipe_kendaraan') > 0) {
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Nama tipe <strong>' . html_escape($nama_tipe) . '</strong> sudah terdaftar.'
-            ]);
-            return;
-        }
-
-        // Cek duplikat kode
-        if ($kode_tipe) {
-            $this->db->where('kode_tipe', $kode_tipe);
-            if ($id) $this->db->where('id_tipe_kendaraan !=', $id);
-            if ($this->db->count_all_results('tipe_kendaraan') > 0) {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Kode tipe <strong>' . html_escape($kode_tipe) . '</strong> sudah dipakai.'
-                ]);
-                return;
-            }
-        }
-
-        // Cek duplikat doc_no
-        if ($doc_no) {
-            $this->db->where('doc_no', $doc_no);
-            if ($id) $this->db->where('id_tipe_kendaraan !=', $id);
-            if ($this->db->count_all_results('tipe_kendaraan') > 0) {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'No. Dokumen <strong>' . html_escape($doc_no) . '</strong> sudah dipakai tipe lain.'
-                ]);
-                return;
-            }
-        }
-
+        $id            = (int) $this->input->post('id_tipe_kendaraan');
+        $nama          = trim($this->input->post('nama_tipe'));
+        $kode          = strtoupper(trim($this->input->post('kode_tipe')));
         $is_alat_berat = (int) $this->input->post('is_alat_berat');
 
+        $doc_no      = trim($this->input->post('doc_no'));
+        $title_id    = trim($this->input->post('title_id'));
+        $title_en    = trim($this->input->post('title_en'));
+        $doc_name_id = trim($this->input->post('doc_name_id'));
+        $doc_name_en = trim($this->input->post('doc_name_en'));
+        $tgl_terbit  = trim($this->input->post('tgl_terbit'));
+        $tgl_review  = trim($this->input->post('tgl_review'));
+        $no_revisi   = trim($this->input->post('no_revisi')) ?: '01';
+
+        if (empty($nama)) {
+            echo json_encode(['status' => 'error', 'message' => 'Nama tipe kendaraan wajib diisi.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        // Cek keunikan nama tipe
+        $this->db->where('nama_tipe', $nama);
+        if ($id) $this->db->where('id_tipe_kendaraan !=', $id);
+        if ($this->db->count_all_results('tipe_kendaraan') > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Nama tipe kendaraan sudah digunakan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
         $payload = [
-            'nama_tipe'     => $nama_tipe,
-            'kode_tipe'     => $kode_tipe,
-            'is_alat_berat' => $is_alat_berat ? 1 : 0,
-            'doc_no'        => $doc_no,
-            'title_id'      => $title_id,
-            'title_en'      => $title_en,
-            'doc_name_id'   => $doc_name_id,
-            'doc_name_en'   => $doc_name_en,
-            'tgl_terbit'    => $tgl_terbit,
-            'tgl_review'    => $tgl_review,
-            'no_revisi'     => $no_revisi,
+            'nama_tipe'     => $nama,
+            'kode_tipe'     => $kode ?: null,
+            'is_alat_berat' => $is_alat_berat,
+            'doc_no'        => $doc_no      ?: null,
+            'title_id'      => $title_id    ?: null,
+            'title_en'      => $title_en    ?: null,
+            'doc_name_id'   => $doc_name_id ?: null,
+            'doc_name_en'   => $doc_name_en ?: null,
+            'tgl_terbit'    => $tgl_terbit  ?: null,
+            'tgl_review'    => $tgl_review  ?: null,
+            'no_revisi'     => $no_revisi   ?: '01',
         ];
 
         if ($id) {
             $this->db->where('id_tipe_kendaraan', $id)->update('tipe_kendaraan', $payload);
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Tipe <strong>' . html_escape($nama_tipe) . '</strong> berhasil diperbarui.'
-            ]);
+            $msg = 'Tipe kendaraan berhasil diperbarui.';
         } else {
             $payload['is_active'] = 1;
             $this->db->insert('tipe_kendaraan', $payload);
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Tipe <strong>' . html_escape($nama_tipe) . '</strong> berhasil ditambahkan.'
-            ]);
+            $msg = 'Tipe kendaraan baru berhasil ditambahkan.';
         }
+
+        echo json_encode(['status' => 'success', 'message' => $msg, 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
-    // ── AJAX: toggle aktif/nonaktif ───────────────────────────────────────────
+    /**
+     * Endpoint AJAX Toggle Status Aktif/Non-aktif Tipe Kendaraan.
+     * 
+     * @return void Response JSON status toggle
+     */
     public function toggle()
     {
         if (!$this->input->is_ajax_request()) show_404();
 
         $id  = (int) $this->input->post('id');
-        $row = $this->db->select('is_active, nama_tipe')
-            ->where('id_tipe_kendaraan', $id)->get('tipe_kendaraan')->row();
+        $row = $this->db->where('id_tipe_kendaraan', $id)->get('tipe_kendaraan')->row();
+
         if (!$row) {
-            echo json_encode(['status' => 'error', 'message' => 'Data tidak ditemukan.']);
+            echo json_encode(['status' => 'error', 'message' => 'Data tidak ditemukan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
-        $this->db->where('id_tipe_kendaraan', $id)
-            ->update('tipe_kendaraan', ['is_active' => $row->is_active ? 0 : 1]);
-        $label = $row->is_active ? 'dinonaktifkan' : 'diaktifkan';
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Tipe <strong>' . html_escape($row->nama_tipe) . '</strong> berhasil ' . $label . '.'
-        ]);
+        $new_val = $row->is_active ? 0 : 1;
+        $this->db->where('id_tipe_kendaraan', $id)->update('tipe_kendaraan', ['is_active' => $new_val]);
+
+        echo json_encode(['status' => 'success', 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
-    // ── AJAX: delete ───────────────────────────────────────────────────────────
+    /**
+     * Endpoint AJAX Hapus Tipe Kendaraan.
+     * Memeriksa keterikatan data kendaraan dan template sebelum menghapus.
+     * 
+     * @return void Response JSON status hapus
+     */
     public function delete()
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        if (!$this->_has([1], $this->_roles())) {
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Hanya Super Admin yang dapat menghapus tipe kendaraan.'
-            ]);
-            return;
-        }
+        $id   = (int) $this->input->post('id');
+        $cek1 = $this->db->where('id_tipe_kendaraan', $id)->count_all_results('kendaraan');
+        $cek2 = $this->db->where('id_tipe_kendaraan', $id)->count_all_results('checklist_template');
 
-        $id = (int) $this->input->post('id');
-
-        $in_use = $this->db->query("
-            SELECT 1 FROM kendaraan WHERE id_tipe_kendaraan = ?
-            UNION ALL
-            SELECT 1 FROM checklist_template WHERE id_tipe_kendaraan = ?
-            UNION ALL
-            SELECT 1 FROM mekanik_tipe_kendaraan WHERE id_tipe_kendaraan = ?
-            LIMIT 1
-        ", [$id, $id, $id])->num_rows() > 0;
-
-        if ($in_use) {
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Tipe tidak dapat dihapus karena masih dipakai oleh kendaraan, template checklist, atau mekanik.'
-            ]);
+        if ($cek1 > 0 || $cek2 > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Tipe kendaraan masih terikat dengan data kendaraan atau template checklist.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
         $this->db->where('id_tipe_kendaraan', $id)->delete('tipe_kendaraan');
-        echo json_encode(['status' => 'success', 'message' => 'Tipe kendaraan berhasil dihapus.']);
+        echo json_encode(['status' => 'success', 'message' => 'Tipe kendaraan berhasil dihapus.', 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
-    // ── AJAX: dropdown ────────────────────────────────────────────────────────
-    public function get_dropdown()
+    /**
+     * Endpoint AJAX Ambil Informasi Dokumen Teknis Tipe Kendaraan.
+     * 
+     * @return void Response JSON info dokumen
+     */
+    public function get_doc_info()
     {
         if (!$this->input->is_ajax_request()) show_404();
-        $rows = $this->db->select('id_tipe_kendaraan, nama_tipe, kode_tipe')
-            ->where('is_active', 1)->order_by('nama_tipe', 'ASC')
-            ->get('tipe_kendaraan')->result();
-        echo json_encode(['status' => 'success', 'data' => $rows]);
+
+        $id  = (int) $this->input->post('id_tipe_kendaraan');
+        $row = $this->db
+            ->select('id_tipe_kendaraan, nama_tipe, kode_tipe, is_alat_berat,
+                  doc_no, title_id, title_en, doc_name_id, doc_name_en,
+                  tgl_terbit, tgl_review, no_revisi')
+            ->where('id_tipe_kendaraan', $id)
+            ->get('tipe_kendaraan')
+            ->row();
+
+        if (!$row) {
+            echo json_encode(['status' => 'error', 'message' => 'Tipe kendaraan tidak ditemukan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        echo json_encode(['status' => 'success', 'data' => $row, 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    /**
+     * Helper privat mengambil array ID role pengguna.
+     * 
+     * @return array Array integer ID role
+     */
     private function _roles()
     {
         $raw = $this->session->userdata('roles');
@@ -306,10 +302,17 @@ class TipeKendaraan extends CI_Controller
         return $r > 0 ? [$r] : [];
     }
 
+    /**
+     * Helper privat memeriksa hak akses pengguna.
+     * 
+     * @param array $req Role yang disyaratkan
+     * @param array $user_roles Role yang dimiliki user
+     * @return bool True jika diizinkan
+     */
     private function _has(array $req, array $user_roles)
     {
         foreach ($req as $r) {
-            if (in_array((int) $r, $user_roles)) return true;
+            if (in_array((int) $r, $user_roles, true)) return true;
         }
         return false;
     }

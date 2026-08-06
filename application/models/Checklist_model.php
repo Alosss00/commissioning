@@ -2,8 +2,18 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Model Checklist_model
+ * 
+ * Pengelolaan master template checklist pengujian kelayakan, item kriteria pengujian,
+ * jawaban checklist hasil inspeksi mekanik, serta snapshot versi riwayat inspeksi (history).
+ */
 class Checklist_model extends CI_Model
 {
+    /**
+     * Konstruktor Checklist_model
+     * Inisialisasi library database CodeIgniter.
+     */
     public function __construct()
     {
         parent::__construct();
@@ -11,9 +21,14 @@ class Checklist_model extends CI_Model
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // TEMPLATE
+    // MANAJEMEN TEMPLATE CHECKLIST
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Mengambil daftar seluruh template checklist yang aktif beserta informasi dokumen tipe kendaraan.
+     * 
+     * @return array List object template checklist
+     */
     public function get_all_templates()
     {
         return $this->db
@@ -28,6 +43,12 @@ class Checklist_model extends CI_Model
             ->get()->result();
     }
 
+    /**
+     * Mengambil detail template checklist berdasarkan ID.
+     * 
+     * @param int $id ID Template
+     * @return object|null Object detail template
+     */
     public function get_template($id)
     {
         return $this->db
@@ -41,6 +62,12 @@ class Checklist_model extends CI_Model
             ->get()->row();
     }
 
+    /**
+     * Mengambil template checklist berdasarkan nama tipe kendaraan.
+     * 
+     * @param string $nama_tipe Nama tipe kendaraan
+     * @return object|null Object template checklist
+     */
     public function get_template_by_jenis($nama_tipe)
     {
         return $this->db
@@ -52,6 +79,12 @@ class Checklist_model extends CI_Model
             ->get()->row();
     }
 
+    /**
+     * Mengambil template checklist berdasarkan ID tipe kendaraan (efisien & presisi).
+     * 
+     * @param int $id_tipe_kendaraan ID Tipe Kendaraan
+     * @return object|null Object template checklist
+     */
     public function get_template_by_tipe_id($id_tipe_kendaraan)
     {
         return $this->db
@@ -66,6 +99,11 @@ class Checklist_model extends CI_Model
             ->get()->row();
     }
 
+    /**
+     * Mengambil daftar tipe kendaraan yang belum memiliki template checklist aktif.
+     * 
+     * @return array List object tipe kendaraan
+     */
     public function get_tipe_tersedia()
     {
         return $this->db
@@ -83,13 +121,20 @@ class Checklist_model extends CI_Model
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CHECKLIST ITEM
+    // CHECKLIST ITEM KRITERIA
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Mengambil seluruh item kriteria pengujian untuk template tertentu.
+     * Diurutkan berdasarkan kategori (CRITICAL dulu, lalu GENERAL) dan nomor urut.
+     * 
+     * @param int $id_template ID Template Checklist
+     * @return array List object item kriteria
+     */
     public function get_items($id_template)
     {
         return $this->db
-            ->where('id_template', $id_template)
+            ->where('id_template', (int) $id_template)
             ->order_by('kategori DESC')
             ->order_by('CAST(no_urut AS UNSIGNED)', 'ASC', false)
             ->get('checklist_item')
@@ -97,41 +142,35 @@ class Checklist_model extends CI_Model
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SAVE CHECKLIST — dengan history snapshot sebelum overwrite
+    // PENYIMPANAN JAWABAN & HISTORY SNAPSHOT
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Simpan jawaban checklist.
-     *
-     * Alur baru (Opsi A — history):
-     *   1. Hitung versi berikutnya untuk id_uji ini di history.
-     *   2. Snapshot seluruh uji_checklist yang ada ke uji_checklist_history
-     *      SEBELUM dihapus — hanya jika sudah ada data (bukan submit pertama).
-     *   3. DELETE uji_checklist lama, INSERT batch baru.
-     *
-     * Dengan ini:
-     *   - Submit pertama   : tidak ada snapshot (tidak ada data lama)
-     *   - Inspeksi ulang 1 : snapshot versi 1 tersimpan, versi aktif = 2
-     *   - Inspeksi ulang 2 : snapshot versi 2 tersimpan, versi aktif = 3
-     *   - dst.
-     *
-     * @param int   $id_uji       FK ke uji_kelayakan
-     * @param array $items        array [id_item => ['hasil'=>..., 'keterangan'=>...]]
-     * @param array $uji_meta     opsional — ['id_pengajuan', 'hasil_uji',
-     *                            'nama_inspektor', 'perusahaan_inspektor',
-     *                            'catatan_temuan']
-     *                            Jika kosong, diambil dari DB secara otomatis.
+     * Simpan jawaban item checklist hasil inspeksi mekanik.
+     * 
+     * Alur Operasi Atomik:
+     * 1. Cek keberadaan data inspeksi lama pada `uji_checklist`.
+     * 2. Jika ada data lama (inspeksi ulang), buat snapshot versi di `uji_checklist_history` (insert_batch).
+     * 3. Hapus data aktif lama pada `uji_checklist`.
+     * 4. Lakukan batch insert data jawaban checklist baru ke `uji_checklist` (optimasi insert_batch N+1).
+     * 
+     * @param int $id_uji ID Uji Kelayakan
+     * @param array $items Array [id_item => ['hasil' => 'yes|no|na', 'keterangan' => '...']]
+     * @param array $uji_meta Metadata inspeksi (id_pengajuan, hasil_uji, nama_inspektor, dll)
+     * @return bool Status keberhasilan simpan
      */
     public function save_checklist($id_uji, $items, $uji_meta = [])
     {
-        // ── Cek apakah sudah ada data lama yang perlu di-snapshot ────────────
+        $id_uji = (int) $id_uji;
+
+        // Langkah 1: Cek keberadaan data hasil inspeksi sebelumnya
         $existing = $this->db
             ->where('id_uji', $id_uji)
             ->get('uji_checklist')
             ->result();
 
         if (!empty($existing)) {
-            // ── Ambil meta dari DB jika tidak disuplai ───────────────────────
+            // Jika metadata belum disuplai, ambil otomatis dari uji_kelayakan
             if (empty($uji_meta)) {
                 $uk = $this->db
                     ->select('id_pengajuan, hasil AS hasil_uji,
@@ -152,9 +191,7 @@ class Checklist_model extends CI_Model
                 }
             }
 
-            // ── Hitung versi berikutnya ──────────────────────────────────────
-            // Versi = (max versi yang sudah ada di history untuk id_uji ini) + 1
-            // Jika belum ada history sama sekali → versi 1 (snapshot pertama)
+            // Hitung nomor versi snapshot berikutnya
             $max_versi = $this->db
                 ->select_max('versi')
                 ->where('id_uji', $id_uji)
@@ -165,10 +202,9 @@ class Checklist_model extends CI_Model
                 ? (int) $max_versi->versi + 1
                 : 1;
 
-            // ── Snapshot ke history ──────────────────────────────────────────
-            $snapshot_at = $uji_meta['snapshot_at']
-                ?? date('Y-m-d H:i:s');
+            $snapshot_at = $uji_meta['snapshot_at'] ?? date('Y-m-d H:i:s');
 
+            // Susun batch snapshot history (Optimasi Batch)
             $history_batch = [];
             foreach ($existing as $row) {
                 $history_batch[] = [
@@ -191,7 +227,7 @@ class Checklist_model extends CI_Model
             }
         }
 
-        // ── Delete lama + Insert baru (alur yang sudah ada, tidak berubah) ──
+        // Langkah 2: Hapus data aktif lama dan simpan batch item jawaban baru
         $this->db->where('id_uji', $id_uji)->delete('uji_checklist');
         if (empty($items)) return true;
 
@@ -200,7 +236,7 @@ class Checklist_model extends CI_Model
             $batch[] = [
                 'id_uji'     => $id_uji,
                 'id_item'    => (int) $id_item,
-                'hasil'      => in_array($val['hasil'], ['yes', 'no', 'na'])
+                'hasil'      => in_array($val['hasil'], ['yes', 'no', 'na'], true)
                     ? $val['hasil'] : 'na',
                 'keterangan' => isset($val['keterangan'])
                     ? trim($val['keterangan']) : '',
@@ -210,12 +246,14 @@ class Checklist_model extends CI_Model
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // GET HISTORY — untuk ditampilkan di detail / PDF inspeksi ulang
+    // PENGAMBILAN RIWAYAT HISTORY INSPEKSI
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Semua versi history untuk satu id_uji, dikelompokkan per versi.
-     * Return: array [ versi => [ rows ] ]
+     * Mengambil riwayat snapshot checklist untuk 1 ID uji dikelompokkan per versi.
+     * 
+     * @param int $id_uji ID Uji Kelayakan
+     * @return array [versi => [rows_item]]
      */
     public function get_checklist_history($id_uji)
     {
@@ -229,7 +267,6 @@ class Checklist_model extends CI_Model
             ->order_by('CAST(ci.no_urut AS UNSIGNED)', 'ASC', false)
             ->get()->result();
 
-        // Kelompokkan per versi
         $grouped = [];
         foreach ($rows as $r) {
             $grouped[$r->versi][] = $r;
@@ -238,8 +275,10 @@ class Checklist_model extends CI_Model
     }
 
     /**
-     * Daftar ringkasan versi untuk satu id_uji.
-     * Berguna untuk header timeline (versi, tanggal, hasil, inspektor).
+     * Mengambil ringkasan header versi riwayat inspeksi untuk 1 ID uji.
+     * 
+     * @param int $id_uji ID Uji Kelayakan
+     * @return array List object ringkasan versi
      */
     public function get_history_versions($id_uji)
     {
@@ -262,8 +301,10 @@ class Checklist_model extends CI_Model
     }
 
     /**
-     * History berdasarkan id_pengajuan — untuk tampilkan semua riwayat
-     * seluruh siklus inspeksi di halaman detail pengajuan.
+     * Mengambil seluruh riwayat snapshot inspeksi berdasarkan ID pengajuan.
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @return array List object riwayat versi pengajuan
      */
     public function get_history_by_pengajuan($id_pengajuan)
     {
@@ -283,24 +324,32 @@ class Checklist_model extends CI_Model
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // JAWABAN & SUMMARY (tidak berubah)
+    // PENGAMBILAN JAWABAN & REKAPITULASI SUMMARY
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Mengambil jawaban checklist aktif untuk 1 ID uji kelayakan.
+     * 
+     * @param int $id_uji ID Uji Kelayakan
+     * @return array List object jawaban checklist
+     */
     public function get_checklist_answers($id_uji)
     {
         $this->db->select('uc.*, ci.kriteria, ci.kategori, ci.no_urut, ct.nama_template');
         $this->db->from('uji_checklist uc');
         $this->db->join('checklist_item ci',     'ci.id_item = uc.id_item');
         $this->db->join('checklist_template ct', 'ct.id_template = ci.id_template');
-        $this->db->where('uc.id_uji', $id_uji);
+        $this->db->where('uc.id_uji', (int) $id_uji);
         $this->db->order_by('ci.kategori DESC');
         $this->db->order_by('CAST(ci.no_urut AS UNSIGNED)', 'ASC', false);
         return $this->db->get()->result();
     }
 
     /**
-     * Summary hasil checklist.
-     * Lulus = tidak ada satupun item (CRITICAL maupun GENERAL) yang NO.
+     * Menghitung summary rekapitulasi hasil inspeksi (total yes/no/na, temuan critical vs general).
+     * 
+     * @param int $id_uji ID Uji Kelayakan
+     * @return array Array summary rekapitulasi hasil
      */
     public function get_summary($id_uji)
     {
@@ -314,6 +363,7 @@ class Checklist_model extends CI_Model
             'general_no'  => 0,
             'items_no'    => [],
         ];
+
         foreach ($rows as $r) {
             if (isset($summary[$r->hasil])) $summary[$r->hasil]++;
             if ($r->hasil === 'no') {
@@ -322,13 +372,14 @@ class Checklist_model extends CI_Model
                 $summary['items_no'][] = $r;
             }
         }
+
         $summary['lulus']    = $summary['no'] === 0;
         $summary['total_no'] = $summary['critical_no'] + $summary['general_no'];
         return $summary;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CRUD TEMPLATE
+    // CRUD TEMPLATE & ITEM
     // ─────────────────────────────────────────────────────────────────────────
 
     public function insert_template($data)
@@ -339,12 +390,8 @@ class Checklist_model extends CI_Model
 
     public function update_template($id, $data)
     {
-        return $this->db->where('id_template', $id)->update('checklist_template', $data);
+        return $this->db->where('id_template', (int) $id)->update('checklist_template', $data);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // CRUD ITEM
-    // ─────────────────────────────────────────────────────────────────────────
 
     public function insert_item($data)
     {
@@ -354,28 +401,24 @@ class Checklist_model extends CI_Model
 
     public function update_item($id, $data)
     {
-        return $this->db->where('id_item', $id)->update('checklist_item', $data);
+        return $this->db->where('id_item', (int) $id)->update('checklist_item', $data);
     }
 
     public function delete_item($id)
     {
-        return $this->db->where('id_item', $id)->delete('checklist_item');
+        return $this->db->where('id_item', (int) $id)->delete('checklist_item');
     }
 
     public function get_item($id)
     {
-        return $this->db->where('id_item', $id)->get('checklist_item')->row();
+        return $this->db->where('id_item', (int) $id)->get('checklist_item')->row();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // COMPAT
-    // ─────────────────────────────────────────────────────────────────────────
 
     /** @deprecated Gunakan get_template_by_tipe_id() */
     public static function map_jenis($nama_tipe)
     {
         $no_template = ['Water Truck'];
-        if (in_array($nama_tipe, $no_template)) return null;
+        if (in_array($nama_tipe, $no_template, true)) return null;
         return $nama_tipe;
     }
 

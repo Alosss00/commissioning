@@ -1,17 +1,41 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Controller Dashboard
+ * 
+ * Pengelolaan antarmuka beranda utama (Dashboard Metrics & Analytics).
+ * Menyajikan:
+ * - Kartu statistik utama (Pengajuan bulan ini, delta perubahan, pass rate, antrean tindakan)
+ * - Pipeline alur berkas pengajuan
+ * - Grafik tren pengajuan 12 bulan terakhir (Chart.js)
+ * - Antrean persetujuan (approval queue) yang disesuaikan dengan role pengguna yang login
+ * - Endpoint AJAX rekapitulasi komisioning (Rekap Harian, Mingguan, Bulanan, Tahunan)
+ */
 class Dashboard extends CI_Controller
 {
+    /**
+     * Konstruktor Controller Dashboard
+     * Memuat model, session, dan helper. Memastikan pengguna dalam keadaan ter-otentikasi.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->load->model(['Pengajuan_model', 'Jadwal_model']);
         $this->load->library('session');
         $this->load->helper('url');
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
     }
 
+    /**
+     * Halaman Utama Dashboard
+     * Menghitung seluruh metrik statistik dan memuat view beranda.
+     * 
+     * @return void Render view dashboard/index
+     */
     public function index()
     {
         $roles       = $this->_user_roles();
@@ -23,7 +47,7 @@ class Dashboard extends CI_Controller
         $bln_lalu    = date('m', strtotime('last month'));
         $thn_lalu    = date('Y', strtotime('last month'));
 
-        // ── Status aktif (semua yang sedang berjalan) ─────────────────────────
+        // Status aktif (semua pengajuan dalam proses)
         $status_aktif = [
             'pengajuan_baru',
             'pengajuan_ulang',
@@ -38,7 +62,7 @@ class Dashboard extends CI_Controller
         $status_selesai = ['stiker_keluar'];
         $status_ditolak = ['ditolak_manager', 'ditolak_admin_ohs', 'ditolak_ohs_supt', 'ditolak_ktt', 'rejected'];
 
-        // ── Stat Cards ────────────────────────────────────────────────────────
+        // Kartu Statistik
         $total_bulan = $this->_scope_pengajuan_query($departemen, $scope_dept)
             ->where('MONTH(pu.tanggal_pengajuan)', $bln)
             ->where('YEAR(pu.tanggal_pengajuan)', $thn)
@@ -68,7 +92,7 @@ class Dashboard extends CI_Controller
             ->where('pu.tanggal_pengajuan <', date('Y-m-d H:i:s', strtotime('-3 days')))
             ->count_all_results();
 
-        // ── Pipeline ──────────────────────────────────────────────────────────
+        // Pipeline Status
         $pipeline = [
             'pengajuan_masuk' => $this->_scope_pengajuan_query($departemen, $scope_dept)->where_in('pu.status', ['pengajuan_baru', 'pengajuan_ulang'])->count_all_results(),
             'review_manager'  => $this->_scope_pengajuan_query($departemen, $scope_dept)->where('pu.status', 'diterima_manager')->count_all_results(),
@@ -77,7 +101,7 @@ class Dashboard extends CI_Controller
             'stiker_keluar'   => $this->_scope_pengajuan_query($departemen, $scope_dept)->where('pu.status', 'stiker_keluar')->count_all_results(),
         ];
 
-        // ── Trend Chart (12 bulan terakhir) ──────────────────────────────────
+        // Trend Chart (12 bulan terakhir)
         $trend_labels  = [];
         $trend_masuk   = [];
         $trend_lulus   = [];
@@ -103,7 +127,7 @@ class Dashboard extends CI_Controller
                 ->count_all_results();
         }
 
-        // ── Rekap Pie bulan ini ───────────────────────────────────────────────
+        // Rekap Pie bulan ini
         $rekap_lulus  = $this->_scope_pengajuan_query($departemen, $scope_dept)
             ->where('MONTH(pu.tanggal_pengajuan)', $bln)
             ->where('YEAR(pu.tanggal_pengajuan)', $thn)
@@ -125,7 +149,7 @@ class Dashboard extends CI_Controller
             ->where_in('pu.status', $status_ditolak)
             ->count_all_results();
 
-        // ── Pengajuan terbaru ─────────────────────────────────────────────────
+        // Pengajuan terbaru
         $pengajuan_terbaru = $this->db
             ->select('pu.id_pengajuan, pu.status, pu.tanggal_pengajuan, k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, u.nama AS nama_pemohon')
             ->from('pengajuan_uji pu')
@@ -139,7 +163,7 @@ class Dashboard extends CI_Controller
             ->order_by('pu.tanggal_pengajuan', 'DESC')
             ->limit(6)->get()->result();
 
-        // ── Jadwal mendatang ──────────────────────────────────────────────────
+        // Jadwal mendatang
         $jadwal_mendatang = $this->db
             ->select('j.*, k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, u.nama AS nama_mekanik')
             ->from('jadwal_uji j')
@@ -152,32 +176,24 @@ class Dashboard extends CI_Controller
             ->order_by('j.tanggal_uji', 'ASC')
             ->limit(5)->get()->result();
 
-        // ── Approval queue per role ───────────────────────────────────────────
-        // Roles: 1=Super Admin, 2=KTT, 3=OHS Supt, 4=Mekanik, 5=Admin OHS, 6=Dept Manager, 7=Admin Dept
+        // Approval queue per role
         $approval_status = [];
-
         if (in_array(6, $roles) || in_array(1, $roles)) {
-            // Dept Manager: pengajuan masuk + yang dikembalikan dari Admin OHS
             $approval_status = array_merge($approval_status, ['pengajuan_baru', 'pengajuan_ulang', 'ditolak_admin_ohs']);
         }
         if (in_array(5, $roles) || in_array(1, $roles)) {
-            // Admin OHS: review dokumen (diterima manager) + review hasil + release stiker
             $approval_status = array_merge($approval_status, ['diterima_manager', 'selesai_inspeksi', 'acc_ktt']);
         }
         if (in_array(3, $roles) || in_array(1, $roles)) {
-            // OHS Superintendent: diterima admin ohs + yang dikembalikan dari OHS Supt
             $approval_status = array_merge($approval_status, ['diterima_admin_ohs', 'ditolak_ohs_supt']);
         }
         if (in_array(2, $roles) || in_array(1, $roles)) {
-            // KTT: diterima ohs supt
             $approval_status = array_merge($approval_status, ['diterima_ohs_supt']);
         }
         if (in_array(4, $roles) || in_array(1, $roles)) {
-            // Mekanik: dijadwalkan
             $approval_status = array_merge($approval_status, ['dijadwalkan']);
         }
         if (in_array(7, $roles) && !in_array(1, $roles)) {
-            // Admin Dept: lihat status pengajuan miliknya yang ditolak
             $approval_status = array_merge($approval_status, ['ditolak_manager']);
         }
 
@@ -194,14 +210,13 @@ class Dashboard extends CI_Controller
             if ($scope_dept) {
                 $q->where('k.perusahaan', $departemen);
             }
-            // Admin Dept hanya lihat miliknya
             if (in_array(7, $roles) && !in_array(1, $roles)) {
                 $q->where('pu.id_pemohon', $id_user);
             }
             $approval_queue = $q->order_by('pu.tanggal_pengajuan', 'DESC')->order_by('pu.id_pengajuan', 'DESC')->limit(5)->get()->result();
         }
 
-        // ── Stiker siap diterbitkan (untuk Admin OHS) ─────────────────────────
+        // Stiker siap diterbitkan
         $siap_stiker = [];
         if (in_array(5, $roles) || in_array(1, $roles)) {
             $siap_stiker = $this->db
@@ -219,7 +234,7 @@ class Dashboard extends CI_Controller
                 ->limit(5)->get()->result();
         }
 
-        // ── Aktivitas terbaru ─────────────────────────────────────────────────
+        // Aktivitas terbaru
         $aktivitas = $this->db
             ->select('al.*, u.nama AS nama_user')
             ->from('audit_log al')
@@ -258,6 +273,13 @@ class Dashboard extends CI_Controller
         $this->load->view('templates/footer',  $data);
     }
 
+    /**
+     * Helper privat pembentuk query scoping departemen untuk statistik dashboard.
+     * 
+     * @param string $departemen Nama departemen user
+     * @param bool $scope_dept Flag aktifkan filter departemen
+     * @return object Query builder CodeIgniter
+     */
     private function _scope_pengajuan_query($departemen, $scope_dept)
     {
         $q = $this->db->from('pengajuan_uji pu');
@@ -267,6 +289,13 @@ class Dashboard extends CI_Controller
         }
         return $q;
     }
+
+    /**
+     * Endpoint AJAX Rekapitulasi Komisioning.
+     * Menyajikan data statistik agregat komisioning berdasarkan mode (harian, mingguan, bulanan, tahunan).
+     * 
+     * @return void Output JSON data chart & summary
+     */
     public function rekap_commissioning()
     {
         if (!$this->input->is_ajax_request()) show_404();
@@ -283,14 +312,12 @@ class Dashboard extends CI_Controller
         $dari   = $this->input->post('dari')   ?: null;
         $sampai = $this->input->post('sampai') ?: null;
 
-        // ── Tentukan GROUP BY dan label format berdasarkan mode ──────────
         switch ($mode) {
             case 'hari':
                 $group_by     = "DATE(pu.tanggal_pengajuan)";
                 $label_format = "DATE_FORMAT(pu.tanggal_pengajuan, '%d %b')";
                 $order_by     = "DATE(pu.tanggal_pengajuan) ASC";
-                // Default range: 14 hari terakhir
-                if (!$dari) $dari   = date('Y-m-d', strtotime('-13 days'));
+                if (!$dari)   $dari   = date('Y-m-d', strtotime('-13 days'));
                 if (!$sampai) $sampai = date('Y-m-d');
                 $where_tgl = "DATE(pu.tanggal_pengajuan) BETWEEN '$dari' AND '$sampai'";
                 break;
@@ -299,7 +326,7 @@ class Dashboard extends CI_Controller
                 $group_by     = "YEARWEEK(pu.tanggal_pengajuan, 1)";
                 $label_format = "CONCAT('Minggu ', WEEK(pu.tanggal_pengajuan, 1), ' - ', YEAR(pu.tanggal_pengajuan))";
                 $order_by     = "YEARWEEK(pu.tanggal_pengajuan, 1) ASC";
-                if (!$dari) $dari   = date('Y-m-d', strtotime('-83 days')); // 12 minggu
+                if (!$dari)   $dari   = date('Y-m-d', strtotime('-83 days'));
                 if (!$sampai) $sampai = date('Y-m-d');
                 $where_tgl = "DATE(pu.tanggal_pengajuan) BETWEEN '$dari' AND '$sampai'";
                 break;
@@ -308,7 +335,7 @@ class Dashboard extends CI_Controller
                 $group_by     = "YEAR(pu.tanggal_pengajuan)";
                 $label_format = "YEAR(pu.tanggal_pengajuan)";
                 $order_by     = "YEAR(pu.tanggal_pengajuan) ASC";
-                $where_tgl    = "YEAR(pu.tanggal_pengajuan) >= YEAR(NOW()) - 4"; // 5 tahun
+                $where_tgl    = "YEAR(pu.tanggal_pengajuan) >= YEAR(NOW()) - 4";
                 break;
 
             default: // bulan
@@ -319,60 +346,56 @@ class Dashboard extends CI_Controller
                 break;
         }
 
-        // Escape manual — input sudah divalidasi, tapi sanitasi format tanggal
         $dari   = $dari   ? date('Y-m-d', strtotime($dari))   : null;
         $sampai = $sampai ? date('Y-m-d', strtotime($sampai)) : null;
         if ($mode === 'hari' || $mode === 'minggu') {
             $where_tgl = "DATE(pu.tanggal_pengajuan) BETWEEN '$dari' AND '$sampai'";
         }
 
-        // ── Query chart (per periode) ─────────────────────────────────────
         $scope_condition = '';
         if ($scope_dept) {
             $scope_condition = "AND k.perusahaan = '" . $this->db->escape_str($departemen) . "'";
         }
 
         $chart_rows = $this->db->query("
-    SELECT
-        {$label_format}  AS label,
-        {$group_by}      AS group_key,
-        COUNT(*)         AS masuk,
-        SUM(CASE WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 1 ELSE 0 END)                                                                        AS lulus,
-        SUM(CASE WHEN pu.status IN ('ditolak_manager','ditolak_admin_ohs','ditolak_ohs_supt','ditolak_ktt','rejected') THEN 1 ELSE 0 END) AS tidak_lulus
-    FROM pengajuan_uji pu
-    LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
-    LEFT JOIN users u ON u.id_user = pu.id_pemohon
-    WHERE {$where_tgl} {$scope_condition}
-    GROUP BY {$group_by}, {$label_format}
-    ORDER BY {$order_by}
-")->result();
+            SELECT
+                {$label_format}  AS label,
+                {$group_by}      AS group_key,
+                COUNT(*)         AS masuk,
+                SUM(CASE WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 1 ELSE 0 END) AS lulus,
+                SUM(CASE WHEN pu.status IN ('ditolak_manager','ditolak_admin_ohs','ditolak_ohs_supt','ditolak_ktt','rejected') THEN 1 ELSE 0 END) AS tidak_lulus
+            FROM pengajuan_uji pu
+            LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
+            LEFT JOIN users u ON u.id_user = pu.id_pemohon
+            WHERE {$where_tgl} {$scope_condition}
+            GROUP BY {$group_by}, {$label_format}
+            ORDER BY {$order_by}
+        ")->result();
 
-        // ── Query summary total periode ───────────────────────────────────
         $summary = $this->db->query("
-    SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 1 ELSE 0 END)                                                                        AS lulus,
-        SUM(CASE WHEN pu.status IN ('ditolak_manager','ditolak_admin_ohs','ditolak_ohs_supt','ditolak_ktt','rejected') THEN 1 ELSE 0 END) AS tidak_lulus
-    FROM pengajuan_uji pu
-    LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
-    WHERE {$where_tgl} {$scope_condition}
-")->row();
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 1 ELSE 0 END) AS lulus,
+                SUM(CASE WHEN pu.status IN ('ditolak_manager','ditolak_admin_ohs','ditolak_ohs_supt','ditolak_ktt','rejected') THEN 1 ELSE 0 END) AS tidak_lulus
+            FROM pengajuan_uji pu
+            LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
+            WHERE {$where_tgl} {$scope_condition}
+        ")->row();
 
-        // ── Query per jenis kendaraan ─────────────────────────────────────
         $per_jenis = $this->db->query("
-    SELECT
-        COALESCE(t.nama_tipe, 'Tidak Diketahui') AS jenis,
-        COUNT(*) AS total,
-        SUM(CASE WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 1 ELSE 0 END) AS lulus,
-        SUM(CASE WHEN pu.status IN ('ditolak_manager','ditolak_admin_ohs','ditolak_ohs_supt','ditolak_ktt','rejected') THEN 1 ELSE 0 END) AS tidak_lulus
-    FROM pengajuan_uji pu
-    LEFT JOIN users u ON u.id_user = pu.id_pemohon
-    LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
-    LEFT JOIN tipe_kendaraan t ON t.id_tipe_kendaraan = k.id_tipe_kendaraan
-    WHERE {$where_tgl} {$scope_condition}
-    GROUP BY t.id_tipe_kendaraan, t.nama_tipe
-    ORDER BY total DESC
-")->result();
+            SELECT
+                COALESCE(t.nama_tipe, 'Tidak Diketahui') AS jenis,
+                COUNT(*) AS total,
+                SUM(CASE WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 1 ELSE 0 END) AS lulus,
+                SUM(CASE WHEN pu.status IN ('ditolak_manager','ditolak_admin_ohs','ditolak_ohs_supt','ditolak_ktt','rejected') THEN 1 ELSE 0 END) AS tidak_lulus
+            FROM pengajuan_uji pu
+            LEFT JOIN users u ON u.id_user = pu.id_pemohon
+            LEFT JOIN kendaraan k ON k.id_kendaraan = pu.id_kendaraan
+            LEFT JOIN tipe_kendaraan t ON t.id_tipe_kendaraan = k.id_tipe_kendaraan
+            WHERE {$where_tgl} {$scope_condition}
+            GROUP BY t.id_tipe_kendaraan, t.nama_tipe
+            ORDER BY total DESC
+        ")->result();
 
         echo json_encode([
             'status' => 'success',
@@ -382,11 +405,17 @@ class Dashboard extends CI_Controller
                     'lulus'       => (int) ($summary->lulus       ?? 0),
                     'tidak_lulus' => (int) ($summary->tidak_lulus ?? 0),
                 ],
-                'chart'    => $chart_rows,
+                'chart'     => $chart_rows,
                 'per_jenis' => $per_jenis,
             ],
         ]);
     }
+
+    /**
+     * Helper privat mengambil array ID role pengguna.
+     * 
+     * @return array Array integer ID role
+     */
     private function _user_roles()
     {
         $raw = $this->session->userdata('roles');

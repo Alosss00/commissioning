@@ -1,8 +1,19 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Controller Audit
+ * 
+ * Pengelolaan antarmuka riwayat log aktivitas sistem (Audit Log).
+ * Menampilkan pencatatan transaksi, aktivitas otentikasi, dan pengubahan status pengajuan uji kelayakan.
+ * Hak Akses: Super Admin (1), KTT (2), dan OHS Superintendent (3).
+ */
 class Audit extends CI_Controller
 {
+    /**
+     * Konstruktor Controller Audit
+     * Memuat model audit, library session, dan helper. Memeriksa otentikasi serta role yang diizinkan.
+     */
     public function __construct()
     {
         parent::__construct();
@@ -10,6 +21,7 @@ class Audit extends CI_Controller
         $this->load->library('session');
         $this->load->helper(['url', 'html', 'auth', 'pengajuan']);
         
+        // Proteksi Otorisasi
         if (!$this->session->userdata('id_user')) {
             redirect('auth/login');
         }
@@ -18,7 +30,7 @@ class Audit extends CI_Controller
         $role_int  = (int) $this->session->userdata('role');
         $roles     = is_array($roles_raw) ? array_map('intval', $roles_raw) : ($role_int > 0 ? [$role_int] : []);
         
-        // 1=Super Admin, 2=KTT, 3=OHS Supt
+        // Hanya Role 1 (Super Admin), 2 (KTT), 3 (OHS Supt)
         $allowed = array_intersect([1, 2, 3], $roles);
         if (empty($allowed)) {
             $this->session->set_flashdata('error', 'Akses ditolak.');
@@ -27,13 +39,15 @@ class Audit extends CI_Controller
     }
 
     /**
-     * Halaman utama Log Aktivitas Sistem
+     * Halaman Utama Log Aktivitas Sistem
+     * 
+     * @return void Render view audit/index
      */
     public function index()
     {
         $limit_allowed = [10, 25, 50, 100, 200, 500];
         $limit         = (int) ($this->input->get('limit') ?? 25);
-        if (!in_array($limit, $limit_allowed)) {
+        if (!in_array($limit, $limit_allowed, true)) {
             $limit = 25;
         }
 
@@ -67,20 +81,23 @@ class Audit extends CI_Controller
             'list_years'   => $this->audit_model->get_distinct_years(),
         ];
 
-        $this->load->view('templates/header', $data);
+        $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
-        $this->load->view('audit/index', $data);
+        $this->load->view('audit/index',        $data);
         $this->load->view('templates/footer');
     }
 
     /**
-     * Endpoint AJAX filter & pagination log aktivitas (Optimasi N+1: 1 Single Query Eager Join)
+     * Endpoint AJAX Filter & Paginasi Log Aktivitas.
+     * Menggunakan query JOIN ter-optimasikan dan static cache helper untuk performa maksimal (Bebas N+1).
+     * 
+     * @return void Output JSON HTML baris tabel & meta paginasi
      */
     public function fetch_ajax()
     {
         $limit_allowed = [10, 25, 50, 100, 200, 500];
         $limit         = (int) ($this->input->post('limit') ?? 25);
-        if (!in_array($limit, $limit_allowed)) {
+        if (!in_array($limit, $limit_allowed, true)) {
             $limit = 25;
         }
 
@@ -98,9 +115,9 @@ class Audit extends CI_Controller
             'offset'  => $offset,
         ];
 
-        // Query N+1 Optimized (1 single SELECT join)
-        $logs       = $this->audit_model->get_filtered_logs($filter);
-        $total_logs = $this->audit_model->count_filtered_logs($filter);
+        // Query ter-optimasikan (Eager JOIN 1 single query)
+        $logs        = $this->audit_model->get_filtered_logs($filter);
+        $total_logs  = $this->audit_model->count_filtered_logs($filter);
         $total_pages = ceil($total_logs / $limit);
 
         $html_rows = '';

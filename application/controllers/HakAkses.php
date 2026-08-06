@@ -1,11 +1,18 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Controller HakAkses
+ * 
+ * Pengelolaan matriks referensi hak akses (Role-Based Access Control) dalam sistem.
+ * Hanya dapat diakses oleh Super Admin (Role ID = 1).
+ */
 class HakAkses extends CI_Controller
 {
-
-    // Matrix hak akses per role — sumber kebenaran tunggal
-    // Format: 'nama_akses' => [role_ids_yang_punya_akses]
+    /**
+     * Matriks Hak Akses Terpusat per Role.
+     * Format: ['Modul' => ['Hak Akses' => [Role_ID_Allowed]]]
+     */
     private $_matrix = [
         'Pengajuan' => [
             'Buat Pengajuan'              => [1, 2],
@@ -46,18 +53,30 @@ class HakAkses extends CI_Controller
         ],
     ];
 
+    /**
+     * Konstruktor HakAkses
+     * Memeriksa otentikasi login dan otorisasi Super Admin.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->load->library('session');
         $this->load->helper('url');
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
         if ((int)$this->session->userdata('role') !== 1) {
             $this->session->set_flashdata('error', 'Akses ditolak.');
             redirect('dashboard');
         }
     }
 
+    /**
+     * Halaman Utama Matriks Hak Akses
+     * 
+     * @return void Render view hakakses/index
+     */
     public function index()
     {
         $roles = $this->db->order_by('id_role', 'ASC')->get('roles')->result();
@@ -67,9 +86,9 @@ class HakAkses extends CI_Controller
         $data['roles']  = $roles;
         $data['matrix'] = $this->_matrix;
 
-        $this->load->view('templates/header',   $data);
-        $this->load->view('templates/sidebar',  $data);
+        $this->load->view('templates/header',  $data);
+        $this->load->view('templates/sidebar', $data);
         $this->load->view('hakakses/index',    $data);
-        $this->load->view('templates/footer',   $data);
+        $this->load->view('templates/footer',  $data);
     }
 }

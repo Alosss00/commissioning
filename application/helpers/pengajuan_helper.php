@@ -2,10 +2,21 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
- * Helper terpusat untuk Pengajuan, Audit Log & Status
+ * Helper Terpusat Pengajuan, Audit Log & Formatting Status
+ * 
+ * Menyediakan fungsi-fungsi pembantu global untuk:
+ * 1. Format durasi waktu relatif (time_ago)
+ * 2. Format warna badge & label aksi audit log (aksi_color, aksi_label)
+ * 3. Render badge HTML status pengajuan, role, dan tipe akses kendaraan.
  */
 
 if (!function_exists('time_ago')) {
+    /**
+     * Mengubah tanggal string/datetime menjadi format waktu relatif (misal: "5 mnt lalu").
+     * 
+     * @param string|null $datetime String tanggal (Y-m-d H:i:s)
+     * @return string Label waktu relatif
+     */
     function time_ago($datetime)
     {
         if (empty($datetime)) return '-';
@@ -19,6 +30,12 @@ if (!function_exists('time_ago')) {
 }
 
 if (!function_exists('aksi_color')) {
+    /**
+     * Menentukan kelas warna Bootstrap berdasarkan nama aksi log audit.
+     * 
+     * @param string $aksi Kode/Nama aksi audit
+     * @return string Nama kelas status Bootstrap (danger, success, primary, secondary)
+     */
     function aksi_color($aksi)
     {
         if (strpos($aksi, 'reject') !== false || strpos($aksi, 'tolak') !== false || strpos($aksi, 'batal') !== false) return 'danger';
@@ -29,37 +46,66 @@ if (!function_exists('aksi_color')) {
 }
 
 if (!function_exists('aksi_label')) {
+    /**
+     * Menyusun teks deskriptif log audit beserta link referensi.
+     * Menggunakan static cache internal untuk mengeliminasi query N+1 saat merender daftar log dalam jumlah banyak.
+     * 
+     * @param string $aksi Kode aksi audit
+     * @param string $nama Nama pelaku aksi
+     * @param int|string $id_ref ID referensi entitas (id_pengajuan atau id_user)
+     * @param string $tabel Nama tabel entitas (opsional)
+     * @return string Format HTML teks deskripsi log audit
+     */
     function aksi_label($aksi, $nama, $id_ref, $tabel = '')
     {
         $CI = &get_instance();
         $no = !empty($id_ref) ? '#PU-' . str_pad($id_ref, 4, '0', STR_PAD_LEFT) : '';
+
+        // Internal static cache untuk mencegah N+1 query berulang saat rendering daftar log audit
+        static $unit_cache = [];
+        static $user_cache = [];
         
         // Format untuk Pengajuan Unit
         if ($tabel === 'pengajuan_uji' || strpos($aksi, 'pengajuan') !== false || strpos($aksi, 'inspeksi') !== false || strpos($aksi, 'manager') !== false || strpos($aksi, 'ohs') !== false || strpos($aksi, 'ktt') !== false || strpos($aksi, 'jadwal') !== false) {
-            $pengajuan = $CI->db->select('k.nomor_unit')
-                ->from('pengajuan_uji pu')
-                ->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left')
-                ->where('pu.id_pengajuan', $id_ref)
-                ->get()->row();
-            if ($pengajuan && !empty($pengajuan->nomor_unit)) {
-                $no = '#' . $pengajuan->nomor_unit;
+            if ($id_ref > 0) {
+                if (!array_key_exists($id_ref, $unit_cache)) {
+                    $pengajuan = $CI->db->select('k.nomor_unit')
+                        ->from('pengajuan_uji pu')
+                        ->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left')
+                        ->where('pu.id_pengajuan', $id_ref)
+                        ->get()->row();
+                    $unit_cache[$id_ref] = ($pengajuan && !empty($pengajuan->nomor_unit)) ? '#' . $pengajuan->nomor_unit : '';
+                }
+                if (!empty($unit_cache[$id_ref])) {
+                    $no = $unit_cache[$id_ref];
+                }
             }
         } 
         // Format untuk Aktivasi User
         elseif ($tabel === 'users' || $aksi === 'Aktifkan Akun' || $aksi === 'Nonaktifkan Akun') {
-            $target = $CI->db->select('u.nama, GROUP_CONCAT(r.nama_role SEPARATOR ", ") AS roles')
-                ->from('users u')
-                ->join('user_roles ur', 'ur.id_user = u.id_user', 'left')
-                ->join('roles r', 'r.id_role = ur.id_role', 'left')
-                ->where('u.id_user', $id_ref)
-                ->group_by('u.id_user')
-                ->get()->row();
-            if ($target) {
-                $role_str = !empty($target->roles) ? strtolower($target->roles) : 'user';
-                $no = '#' . $target->nama . ' (' . $role_str . ')';
+            if ($id_ref > 0) {
+                if (!array_key_exists($id_ref, $user_cache)) {
+                    $target = $CI->db->select('u.nama, GROUP_CONCAT(r.nama_role SEPARATOR ", ") AS roles')
+                        ->from('users u')
+                        ->join('user_roles ur', 'ur.id_user = u.id_user', 'left')
+                        ->join('roles r', 'r.id_role = ur.id_role', 'left')
+                        ->where('u.id_user', $id_ref)
+                        ->group_by('u.id_user')
+                        ->get()->row();
+                    if ($target) {
+                        $role_str = !empty($target->roles) ? strtolower($target->roles) : 'user';
+                        $user_cache[$id_ref] = '#' . $target->nama . ' (' . $role_str . ')';
+                    } else {
+                        $user_cache[$id_ref] = '';
+                    }
+                }
+                if (!empty($user_cache[$id_ref])) {
+                    $no = $user_cache[$id_ref];
+                }
             }
         }
 
+        // Pemetaan template teks deskripsi berdasarkan jenis aksi
         $map = [
             'buat_pengajuan'          => "<strong>$nama</strong> membuat pengajuan baru <a href='" . site_url('pengajuan') . "' class='fw-bold text-dark'>$no</a>",
             'resubmit_pengajuan'      => "<strong>$nama</strong> mengajukan ulang <a href='" . site_url('pengajuan') . "' class='fw-bold text-dark'>$no</a>",
@@ -88,6 +134,12 @@ if (!function_exists('aksi_label')) {
 }
 
 if (!function_exists('badge_status')) {
+    /**
+     * Menghasilkan elemen HTML badge Bootstrap untuk status pengajuan uji.
+     * 
+     * @param string $status Kode status pengajuan
+     * @return string HTML Badge
+     */
     function badge_status($status)
     {
         $map = [
@@ -106,12 +158,18 @@ if (!function_exists('badge_status')) {
             'ditolak_ktt'         => ['danger',            'Ditolak KTT'],
             'rejected'            => ['danger',            'Ditolak'],
         ];
-        $c = isset($map[$status]) ? $map[$status] : ['secondary', $status];
+        $c = isset($map[$status]) ? $map[$status] : ['secondary', html_escape($status)];
         return '<span class="badge bg-' . $c[0] . '">' . $c[1] . '</span>';
     }
 }
 
 if (!function_exists('level_label')) {
+    /**
+     * Menghasilkan badge level persetujuan posisi alur berkas.
+     * 
+     * @param string $level Kode level status
+     * @return string HTML Badge
+     */
     function level_label($level)
     {
         $map = [
@@ -127,12 +185,18 @@ if (!function_exists('level_label')) {
             'dijadwalkan'        => ['primary',           'Mekanik'],
             'ditolak_manager'    => ['danger',            'Ditolak'],
         ];
-        $c = isset($map[$level]) ? $map[$level] : ['secondary', $level];
+        $c = isset($map[$level]) ? $map[$level] : ['secondary', html_escape($level)];
         return '<span class="badge bg-' . $c[0] . '" style="font-size:10px;">' . $c[1] . '</span>';
     }
 }
 
 if (!function_exists('approval_route')) {
+    /**
+     * Mendapatkan URL segmen route approval berdasarkan status pengajuan.
+     * 
+     * @param string $status Kode status pengajuan
+     * @return string Path URL tujuan
+     */
     function approval_route($status)
     {
         $map = [
@@ -151,6 +215,13 @@ if (!function_exists('approval_route')) {
 }
 
 if (!function_exists('badge_tipe_akses')) {
+    /**
+     * Menghasilkan badge HTML tipe akses kendaraan (MINING / NON MINING / UNDERGROUND).
+     * 
+     * @param string|null $tipe Nama/Kode tipe akses
+     * @param string $extra_style Style CSS inline tambahan
+     * @return string HTML Badge Tipe Akses
+     */
     function badge_tipe_akses($tipe, $extra_style = '')
     {
         if (empty($tipe)) return '<span class="text-muted small">—</span>';

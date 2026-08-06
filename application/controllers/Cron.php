@@ -1,34 +1,25 @@
 <?php
-
-/**
- * application/controllers/Cron.php  (BARU)
- *
- * Tujuan   : Controller untuk job terjadwal (cron) sistem SIKUK
- * Caller   : CLI: php index.php cron notif_stiker
- *            atau HTTP: GET /cron/notif_stiker?key=CRON_SECRET_KEY
- * Dependen : Notif_stiker_helper, email library
- * Fungsi public:
- *   notif_stiker()  — kirim notif ekspirasi stiker bertahap
- *   mark_expired()  — tandai stiker yang sudah lewat tgl_expired
- * Side-effect:
- *   - Kirim email notifikasi ekspirasi
- *   - UPDATE sticker_release.is_expired = 1
- *   - INSERT notif_stiker
- *
- * SETUP CRON (jalankan setiap hari pukul 07:00):
- *   0 7 * * * php /var/www/html/index.php cron notif_stiker >> /var/log/sikuk_cron.log 2>&1
- *
- * PROTEKSI:
- *   Set di application/config/config.php:
- *   $config['cron_secret_key'] = 'ISI_DENGAN_STRING_RANDOM_PANJANG';
- */
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Controller Cron
+ * 
+ * Pengelolaan tugas terjadwal (Background Cron Jobs).
+ * Menyediakan:
+ * - Pengiriman email notifikasi ekspirasi stiker komisioning secara bertahap (H-30, H-14, H-7, H-1)
+ * - Pembaruan otomatis status stiker expired (set-based update)
+ */
 class Cron extends CI_Controller
 {
-    // Secret key untuk akses via HTTP (bukan CLI)
+    /**
+     * Secret key untuk otorisasi akses via HTTP query string (jika bukan via CLI).
+     */
     private $_secret;
 
+    /**
+     * Konstruktor Controller Cron
+     * Memuat library email, helper notifikasi stiker, dan menginisialisasi secret key.
+     */
     public function __construct()
     {
         parent::__construct();
@@ -37,7 +28,11 @@ class Cron extends CI_Controller
         $this->_secret = $this->config->item('cron_secret_key') ?: 'SIKUK_CRON_KEY_CHANGE_ME';
     }
 
-    // ── Notifikasi ekspirasi stiker bertahap ──────────────────────────
+    /**
+     * Pemicu Cron: Pengiriman Notifikasi Ekspirasi Stiker Bertahap.
+     * 
+     * @return void Output log eksekusi
+     */
     public function notif_stiker()
     {
         if (!$this->_is_authorized()) {
@@ -55,8 +50,12 @@ class Cron extends CI_Controller
         log_message('info', $log);
     }
 
-    // ── Tandai stiker expired ─────────────────────────────────────────
-    // Jalankan bersamaan dengan notif_stiker atau pisah job
+    /**
+     * Pemicu Cron: Menandai Stiker yang Telah Lewat Masa Expired.
+     * Menggunakan query 1-kali set-based update untuk mengeliminasi N+1 overhead.
+     * 
+     * @return void Output log eksekusi
+     */
     public function mark_expired()
     {
         if (!$this->_is_authorized()) {
@@ -64,9 +63,7 @@ class Cron extends CI_Controller
             return;
         }
 
-        // Update sticker_release.is_expired = 1 untuk yang sudah lewat
-        // Satu UPDATE set-based — efisien, tidak loop per baris
-        $updated = $this->db->query("
+        $this->db->query("
             UPDATE sticker_release
             SET is_expired = 1
             WHERE tgl_expired < NOW()
@@ -80,14 +77,18 @@ class Cron extends CI_Controller
         log_message('info', $log);
     }
 
-    // ── Proteksi akses ────────────────────────────────────────────────
+    /**
+     * Helper privat verifikasi otorisasi akses pemicu cron (CLI vs HTTP secret key).
+     * 
+     * @return bool True jika diizinkan
+     */
     private function _is_authorized()
     {
         // CLI selalu diizinkan
         if (php_sapi_name() === 'cli' || defined('STDIN')) {
             return true;
         }
-        // HTTP: cek secret key di query string
+        // HTTP: verifikasi match query string key
         $key = $this->input->get('key');
         return $key === $this->_secret;
     }

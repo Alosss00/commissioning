@@ -1,14 +1,32 @@
 <?php
-// perubahan
 defined('BASEPATH') or exit('No direct script access allowed');
+
+/**
+ * Model Pengajuan_model
+ * 
+ * Pengelolaan data pengajuan uji kelayakan unit kendaraan/peralatan.
+ * Menyediakan fungsionalitas pencarian datatable, agregasi status, detail pengajuan,
+ * riwayat approval, jadwal uji, hasil uji, perbaikan, serta query data untuk ekspor history.
+ */
 class Pengajuan_model extends CI_Model
 {
+    /**
+     * Konstruktor Pengajuan_model
+     * Inisialisasi library database CodeIgniter.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->load->database();
     }
 
+    /**
+     * Helper privat penyusun dasar klausa JOIN dan WHERE untuk filter pengajuan.
+     * Menggabungkan tabel pengajuan_uji, kendaraan, tipe_kendaraan, dan users (eager loading).
+     * 
+     * @param array $filters Filter opsional (status, jenis, tgl_dari, tgl_sampai, id_pemohon, departemen, search)
+     * @return void
+     */
     private function _base_query($filters = [])
     {
         $this->db->select(
@@ -18,59 +36,87 @@ class Pengajuan_model extends CI_Model
                 . 'u.nama AS nama_pemohon, u.email AS email_user'
         );
         $this->db->from('pengajuan_uji pu');
-        $this->db->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',              'left');
-        $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan',     'left'); // ← tambah ini
-        $this->db->join('users u',            'u.id_user = pu.id_pemohon',                     'left');
+        $this->db->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left');
+        $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
+        $this->db->join('users u',            'u.id_user = pu.id_pemohon',                 'left');
 
+        // Filter spesifik jika ditentukan dalam parameter
         if (!empty($filters['status']))      $this->db->where('pu.status', $filters['status']);
-        if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']); // ← ganti k.jenis_kendaraan
+        if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']);
         if (!empty($filters['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filters['tgl_dari']);
         if (!empty($filters['tgl_sampai'])) $this->db->where('DATE(pu.tanggal_pengajuan) <=', $filters['tgl_sampai']);
-        if (!empty($filters['id_pemohon'])) $this->db->where('pu.id_pemohon', $filters['id_pemohon']);
+        if (!empty($filters['id_pemohon'])) $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
         if (!empty($filters['departemen']))  $this->db->where('k.perusahaan', $filters['departemen']);
 
+        // Filter kata kunci pencarian global
         if (!empty($filters['search'])) {
             $kw = $filters['search'];
             $this->db->group_start();
-            $this->db->like('k.no_polisi',       $kw);
-            $this->db->or_like('k.nomor_unit',    $kw);
-            $this->db->or_like('u.nama',          $kw);
-            $this->db->or_like('t.nama_tipe',     $kw);
-            $this->db->or_like('k.merk',          $kw);
-            $this->db->or_like('k.tipe',          $kw);
+            $this->db->like('k.no_polisi',    $kw);
+            $this->db->or_like('k.nomor_unit', $kw);
+            $this->db->or_like('u.nama',       $kw);
+            $this->db->or_like('t.nama_tipe',  $kw);
+            $this->db->or_like('k.merk',       $kw);
+            $this->db->or_like('k.tipe',       $kw);
             $this->db->group_end();
         }
     }
+
+    /**
+     * Menghitung total data pengajuan berdasarkan hak akses (scoping saja).
+     * Digunakan oleh DataTables untuk nilai recordsTotal.
+     * 
+     * @param array $filters Filter scoping (id_pemohon, departemen)
+     * @return int Jumlah total record yang berhak diakses user
+     */
     public function count_all($filters = [])
     {
-        // Hanya scoping akses (id_pemohon/departemen) yang ikut,
-        // filter UI (status/jenis/tanggal/search) TIDAK ikut di sini
-        // supaya recordsTotal = total data yang boleh dilihat user,
-        // bukan total data yang sudah difilter.
         $scope_only = array_intersect_key($filters, array_flip(['id_pemohon', 'departemen']));
         $this->_base_query($scope_only);
         return $this->db->count_all_results();
     }
 
+    /**
+     * Menghitung jumlah data pengajuan setelah diterapkan seluruh filter pencarian.
+     * Digunakan oleh DataTables untuk nilai recordsFiltered.
+     * 
+     * @param array $filters Filter pencarian aktif
+     * @return int Jumlah record hasil filter
+     */
     public function count_filtered($filters = [])
     {
         $this->_base_query($filters);
         return $this->db->count_all_results();
     }
 
+    /**
+     * Mengambil daftar data pengajuan berpaginasi untuk DataTables.
+     * 
+     * @param int $start Offset baris awal
+     * @param int $length Jumlah limit baris
+     * @param array $filters Filter pencarian aktif
+     * @return array List object data pengajuan
+     */
     public function get_datatable($start, $length, $filters = [])
     {
         $this->_base_query($filters);
         $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
-        $this->db->limit($length, $start);
+        $this->db->limit((int) $length, (int) $start);
         return $this->db->get()->result();
     }
 
+    /**
+     * Mengambil detail lengkap 1 pengajuan uji berdasarkan ID.
+     * 
+     * @param int $id ID Pengajuan
+     * @param array $filters Filter opsional hak akses (departemen, id_pemohon)
+     * @return object|null Object data pengajuan detail
+     */
     public function get_detail($id, $filters = [])
     {
         $this->db->select(
             'pu.*, '
-                . 'k.no_polisi, k.id_tipe_kendaraan, t.nama_tipe AS jenis_kendaraan, ' // ← tambah k.id_tipe_kendaraan
+                . 'k.no_polisi, k.id_tipe_kendaraan, t.nama_tipe AS jenis_kendaraan, '
                 . 'k.merk, k.tipe, k.tahun, '
                 . 'k.is_unit_baru, k.nomor_unit, k.model_unit, k.perusahaan, '
                 . 'u.nama AS nama_pemohon, u.email AS email_user'
@@ -79,54 +125,98 @@ class Pengajuan_model extends CI_Model
         $this->db->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left');
         $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
-        $this->db->where('pu.id_pengajuan', $id);
+        $this->db->where('pu.id_pengajuan', (int) $id);
+
         if (!empty($filters['departemen'])) {
             $this->db->where('k.perusahaan', $filters['departemen']);
         }
         if (!empty($filters['id_pemohon'])) {
-            $this->db->where('pu.id_pemohon', $filters['id_pemohon']);
+            $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
         }
+
         return $this->db->get()->row();
     }
 
+    /**
+     * Menyimpan data pengajuan uji baru.
+     * 
+     * @param array $data Field data pengajuan
+     * @return int ID pengajuan yang baru dibuat
+     */
     public function insert_pengajuan($data)
     {
         $this->db->insert('pengajuan_uji', $data);
         return $this->db->insert_id();
     }
 
+    /**
+     * Menghapus record pengajuan uji berdasarkan ID.
+     * 
+     * @param int $id ID Pengajuan
+     * @return bool Status keberhasilan penghapusan
+     */
     public function delete_pengajuan($id)
     {
-        return $this->db->where('id_pengajuan', $id)->delete('pengajuan_uji');
+        return $this->db->where('id_pengajuan', (int) $id)->delete('pengajuan_uji');
     }
 
+    /**
+     * Menyimpan data lampiran pengajuan uji.
+     * 
+     * @param array $data Record lampiran
+     * @return int ID lampiran yang baru dibuat
+     */
     public function insert_lampiran($data)
     {
         $this->db->insert('pengajuan_lampiran', $data);
         return $this->db->insert_id();
     }
 
+    /**
+     * Mengambil daftar lampiran dokumen suatu pengajuan.
+     * 
+     * @param int $id ID Pengajuan
+     * @return array List object lampiran pengajuan
+     */
     public function get_lampiran($id)
     {
-        return $this->db->where('id_pengajuan', $id)->get('pengajuan_lampiran')->result();
+        return $this->db->where('id_pengajuan', (int) $id)->get('pengajuan_lampiran')->result();
     }
 
+    /**
+     * Menyimpan catatan log approval pengajuan.
+     * 
+     * @param array $data Record data approval
+     * @return int ID approval baru
+     */
     public function insert_approval($data)
     {
         $this->db->insert('pengajuan_approval', $data);
         return $this->db->insert_id();
     }
 
+    /**
+     * Mengambil riwayat persetujuan/approval suatu pengajuan.
+     * 
+     * @param int $id ID Pengajuan
+     * @return array List object approval beserta nama approver
+     */
     public function get_approval($id)
     {
         $this->db->select('pa.*, u.nama AS nama_approver');
         $this->db->from('pengajuan_approval pa');
         $this->db->join('users u', 'u.id_user = pa.id_approver', 'left');
-        $this->db->where('pa.id_pengajuan', $id);
+        $this->db->where('pa.id_pengajuan', (int) $id);
         $this->db->order_by('pa.id_approval', 'ASC');
         return $this->db->get()->result();
     }
 
+    /**
+     * Mengambil data jadwal inspeksi pengajuan uji.
+     * 
+     * @param int $id ID Pengajuan
+     * @return object|null Object data jadwal uji
+     */
     public function get_jadwal($id)
     {
         $this->db->select('j.*, u_dibuat.nama AS dibuat_oleh_nama,
@@ -137,10 +227,16 @@ class Pengajuan_model extends CI_Model
         $this->db->join('users u_dibuat',    'u_dibuat.id_user = j.dibuat_oleh', 'left');
         $this->db->join('users u_ins',       'u_ins.id_user = COALESCE(j.id_inspektor, j.id_mekanik)', 'left');
         $this->db->join('mekanik_master mm', 'mm.id_mekanik = j.id_mekanik_master', 'left');
-        $this->db->where('j.id_pengajuan', $id);
+        $this->db->where('j.id_pengajuan', (int) $id);
         return $this->db->get()->row();
     }
 
+    /**
+     * Mengambil hasil pelaksanaan uji kelayakan (inspeksi).
+     * 
+     * @param int $id ID Pengajuan
+     * @return object|null Object data uji kelayakan
+     */
     public function get_uji($id)
     {
         $this->db->select('uk.*, u.nama AS nama_mekanik,
@@ -149,15 +245,28 @@ class Pengajuan_model extends CI_Model
         $this->db->from('uji_kelayakan uk');
         $this->db->join('users u',           'u.id_user = uk.id_mekanik',          'left');
         $this->db->join('mekanik_master mm', 'mm.id_mekanik = uk.id_mekanik_master', 'left');
-        $this->db->where('uk.id_pengajuan', $id);
+        $this->db->where('uk.id_pengajuan', (int) $id);
         return $this->db->get()->row();
     }
 
+    /**
+     * Menhitung total pengajuan berdasarkan status tertentu.
+     * 
+     * @param string $status Kode status pengajuan
+     * @return int Jumlah total record status
+     */
     public function count_by_status($status)
     {
         return $this->db->where('status', $status)->count_all_results('pengajuan_uji');
     }
 
+    /**
+     * Mengambil data lengkap history pengajuan untuk ekspor laporan Excel.
+     * Menggunakan SQL optimized JOIN subquery untuk menghindari N+1 query.
+     * 
+     * @param array $filters Filter pencarian ekspor (status, jenis, departemen, tgl_dari, tgl_sampai, search)
+     * @return array List object hasil ekspor
+     */
     public function get_export_history_data($filters = [])
     {
         $where_clauses = [];
@@ -184,6 +293,7 @@ class Pengajuan_model extends CI_Model
 
         $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
+        // Query kompleks dengan subquery agregasi MAX() untuk mengambil record terbaru dari masing-masing relasi
         $sql = "
             SELECT 
                 pu.id_pengajuan,
@@ -253,13 +363,21 @@ class Pengajuan_model extends CI_Model
         return $this->db->query($sql)->result();
     }
 
+    /**
+     * Mengambil daftar data perbaikan unit beserta seluruh lampirannya (Optimasi Eager Loading Batch).
+     * Menggunakan WHERE IN untuk mengambil seluruh lampiran perbaikan dalam 1 query (bebas N+1).
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @return array List object perbaikan unit yang dilengkapi properti ->lampiran
+     */
     public function get_perbaikan_with_lampiran($id_pengajuan)
     {
+        // Langkah 1: Ambil seluruh baris perbaikan untuk pengajuan ini
         $rows = $this->db
             ->select('pu.*, u.nama AS nama_verifikator')
             ->from('perbaikan_unit pu')
             ->join('users u', 'u.id_user = pu.id_verifikator', 'left')
-            ->where('pu.id_pengajuan', $id_pengajuan)
+            ->where('pu.id_pengajuan', (int) $id_pengajuan)
             ->order_by('pu.id_perbaikan', 'ASC')
             ->get()->result();
 
@@ -267,18 +385,22 @@ class Pengajuan_model extends CI_Model
             return $rows;
         }
 
+        // Langkah 2: Kumpulkan seluruh ID perbaikan
         $ids = array_map(function ($r) { return $r->id_perbaikan; }, $rows);
 
+        // Langkah 3: Ambil seluruh lampiran sekaligus dalam 1 query batch (Eager loading N+1 fix)
         $lampiran_rows = $this->db
             ->where_in('id_perbaikan', $ids)
             ->get('perbaikan_lampiran')
             ->result();
 
+        // Langkah 4: Grouping lampiran berdasarkan id_perbaikan
         $grouped = [];
         foreach ($lampiran_rows as $l) {
             $grouped[$l->id_perbaikan][] = $l;
         }
 
+        // Langkah 5: Petakan lampiran kembali ke masing-masing objek perbaikan
         foreach ($rows as $pb) {
             $pb->lampiran = $grouped[$pb->id_perbaikan] ?? [];
         }

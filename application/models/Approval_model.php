@@ -1,30 +1,54 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Model Approval_model
+ * 
+ * Pengelolaan antrean dan alur persetujuan (approval) pengajuan uji kelayakan
+ * dari berbagai tingkatan (Dept Manager, Admin OHS, OHS Supt, KTT)
+ * serta alur perintah dan verifikasi pencabutan stiker.
+ */
 class Approval_model extends CI_Model
 {
+    /**
+     * Konstruktor Approval_model
+     * Inisialisasi library database CodeIgniter.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->load->database();
     }
 
+    /**
+     * Helper privat penerapan filter pengguna (pemohon & departemen) pada query builder.
+     * 
+     * @param array $filters Array filter (id_pemohon, departemen)
+     * @return void
+     */
     private function _apply_user_filters($filters = [])
     {
         if (!empty($filters['id_pemohon'])) {
-            $this->db->where('pu.id_pemohon', $filters['id_pemohon']);
+            $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
         }
         if (!empty($filters['departemen'])) {
             $this->db->where('k.perusahaan', $filters['departemen']);
         }
     }
 
+    /**
+     * Mengambil daftar pengajuan yang memerlukan persetujuan berdasarkan status tertentu.
+     * 
+     * @param array|string $status_arr Status pengajuan yang difilter
+     * @param array $filters Filter tambahan (search, departemen, id_pemohon)
+     * @return array List object pengajuan uji
+     */
     public function get_list($status_arr, $filters = [])
     {
         $this->db->select('pu.*, k.no_polisi, k.nomor_unit, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru, u.nama AS nama_pemohon, u.email AS email_pemohon');
         $this->db->from('pengajuan_uji pu');
         $this->db->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left');
-        $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left'); // ← tambah
+        $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
 
         if (is_array($status_arr) && !empty($status_arr)) {
@@ -32,7 +56,9 @@ class Approval_model extends CI_Model
         } elseif (!empty($status_arr)) {
             $this->db->where('pu.status', $status_arr);
         }
+
         $this->_apply_user_filters($filters);
+
         if (!empty($filters['search'])) {
             $kw = $filters['search'];
             $this->db->group_start();
@@ -41,71 +67,98 @@ class Approval_model extends CI_Model
             $this->db->or_like('u.nama',   $kw);
             $this->db->group_end();
         }
+
         $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
         $this->db->order_by('pu.id_pengajuan', 'DESC');
         return $this->db->get()->result();
     }
 
+    /**
+     * Mengambil data detail pengajuan untuk halaman approval.
+     * 
+     * @param int $id ID Pengajuan
+     * @param array $filters Filter hak akses pengguna
+     * @return object|null Object detail pengajuan
+     */
     public function get_detail($id, $filters = [])
     {
         $this->db->select('pu.*, k.no_polisi, k.nomor_unit, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun, k.is_unit_baru, u.nama AS nama_pemohon, u.email AS email_pemohon');
         $this->db->from('pengajuan_uji pu');
         $this->db->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left');
-        $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left'); // ← tambah
+        $this->db->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
-        $this->db->where('pu.id_pengajuan', $id);
+        $this->db->where('pu.id_pengajuan', (int) $id);
         $this->_apply_user_filters($filters);
         return $this->db->get()->row();
     }
 
+    /**
+     * Mengambil riwayat catatan approval suatu pengajuan.
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @return array List object riwayat approval
+     */
     public function get_riwayat($id_pengajuan)
     {
         $this->db->select('pa.*, u.nama AS nama_approver');
         $this->db->from('pengajuan_approval pa');
         $this->db->join('users u', 'u.id_user = pa.id_approver', 'left');
-        $this->db->where('pa.id_pengajuan', $id_pengajuan);
+        $this->db->where('pa.id_pengajuan', (int) $id_pengajuan);
         $this->db->order_by('pa.id_approval', 'ASC');
         return $this->db->get()->result();
     }
 
+    /**
+     * Mengambil lampiran dokumen pendukung pengajuan.
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @return array List object lampiran
+     */
     public function get_lampiran($id_pengajuan)
     {
-        return $this->db->where('id_pengajuan', $id_pengajuan)->get('pengajuan_lampiran')->result();
+        return $this->db->where('id_pengajuan', (int) $id_pengajuan)->get('pengajuan_lampiran')->result();
     }
 
     /**
-     * Proses approve / reject.
-     * Alur bolak-balik dihandle murni lewat status:
-     *  - ditolak_admin_ohs  → kembali ke queue dept_manager
-     *  - ditolak_ohs_supt   → kembali ke queue Admin OHS  
-     *  - ditolak_ktt        → kembali ke queue Admin OHS
-     * Tidak ada FK ke record approval lama — setiap aksi insert baru.
+     * Memproses tindakan persetujuan (approve) atau penolakan (reject).
+     * Melakukan dua operasi atomik (transaksi):
+     * 1. Menambahkan catatan riwayat di pengajuan_approval
+     * 2. Perbarui status utama pengajuan di pengajuan_uji
+     * 
+     * @param array $params Parameter ['id_pengajuan', 'id_approver', 'level', 'aksi', 'catatan', 'status_next']
+     * @return bool Status keberhasilan transaksi
      */
     public function proses($params)
     {
         extract($params);
 
-        $this->db->trans_start();
+        $this->db->trans_start(); // Memulai transaksi database
 
+        // Insert log approval baru
         $this->db->insert('pengajuan_approval', [
-            'id_pengajuan'   => $id_pengajuan,
-            'id_approver'    => $id_approver,
+            'id_pengajuan'   => (int) $id_pengajuan,
+            'id_approver'    => (int) $id_approver,
             'level_approval' => $level,
             'status'         => ($aksi === 'approve') ? 'approved' : 'rejected',
             'catatan'        => $catatan,
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
-        $this->db->where('id_pengajuan', $id_pengajuan)
+        // Perbarui status pengajuan ke tahap berikutnya
+        $this->db->where('id_pengajuan', (int) $id_pengajuan)
             ->update('pengajuan_uji', ['status' => $status_next]);
 
-        $this->db->trans_complete();
+        $this->db->trans_complete(); // Selesaikan transaksi
         return $this->db->trans_status();
     }
 
     /**
-     * get_list untuk admin_ohs_hasil — tambahkan count item NO per pengajuan
-     * agar view bisa sembunyikan tombol approve jika ada item NO
+     * Mengambil daftar hasil inspeksi untuk Admin OHS.
+     * Termasuk perhitungan agregat jumlah item 'NO' pada uji_checklist untuk menentukan validasi tombol approve.
+     * 
+     * @param array|string $status_arr Filter status pengajuan
+     * @param array $filters Filter tambahan pencarian
+     * @return array List object hasil inspeksi beserta jumlah item NO (count_no)
      */
     public function get_list_hasil($status_arr, $filters = [])
     {
@@ -141,12 +194,23 @@ class Approval_model extends CI_Model
     // PENCABUTAN STIKER WORKFLOW METHODS
     // =========================================================
 
+    /**
+     * Membuat pengajuan permintaan pencabutan stiker.
+     * Mengatur status awal secara dinamis berdasarkan role pengaju.
+     * 
+     * @param int $id_sticker ID Stiker
+     * @param int $id_pengajuan ID Pengajuan
+     * @param int $id_pemohon ID User pemohon pencabutan
+     * @param int $role_pemohon ID Role pemohon
+     * @param string $alasan Alasan pencabutan stiker
+     * @return int ID pencabutan stiker baru
+     */
     public function create_request_cabut($id_sticker, $id_pengajuan, $id_pemohon, $role_pemohon, $alasan)
     {
-        // Tentukan initial status_request berdasarkan role pemohon:
-        // Kondisi 1: Inspektor (role 4) -> 'menunggu_ohs_supt'
-        // Kondisi 2: OHS Supt (role 3)  -> 'menunggu_ktt_1'
-        // Kondisi 3: KTT (role 2) / Admin (role 1) -> 'siap_dicabut'
+        // Penentuan status_request berdasarkan hierarki role:
+        // Role 4 (Inspektor) -> 'menunggu_ohs_supt'
+        // Role 3 (OHS Supt)  -> 'menunggu_ktt_1'
+        // Role 2 (KTT) / 1 (Admin) -> 'siap_dicabut'
         if ((int)$role_pemohon === 4) {
             $status_req = 'menunggu_ohs_supt';
         } elseif ((int)$role_pemohon === 3) {
@@ -171,6 +235,12 @@ class Approval_model extends CI_Model
         return $this->db->insert_id();
     }
 
+    /**
+     * Mengambil daftar pencabutan stiker dengan JOIN data pengguna & unit kendaraan.
+     * 
+     * @param array $filters Filter status_request dan pencarian kata kunci
+     * @return array List object pencabutan stiker
+     */
     public function get_pencabutan_list($filters = [])
     {
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
@@ -212,6 +282,12 @@ class Approval_model extends CI_Model
         return $this->db->get()->result();
     }
 
+    /**
+     * Mengambil detail lengkap permintaan pencabutan stiker berdasarkan ID.
+     * 
+     * @param int $id_cabut ID Pencabutan Stiker
+     * @return object|null Object detail pencabutan stiker
+     */
     public function get_pencabutan_detail($id_cabut)
     {
         $this->db->select('ps.*, sr.nomor_sticker, sr.tanggal_release AS tgl_terbit, sr.tgl_expired AS berlaku_sampai,
@@ -224,8 +300,7 @@ class Approval_model extends CI_Model
         $this->db->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',   'left');
         $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u_pem',        'u_pem.id_user = ps.id_pemohon',     'left');
-        $this->db->where('ps.id_cabut', (int)$id_cabut);
+        $this->db->where('ps.id_cabut', (int) $id_cabut);
         return $this->db->get()->row();
     }
 }
-

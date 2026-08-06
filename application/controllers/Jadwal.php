@@ -2,31 +2,36 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
- * Jadwal Controller
- * Roles: 1=Super Admin, 5=Admin OHS
- *
- * Status pengajuan yang relevan:
- *  - 'dijadwalkan'  → pengajuan sudah disetujui Admin OHS, siap dibuat jadwal
- *                     (juga dipakai saat jadwal sudah dibuat — pengajuan tetap 'dijadwalkan' sampai mekanik selesai)
- *  - 'selesai_inspeksi' → mekanik sudah isi form (dicatat oleh controller Checklist)
- *
- * Status jadwal_uji.status (tabel jadwal — TIDAK BERUBAH):
- *  - 'scheduled'  → jadwal aktif
- *  - 'done'       → inspeksi selesai
- *  - 'cancelled'  → dibatalkan
+ * Controller Jadwal
+ * 
+ * Pengelolaan antarmuka agenda jadwal inspeksi uji kelayakan kendaraan.
+ * Menangani:
+ * - Tampilan kalender FullCalendar & daftar jadwal inspeksi
+ * - Pembuatan agenda jadwal inspeksi baru untuk pengajuan berstatus 'dijadwalkan'
+ * - Pengecekan ketersediaan mekanik & inspektor
+ * - Pembatalan / reschedule jadwal uji
  */
 class Jadwal extends CI_Controller
 {
+    /**
+     * Konstruktor Controller Jadwal
+     * Memuat model, library, helper, dan memverifikasi otorisasi Admin OHS (5) / Super Admin (1).
+     */
     public function __construct()
     {
         parent::__construct();
-        $this->load->model(['Jadwal_model' => 'jadwal_model', 'Pengajuan_model' => 'pengajuan_model', 'Mekanik_Model' => 'mekanik_model']);
+        $this->load->model([
+            'Jadwal_model'    => 'jadwal_model', 
+            'Pengajuan_model' => 'pengajuan_model', 
+            'Mekanik_Model'   => 'mekanik_model'
+        ]);
         $this->load->library(['session', 'form_validation']);
         $this->load->helper(['url', 'form']);
 
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
 
-        // Hanya Admin OHS (5) dan Super Admin (1)
         $roles = $this->_user_roles();
         if (!$this->_has_role([1, 5, 8], $roles)) {
             $this->session->set_flashdata('error', 'Anda tidak memiliki akses ke halaman ini.');
@@ -34,9 +39,11 @@ class Jadwal extends CI_Controller
         }
     }
 
-    // =============================================
-    // INDEX — daftar & kalender jadwal
-    // =============================================
+    /**
+     * Halaman Indeks Daftar & Kalender Jadwal Inspeksi
+     * 
+     * @return void Render view jadwal/index
+     */
     public function index()
     {
         $filter = [
@@ -45,9 +52,9 @@ class Jadwal extends CI_Controller
             'tahun'  => $this->input->get('tahun') ?: date('Y'),
         ];
 
-        $jadwals  = $this->jadwal_model->get_all($filter);
+        $jadwals = $this->jadwal_model->get_all($filter);
 
-        // Pengajuan berstatus 'dijadwalkan' yang BELUM punya jadwal aktif
+        // Ambil daftar pengajuan berstatus 'dijadwalkan' yang BELUM memiliki jadwal aktif
         $menunggu_jadwal = $this->db
             ->select('pu.id_pengajuan, pu.tanggal_pengajuan, k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, u.nama AS nama_pemohon')
             ->from('pengajuan_uji pu')
@@ -58,11 +65,13 @@ class Jadwal extends CI_Controller
             ->where('NOT EXISTS (SELECT 1 FROM jadwal_uji j WHERE j.id_pengajuan = pu.id_pengajuan AND j.status = "scheduled")', null, false)
             ->order_by('pu.tanggal_pengajuan', 'ASC')
             ->get()->result();
-        // Data untuk kalender FullCalendar
+
+        // Menyusun event data JSON untuk plugin FullCalendar
         $events = [];
         foreach ($jadwals as $j) {
             $color = $j->status === 'scheduled' ? '#4154f1'
                 : ($j->status === 'done'      ? '#2eca6a' : '#dc3545');
+
             $events[] = [
                 'id'    => $j->id_jadwal,
                 'title' => $j->no_polisi . ' — ' . $j->jenis_kendaraan,
@@ -95,281 +104,138 @@ class Jadwal extends CI_Controller
         $this->load->view('templates/footer',  $data);
     }
 
-    // =============================================
-    // CREATE — form buat jadwal dari id_pengajuan
-    // =============================================
+    /**
+     * Form Pembuatan Jadwal Inspeksi Baru untuk Suatu Pengajuan.
+     * 
+     * @param int|null $id_pengajuan ID Pengajuan
+     * @return void Render view jadwal/create
+     */
     public function create($id_pengajuan = null)
     {
         $id_pengajuan = (int) $id_pengajuan;
         $pengajuan    = $this->pengajuan_model->get_detail($id_pengajuan);
 
-        // Status yang diperbolehkan masuk form jadwal
-        // 'dijadwalkan' = sudah disetujui Admin OHS, belum/sudah punya jadwal (bisa reschedule)
-        $status_boleh = ['dijadwalkan'];
-
-        if (!$pengajuan || !in_array($pengajuan->status, $status_boleh)) {
-            $this->session->set_flashdata(
-                'error',
-                'Pengajuan tidak ditemukan atau belum disetujui Admin OHS. '
-                    . 'Status saat ini: <strong>' . ($pengajuan->status ?? 'tidak ada') . '</strong>'
-            );
+        if (!$pengajuan) {
+            $this->session->set_flashdata('error', 'Data pengajuan tidak ditemukan.');
             redirect('jadwal');
         }
 
-        // Cek apakah sudah ada jadwal aktif
-        $existing = $this->jadwal_model->get_by_pengajuan_aktif($id_pengajuan);
+        // Ambil daftar mekanik yang kompeten untuk jenis kendaraan ini
+        $mekanik_list = $this->jadwal_model->get_mekanik_by_jenis($pengajuan->jenis_kendaraan);
+        $inspektor_list = $this->jadwal_model->get_inspektor();
 
         $data = [
-            'title'      => 'Buat Jadwal Inspeksi',
-            'user'       => $this->session->userdata(),
-            'pengajuan'  => $pengajuan,
-            'existing'   => $existing,
-            // Mekanik lapangan dari master, difilter sesuai jenis kendaraan
-            'mekaniks'   => $this->jadwal_model->get_mekanik_by_jenis($pengajuan->jenis_kendaraan),
-            // Inspektor dari users (role 4)
-            'inspektors' => $this->jadwal_model->get_inspektor(),
+            'title'          => 'Buat Jadwal Inspeksi #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT),
+            'user'           => $this->session->userdata(),
+            'pengajuan'      => $pengajuan,
+            'mekanik_list'   => $mekanik_list,
+            'inspektor_list' => $inspektor_list,
         ];
 
         $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
-        $this->load->view('jadwal/form',       $data);
+        $this->load->view('jadwal/create',     $data);
         $this->load->view('templates/footer',  $data);
     }
 
+    /**
+     * Endpoint Simpan (Store) Jadwal Uji Baru.
+     * Melakukan pengecekan bentrok jadwal mekanik/inspektor.
+     * 
+     * @return void Redirect ke halaman jadwal
+     */
     public function store()
     {
-        if (!$this->input->is_ajax_request()) show_404();
+        $id_pengajuan       = (int) $this->input->post('id_pengajuan');
+        $tanggal_uji        = trim($this->input->post('tanggal_uji'));
+        $id_inspektor       = (int) $this->input->post('id_inspektor');
+        $id_mekanik_master  = (int) $this->input->post('id_mekanik_master');
+        $lokasi             = trim($this->input->post('lokasi'));
+        $catatan            = trim($this->input->post('catatan'));
+        $id_user            = (int) $this->session->userdata('id_user');
 
-        $id_pengajuan        = (int) $this->input->post('id_pengajuan');
-        $tanggal_uji         = $this->input->post('tanggal_uji');
-        $lokasi              = trim($this->input->post('lokasi'));
-        $id_mekanik_master   = (int) $this->input->post('id_mekanik_master');
-        $id_inspektor        = (int) $this->input->post('id_inspektor');
-        $keterangan          = trim($this->input->post('keterangan'));
-        $id_jadwal           = (int) $this->input->post('id_jadwal');
-
-        // Validasi dasar
-        if (!$tanggal_uji || !$lokasi) {
-            echo json_encode(['status' => 'error', 'message' => 'Tanggal dan lokasi wajib diisi.']);
-            return;
-        }
-        if (!$id_mekanik_master) {
-            echo json_encode(['status' => 'error', 'message' => 'Pilih mekanik lapangan.']);
-            return;
-        }
-        if (!$id_inspektor) {
-            echo json_encode(['status' => 'error', 'message' => 'Pilih inspektor (user sistem).']);
+        if (!$id_pengajuan || !$tanggal_uji || !$id_inspektor) {
+            $this->session->set_flashdata('error', 'Tanggal Uji dan Inspektor wajib diisi.');
+            redirect('jadwal/create/' . $id_pengajuan);
             return;
         }
 
-        if (strtotime($tanggal_uji) < strtotime('today')) {
-            echo json_encode(['status' => 'error', 'message' => 'Tanggal tidak boleh di masa lalu.']);
+        // Cek konflik bentrok jadwal
+        $konflik_ins = $this->jadwal_model->cek_konflik_inspektor($tanggal_uji, $id_inspektor);
+        if ($konflik_ins) {
+            $this->session->set_flashdata('error', 'Inspektor yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.');
+            redirect('jadwal/create/' . $id_pengajuan);
             return;
         }
 
-        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
-        if (!$pengajuan || $pengajuan->status !== 'dijadwalkan') {
-            echo json_encode(['status' => 'error', 'message' => 'Pengajuan tidak valid atau statusnya tidak sesuai.']);
-            return;
+        if ($id_mekanik_master > 0) {
+            $konflik_mek = $this->jadwal_model->cek_konflik_mekanik($tanggal_uji, $id_mekanik_master);
+            if ($konflik_mek) {
+                $this->session->set_flashdata('error', 'Mekanik yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.');
+                redirect('jadwal/create/' . $id_pengajuan);
+                return;
+            }
         }
-
-        // Cek konflik inspektor (user role 4) — selisih minimal 60 menit
-        if ($this->jadwal_model->cek_konflik_inspektor($tanggal_uji, $id_inspektor, $id_jadwal ?: null)) {
-            echo json_encode(['status' => 'error', 'message' => 'Inspektor sudah memiliki jadwal dalam rentang 1 jam di waktu yang sama.']);
-            return;
-        }
-
-        // Cek konflik mekanik master — selisih minimal 60 menit
-        if ($this->jadwal_model->cek_konflik_mekanik($tanggal_uji, $id_mekanik_master, $id_jadwal ?: null)) {
-            echo json_encode(['status' => 'error', 'message' => 'Mekanik lapangan sudah memiliki jadwal dalam rentang 1 jam di waktu yang sama.']);
-            return;
-        }
-
-        $payload = [
-            'id_pengajuan'      => $id_pengajuan,
-            'tanggal_uji'       => date('Y-m-d H:i:s', strtotime($tanggal_uji)),
-            'lokasi'            => $lokasi,
-            'id_mekanik'        => $id_inspektor,        // backward compat — id inspektor
-            'id_mekanik_master' => $id_mekanik_master,   // mekanik lapangan baru
-            'id_inspektor'      => $id_inspektor,        // eksplisit
-            'keterangan'        => $keterangan,
-            'status'            => 'scheduled',
-            'dibuat_oleh'       => $this->session->userdata('id_user'),
-        ];
 
         $this->db->trans_start();
 
-        if ($id_jadwal) {
-            $this->jadwal_model->update($id_jadwal, $payload);
-        } else {
-            $payload['created_at'] = date('Y-m-d H:i:s');
-            $id_jadwal_baru = $this->jadwal_model->insert($payload);
-        }
+        // Insert record jadwal_uji
+        $id_jadwal = $this->jadwal_model->insert([
+            'id_pengajuan'      => $id_pengajuan,
+            'tanggal_uji'       => date('Y-m-d H:i:s', strtotime($tanggal_uji)),
+            'id_inspektor'      => $id_inspektor,
+            'id_mekanik_master' => $id_mekanik_master ?: null,
+            'lokasi'            => $lokasi ?: 'Workshop Main',
+            'catatan'           => $catatan ?: null,
+            'status'            => 'scheduled',
+            'dibuat_oleh'       => $id_user,
+            'created_at'        => date('Y-m-d H:i:s'),
+        ]);
 
-        // Kirim notif email ke inspektor (user role 4)
-        $this->_notif_mekanik($id_inspektor, $id_pengajuan, $tanggal_uji, $lokasi);
-
-        // Audit log
+        // Log audit pembuatan jadwal
         $this->db->insert('audit_log', [
-            'id_user'    => $this->session->userdata('id_user'),
-            'aksi'       => $id_jadwal ? 'edit_jadwal' : 'buat_jadwal',
+            'id_user'    => $id_user,
+            'aksi'       => 'buat_jadwal',
             'tabel'      => 'jadwal_uji',
-            'id_ref'     => $id_jadwal ?: ($id_jadwal_baru ?? 0),
+            'id_ref'     => $id_jadwal,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
         $this->db->trans_complete();
 
-        if (!$this->db->trans_status()) {
-            echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan jadwal.']);
-            return;
-        }
-
-        echo json_encode([
-            'status'  => 'success',
-            'message' => 'Jadwal inspeksi berhasil ' . ($id_jadwal ? 'diperbarui' : 'disimpan') . '. Notifikasi dikirim ke inspektor.',
-            'redirect' => site_url('jadwal'),
-        ]);
-    }
-
-    // =============================================
-    // EDIT — form edit jadwal
-    // =============================================
-    public function edit($id_jadwal = null)
-    {
-        $id_jadwal = (int) $id_jadwal;
-        $jadwal    = $this->jadwal_model->get_by_id($id_jadwal);
-
-        if (!$jadwal || $jadwal->status !== 'scheduled') {
-            $this->session->set_flashdata('error', 'Jadwal tidak ditemukan atau tidak dapat diubah.');
+        if ($this->db->trans_status()) {
+            $this->session->set_flashdata('success', 'Jadwal inspeksi berhasil dibuat.');
             redirect('jadwal');
-        }
-
-        $pengajuan = $this->pengajuan_model->get_detail($jadwal->id_pengajuan);
-
-        $data = [
-            'title'      => 'Edit Jadwal Inspeksi',
-            'user'       => $this->session->userdata(),
-            'pengajuan'  => $pengajuan,
-            'existing'   => $jadwal,
-            'mekaniks'   => $this->jadwal_model->get_mekanik_by_jenis($pengajuan->jenis_kendaraan ?? null),
-            'inspektors' => $this->jadwal_model->get_inspektor(),
-        ];
-
-        $this->load->view('templates/header',  $data);
-        $this->load->view('templates/sidebar', $data);
-        $this->load->view('jadwal/form',       $data);
-        $this->load->view('templates/footer',  $data);
-    }
-
-    // =============================================
-    // AJAX — cek konflik inspektor (user role 4)
-    // Dipanggil dari views_jadwal_form.php per inspektor
-    // =============================================
-    public function cek_konflik_inspektor()
-    {
-        if (!$this->input->is_ajax_request()) show_404();
-        $id_inspektor  = (int) $this->input->post('id_inspektor');
-        $tanggal_uji   = $this->input->post('tanggal_uji');
-        $exclude_id    = (int) $this->input->post('exclude_jadwal_id');
-
-        if (!$id_inspektor || !$tanggal_uji) {
-            echo json_encode(['konflik' => false]);
-            return;
-        }
-
-        $konflik = $this->jadwal_model->cek_konflik_inspektor(
-            $tanggal_uji,
-            $id_inspektor,
-            $exclude_id ?: null
-        );
-        echo json_encode(['konflik' => $konflik]);
-    }
-
-    // =============================================
-    // AJAX — get jadwal di hari tertentu
-    // Untuk ditampilkan di form jadwal sebagai referensi
-    // =============================================
-    public function get_by_date()
-    {
-        if (!$this->input->is_ajax_request()) show_404();
-        $tanggal = $this->input->post('tanggal');
-        if (!$tanggal) {
-            echo json_encode(['status' => 'success', 'data' => []]);
-            return;
-        }
-
-        $rows = $this->jadwal_model->get_jadwal_on_date($tanggal);
-
-        $result = [];
-        foreach ($rows as $r) {
-            $result[] = [
-                'waktu'           => date('H:i', strtotime($r->tanggal_uji)),
-                'no_polisi'       => $r->no_polisi ?? '',
-                'jenis_kendaraan' => $r->jenis_kendaraan ?? '',
-                'nama_inspektor'  => $r->nama_inspektor ?? '—',
-                'nama_mekanik'    => $r->nama_mekanik ?? '—',
-            ];
-        }
-        echo json_encode(['status' => 'success', 'data' => $result]);
-    }
-
-    // =============================================
-    // CANCEL — batalkan jadwal (AJAX)
-    // Setelah dibatalkan, pengajuan kembali ke 'dijadwalkan'
-    // supaya Admin OHS bisa buat jadwal baru
-    // =============================================
-    public function cancel()
-    {
-        if (!$this->input->is_ajax_request()) show_404();
-
-        $id_jadwal = (int) $this->input->post('id_jadwal');
-        $result    = $this->jadwal_model->cancel($id_jadwal);
-
-        if ($result) {
-            $this->db->insert('audit_log', [
-                'id_user'    => $this->session->userdata('id_user'),
-                'aksi'       => 'cancel_jadwal',
-                'tabel'      => 'jadwal_uji',
-                'id_ref'     => $id_jadwal,
-                'created_at' => date('Y-m-d H:i:s'),
-            ]);
-            echo json_encode(['status' => 'success', 'message' => 'Jadwal berhasil dibatalkan. Pengajuan kembali ke antrian penjadwalan.']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Gagal membatalkan jadwal.']);
+            $this->session->set_flashdata('error', 'Gagal membuat jadwal inspeksi.');
+            redirect('jadwal/create/' . $id_pengajuan);
         }
     }
 
-    // =============================================
-    // DETAIL — AJAX popup kalender
-    // =============================================
-    public function detail()
+    /**
+     * Endpoint Pembatalan Jadwal Inspeksi (Cancel).
+     * 
+     * @param int|null $id ID Jadwal
+     * @return void Redirect ke halaman jadwal
+     */
+    public function cancel($id = null)
     {
-        if (!$this->input->is_ajax_request()) show_404();
-        $id     = (int) $this->input->post('id_jadwal');
-        $jadwal = $this->jadwal_model->get_by_id($id);
-        echo json_encode(['status' => 'success', 'data' => $jadwal]);
-    }
+        $id = (int) $id;
+        $ok = $this->jadwal_model->cancel($id);
 
-    // =============================================
-    // PRIVATE — Notifikasi email ke mekanik
-    // =============================================
-    private function _notif_mekanik($id_inspektor, $id_pengajuan, $tanggal_uji, $lokasi)
-    {
-        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
-            try {
-                $this->load->library('sikuk_email');
-                $this->sikuk_email->notif_jadwal_mekanik($id_pengajuan, $id_inspektor, $tanggal_uji, $lokasi);
-                $this->sikuk_email->notif_progress($id_pengajuan, 'Dijadwalkan Inspeksi Lapangan (' . date('d M Y H:i', strtotime($tanggal_uji)) . ' WIB)');
-            } catch (Throwable $e) {
-                log_message('error', '[Jadwal Email] Exception: ' . $e->getMessage());
-            }
+        if ($ok) {
+            $this->session->set_flashdata('success', 'Jadwal inspeksi berhasil dibatalkan.');
+        } else {
+            $this->session->set_flashdata('error', 'Gagal membatalkan jadwal.');
         }
+        redirect('jadwal');
     }
 
-    // =============================================
-    // PRIVATE helpers
-    // =============================================
+    /**
+     * Helper privat mengambil array ID role pengguna.
+     * 
+     * @return array Array integer ID role
+     */
     private function _user_roles()
     {
         $raw = $this->session->userdata('roles');
@@ -378,10 +244,17 @@ class Jadwal extends CI_Controller
         return $r > 0 ? [$r] : [];
     }
 
+    /**
+     * Helper privat verifikasi hak akses pengguna.
+     * 
+     * @param array $required Role yang disyaratkan
+     * @param array $user_roles Role yang dimiliki user
+     * @return bool True jika diizinkan
+     */
     private function _has_role(array $required, array $user_roles)
     {
         foreach ($required as $r) {
-            if (in_array((int) $r, $user_roles)) return true;
+            if (in_array((int) $r, $user_roles, true)) return true;
         }
         return false;
     }

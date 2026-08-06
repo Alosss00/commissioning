@@ -1,8 +1,24 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Controller Pengajuan
+ * 
+ * Mengelola seluruh siklus pengajuan uji kelayakan unit kendaraan dan peralatan.
+ * Menyediakan fungsionalitas:
+ * - Halaman indeks & DataTables pengajuan
+ * - Pembuatan pengajuan baru (unit baru & recommissioning unit lama)
+ * - Pengubahan/Edit data pengajuan draft atau yang dikembalikan
+ * - Pengajuan ulang (resubmit) unit yang telah diperbaiki
+ * - Ekspor data history pengajuan ke format Excel/JSON
+ * - Pengelolaan upload dokumen & foto kendaraan
+ */
 class Pengajuan extends CI_Controller
 {
+    /**
+     * Konstruktor Controller Pengajuan
+     * Memuat model, library, helper, dan memverifikasi status otentikasi login pengguna.
+     */
     public function __construct()
     {
         parent::__construct();
@@ -10,10 +26,22 @@ class Pengajuan extends CI_Controller
         $this->load->model(['Kendaraan_model' => 'kendaraan_model']);
         $this->load->library(['session', 'form_validation', 'upload']);
         $this->load->helper(['url', 'form']);
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+
+        // Proteksi Otorisasi: Alihkan ke halaman login jika sesi tidak aktif
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
+
+        // Sinkronisasi nama departemen di database secara ter-optimasikan
         $this->_check_departments();
     }
 
+    /**
+     * Memastikan seluruh master departemen di tabel perusahaan up-to-date.
+     * Menggunakan query 1-kali fetch & static flag untuk mengeliminasi query N+1 pada setiap siklus controller.
+     * 
+     * @return void
+     */
     private function _check_departments()
     {
         static $checked = false;
@@ -50,6 +78,7 @@ class Pengajuan extends CI_Controller
             'UNDERGROUND' => 'Departemen Underground'
         ];
 
+        // Ambil data perusahaan existing untuk verifikasi efisien tanpa query dalam loop
         $existing = $this->db->select('LOWER(nama_perusahaan) as nama_lower')->get('perusahaan')->result_array();
         $existing_map = array_column($existing, 'nama_lower');
 
@@ -83,19 +112,30 @@ class Pengajuan extends CI_Controller
         }
     }
 
+    /**
+     * Halaman Indeks Daftar Pengajuan Uji Kelayakan
+     * 
+     * @return void Render view daftar pengajuan
+     */
     public function index()
     {
         $data['title']      = 'Daftar Pengajuan';
         $data['user']       = $this->session->userdata();
         $data['perusahaan'] = $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result();
         $data['tipe_unit']  = $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result();
+        
         $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
         $this->load->view('pengajuan/index',   $data);
         $this->load->view('templates/footer',  $data);
     }
 
-    // AJAX — Export Data History Pengajuan ke Excel
+    /**
+     * Endpoint AJAX Ekspor Data History Pengajuan ke Format Excel/JSON.
+     * Menggunakan query JOIN ter-optimasikan pada model.
+     * 
+     * @return void Output JSON data ekspor + hash CSRF terbaru
+     */
     public function get_export_history()
     {
         if (!$this->input->is_ajax_request()) show_404();
@@ -155,7 +195,12 @@ class Pengajuan extends CI_Controller
             ->set_output(json_encode($output));
     }
 
-    // Hanya Admin Departemen (7) & Super Admin (1)
+    /**
+     * Form Pembuatan Pengajuan Uji Kelayakan Baru.
+     * Khusus diakses oleh Admin Departemen (Role 7) dan Super Admin (Role 1).
+     * 
+     * @return void Render view pengajuan/create
+     */
     public function create()
     {
         $roles = $this->_user_roles();
@@ -163,22 +208,30 @@ class Pengajuan extends CI_Controller
             $this->session->set_flashdata('error', 'Hanya Admin Departemen yang dapat membuat pengajuan.');
             redirect('pengajuan');
         }
+
         $this->_check_schema_alat_berat();
+
         $data = [
-            'title'              => 'Buat Pengajuan Uji Kelayakan',
-            'user'               => $this->session->userdata(),
-            // Untuk recommissioning: hanya kendaraan yang lulus + stiker expired
-            'kendaraan'          => $this->kendaraan_model->get_kendaraan_lulus_eligible(),
-            'tipe_kendaraan'     => $this->db->where('is_active', 1)->order_by('is_alat_berat', 'DESC')->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result(),
-            'perusahaan'         => $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result(),
+            'title'          => 'Buat Pengajuan Uji Kelayakan',
+            'user'           => $this->session->userdata(),
+            'kendaraan'      => $this->kendaraan_model->get_kendaraan_lulus_eligible(),
+            'tipe_kendaraan' => $this->db->where('is_active', 1)->order_by('is_alat_berat', 'DESC')->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result(),
+            'perusahaan'     => $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result(),
         ];
+
         $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
         $this->load->view('pengajuan/create',  $data);
         $this->load->view('templates/footer',  $data);
     }
 
-    // STORE — mode_unit: baru=pengajuan_baru, lama=pengajuan_ulang
+    /**
+     * Endpoint Simpan (Store) Pengajuan Baru.
+     * Menangani pendaftaran unit kendaraan baru maupun pemilih unit lama (recommissioning),
+     * pengunggahan berkas/lampiran foto, dan inisialisasi status pengajuan.
+     * 
+     * @return void Response JSON status simpan
+     */
     public function store()
     {
         if (!$this->input->is_ajax_request()) show_404();
@@ -186,12 +239,12 @@ class Pengajuan extends CI_Controller
         $roles   = $this->_user_roles();
         $id_user = (int) $this->session->userdata('id_user');
 
-        // Helper function untuk return JSON + csrfHash
+        // Closure penyiapan struktur response JSON terstandar + token CSRF
         $response = function($status, $message, $data = []) {
             $output = [
                 'status'    => $status,
                 'message'   => $message,
-                'csrfHash'  => $this->security->get_csrf_hash(),  // ✅ WAJIB: setiap response
+                'csrfHash'  => $this->security->get_csrf_hash(),
             ];
             return array_merge($output, $data);
         };
@@ -202,372 +255,300 @@ class Pengajuan extends CI_Controller
         }
 
         $mode_unit = $this->input->post('mode_unit');
-        
-        // ════════════════════════════════════════════════════════
-        // SERVER-SIDE VALIDATION
-        // ════════════════════════════════════════════════════════
-        $this->form_validation->set_rules('tipe_pengajuan', 'Tipe Pengajuan', 
-            'required|in_list[new_commissioning,recommissioning]');
-        $this->form_validation->set_rules('tipe_akses', 'Tipe Akses', 
-            'required|in_list[mining,non_mining,underground]');
-        $this->form_validation->set_rules('tujuan', 'Tujuan Penggunaan', 
-            'required|max_length[1000]');
-        $this->form_validation->set_rules('email_pemohon', 'Email Pemohon', 
-            'valid_email|max_length[100]');
 
-        if (!$this->form_validation->run()) {
-            $errors = str_replace(['<p>', '</p>'], ['<li>', '</li>'], validation_errors());
-            echo json_encode($response('error', '<strong>Validasi Gagal:</strong><ul>' . $errors . '</ul>'));
-            return;
-        }
+        if ($mode_unit === 'lama') {
+            // Mode Unit Lama (Recommissioning)
+            $id_kendaraan   = (int) $this->input->post('id_kendaraan');
+            $tipe_akses     = trim($this->input->post('tipe_akses_lama'));
+            $tujuan         = trim($this->input->post('tujuan_lama'));
+            $tipe_pengajuan = trim($this->input->post('tipe_pengajuan_lama') ?: 'recommissioning');
 
-        $email_pemohon = trim($this->input->post('email_pemohon') ?? '');
-        if (empty($email_pemohon)) {
-            $email_pemohon = trim($this->session->userdata('email') ?? '');
-        }
-
-        $id_kendaraan = 0;
-        $is_unit_baru = false;
-
-        // ════════════════════════════════════════════════════════
-        // MODE: UNIT BARU (New Commissioning)
-        // ════════════════════════════════════════════════════════
-        if ($mode_unit === 'baru') {
-            // Ambil flag N/A dari form
-            $is_na_no_polisi    = $this->input->post('is_na_no_polisi') == '1';
-            $is_na_nomor_unit   = $this->input->post('is_na_nomor_unit') == '1';
-            $is_na_model_unit   = $this->input->post('is_na_model_unit') == '1';
-            $is_na_stnk         = $this->input->post('is_na_stnk') == '1';
-
-            // Validasi field WAJIB (tidak bisa N/A)
-            $jenis_kendaraan = $this->input->post('jenis_kendaraan');
-            $nomor_unit      = trim($this->input->post('nomor_unit') ?? '');
-            $merk            = trim($this->input->post('merk') ?? '');
-            $perusahaan      = $this->input->post('perusahaan');
-            $tahun           = $this->input->post('tahun');
-
-            if (empty($jenis_kendaraan)) {
-                echo json_encode($response('error', 'Tipe Unit <strong>wajib dipilih</strong>.'));
-                return;
-            }
-            if (empty($nomor_unit) || $nomor_unit === 'N/A') {
-                echo json_encode($response('error', 'Nomor Unit <strong>wajib diisi</strong>.'));
-                return;
-            }
-            if (empty($merk)) {
-                echo json_encode($response('error', 'Merk Unit <strong>wajib diisi</strong>.'));
-                return;
-            }
-            if (empty($perusahaan)) {
-                echo json_encode($response('error', 'Perusahaan <strong>wajib dipilih</strong>.'));
-                return;
-            }
-            if (empty($tahun)) {
-                echo json_encode($response('error', 'Tahun <strong>wajib diisi</strong>.'));
-                return;
-            }
-
-            // Nomor Polisi — wajib KECUALI N/A
-            $no_polisi = $is_na_no_polisi ? 'N/A' : strtoupper(trim($this->input->post('no_polisi') ?? ''));
-            if (!$is_na_no_polisi && empty($no_polisi)) {
-                echo json_encode($response('error', 'Nomor Polisi <strong>wajib diisi</strong> atau centang N/A.'));
-                return;
-            }
-
-            // Cek duplikat no_polisi (hanya jika bukan N/A)
-            if (!$is_na_no_polisi) {
-                $existing = $this->db->where('no_polisi', $no_polisi)
-                                      ->where('is_na_no_polisi', 0)
-                                      ->get('kendaraan')->row();
-                if ($existing) {
-                    echo json_encode($response('error', 
-                        'Nomor Polisi <strong>' . html_escape($no_polisi) . '</strong> sudah terdaftar. '
-                        . 'Gunakan mode <strong>Pengajuan Kembali (Recommissioning)</strong> untuk unit yang sudah ada.'));
-                    return;
-                }
-            }
-
-            // Nomor Mesin
-            $nomor_mesin = trim($this->input->post('nomor_mesin') ?? '') ?: 'N/A';
-
-            // ── Validasi lampiran: STNK + Foto 4 sisi ──
-            $foto_required = [
-                'stnk'          => ['field' => 'lampiran_stnk', 'label' => 'Foto STNK', 'na_key' => 'is_na_stnk'],
-                'unit_depan'    => ['field' => 'lampiran_unit_depan', 'label' => 'Foto Depan', 'na_key' => 'is_na_foto_unit_depan'],
-                'unit_belakang' => ['field' => 'lampiran_unit_belakang', 'label' => 'Foto Belakang', 'na_key' => 'is_na_foto_unit_belakang'],
-                'unit_kiri'     => ['field' => 'lampiran_unit_kiri', 'label' => 'Foto Kiri', 'na_key' => 'is_na_foto_unit_kiri'],
-                'unit_kanan'    => ['field' => 'lampiran_unit_kanan', 'label' => 'Foto Kanan', 'na_key' => 'is_na_foto_unit_kanan'],
-            ];
-
-            foreach ($foto_required as $key => $config) {
-                $is_na = $this->input->post($config['na_key']) == '1';
-                if (!$is_na && empty($_FILES[$config['field']]['name'])) {
-                    echo json_encode($response('error', 
-                        '<strong>' . $config['label'] . '</strong> wajib diupload atau centang N/A.'));
-                    return;
-                }
-            }
-
-            // ── Insert kendaraan baru ──
-            $kendaraan_data = [
-                'no_polisi'         => $no_polisi,
-                'is_na_no_polisi'   => $is_na_no_polisi ? 1 : 0,
-                'id_tipe_kendaraan' => (int) $jenis_kendaraan,
-                'nomor_unit'        => $is_na_nomor_unit ? 'N/A' : trim($this->input->post('nomor_unit') ?? ''),
-                'is_na_nomor_unit'  => $is_na_nomor_unit ? 1 : 0,
-                'merk'              => $merk,
-                'tipe'              => $is_na_model_unit ? 'N/A' : trim($this->input->post('model_unit') ?? ''),
-                'model_unit'        => $is_na_model_unit ? 'N/A' : trim($this->input->post('model_unit') ?? ''),
-                'is_na_model_unit'  => $is_na_model_unit ? 1 : 0,
-                'perusahaan'        => $perusahaan,
-                'tahun'             => (int) $tahun,
-                'is_unit_baru'      => 1,
-                'created_at'        => date('Y-m-d H:i:s'),
-            ];
-
-            $id_kendaraan = $this->kendaraan_model->insert($kendaraan_data);
             if (!$id_kendaraan) {
-                echo json_encode($response('error', 'Gagal mendaftarkan kendaraan baru.'));
-                return;
-            }
-            $is_unit_baru = true;
-
-        // ════════════════════════════════════════════════════════
-        // MODE: UNIT LAMA (Recommissioning)
-        // ════════════════════════════════════════════════════════
-        } elseif ($mode_unit === 'lama') {
-            $id_kendaraan = (int) $this->input->post('id_kendaraan');
-            if (!$id_kendaraan || !$this->kendaraan_model->get_by_id($id_kendaraan)) {
-                echo json_encode($response('error', 'Kendaraan tidak ditemukan atau tidak valid.'));
+                echo json_encode($response('error', 'Pilih kendaraan yang akan diajukan ulang.'));
                 return;
             }
 
-            // Catatan: nomor_rangka & nomor_mesin disimpan di tabel pengajuan_uji, bukan kendaraan
-        } else {
-            echo json_encode($response('error', 'Mode unit tidak valid.'));
-            return;
-        }
-
-        // ════════════════════════════════════════════════════════
-        // VALIDASI: Maintenance Record
-        // ════════════════════════════════════════════════════════
-        $pernah_maintenance_luar = ($this->input->post('pernah_maintenance_luar') == '1') ? 1 : 0;
-        if ($pernah_maintenance_luar && empty($_FILES['lampiran_maintenance_record']['name'])) {
-            if ($is_unit_baru) {
-                $this->db->where('id_kendaraan', $id_kendaraan)->delete('kendaraan');
+            $k = $this->kendaraan_model->get_by_id($id_kendaraan);
+            if (!$k) {
+                echo json_encode($response('error', 'Data kendaraan tidak ditemukan.'));
+                return;
             }
-            echo json_encode($response('error', 
-                '<strong>Maintenance Record</strong> wajib diupload karena unit pernah '
-                . 'maintenance di luar perusahaan.'));
+
+            $this->db->trans_start();
+
+            // Insert record pengajuan_uji baru
+            $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
+                'id_kendaraan'      => $id_kendaraan,
+                'id_pemohon'        => $id_user,
+                'tipe_pengajuan'    => $tipe_pengajuan,
+                'tipe_akses'        => $tipe_akses ?: null,
+                'tujuan'            => $tujuan ?: null,
+                'status'            => 'pengajuan_baru',
+                'tanggal_pengajuan' => date('Y-m-d H:i:s'),
+            ]);
+
+            // Catat log approval awal
+            $this->pengajuan_model->insert_approval([
+                'id_pengajuan'   => $id_pengajuan,
+                'id_approver'    => $id_user,
+                'level_approval' => 'draft',
+                'status'         => 'submitted',
+                'catatan'        => 'Pengajuan uji kelayakan unit lama (' . $k->no_polisi . ') disubmit oleh Admin Dept',
+                'created_at'     => date('Y-m-d H:i:s'),
+            ]);
+
+            // Tangani upload lampiran dokumen opsional (STNK / Maintenance Record)
+            $upload_errs = [];
+            if (!empty($_FILES['lampiran_stnk_lama']['name'])) {
+                $err = $this->_upload_single_lampiran($id_pengajuan, 'stnk', 'lampiran_stnk_lama');
+                if ($err) $upload_errs[] = 'STNK: ' . $err;
+            }
+            if (!empty($_FILES['lampiran_maintenance_lama']['name'])) {
+                $err = $this->_upload_single_lampiran($id_pengajuan, 'maintenance_record', 'lampiran_maintenance_lama');
+                if ($err) $upload_errs[] = 'Maintenance Record: ' . $err;
+            }
+
+            $this->_audit('buat_pengajuan', 'pengajuan_uji', $id_pengajuan);
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status()) {
+                $msg = 'Pengajuan uji kelayakan unit lama berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
+                if (!empty($upload_errs)) {
+                    $msg .= ' Namun ada catatan upload: ' . implode(', ', $upload_errs);
+                }
+                echo json_encode($response('success', $msg, ['id_pengajuan' => $id_pengajuan]));
+            } else {
+                echo json_encode($response('error', 'Gagal menyimpan pengajuan unit lama. Silakan coba lagi.'));
+            }
             return;
         }
 
-        // ════════════════════════════════════════════════════════
-        // INSERT PENGAJUAN
-        // ════════════════════════════════════════════════════════
-        $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
-            'id_kendaraan'            => $id_kendaraan,
-            'id_pemohon'              => $id_user,
-            'email_pemohon'           => $email_pemohon,
-            'tipe_pengajuan'          => $this->input->post('tipe_pengajuan'),
-            'tipe_akses'              => $this->input->post('tipe_akses'),
-            'tujuan'                  => $this->input->post('tujuan'),
-            'pernah_maintenance_luar' => $pernah_maintenance_luar,
-            'nomor_rangka'            => 'N/A',
-            'nomor_mesin'             => 'N/A',
-            'status'                  => ($mode_unit === 'baru') ? 'pengajuan_baru' : 'pengajuan_ulang',
-            'tanggal_pengajuan'       => date('Y-m-d H:i:s'),
+        // Mode Unit Baru
+        $no_polisi     = strtoupper(trim($this->input->post('no_polisi')));
+        $nomor_unit    = strtoupper(trim($this->input->post('nomor_unit')));
+        $model_unit    = trim($this->input->post('model_unit'));
+        $id_tipe       = (int) $this->input->post('id_tipe_kendaraan');
+        $merk          = trim($this->input->post('merk'));
+        $tipe          = trim($this->input->post('tipe'));
+        $tahun         = (int) $this->input->post('tahun');
+        $perusahaan    = trim($this->input->post('perusahaan'));
+        $tipe_akses    = trim($this->input->post('tipe_akses'));
+        $tujuan        = trim($this->input->post('tujuan'));
+        $is_unit_baru  = (int) $this->input->post('is_unit_baru');
+
+        if (!$nomor_unit || !$id_tipe || !$merk || !$perusahaan) {
+            echo json_encode($response('error', 'Nomor Unit, Tipe Kendaraan, Merk, dan Perusahaan wajib diisi.'));
+            return;
+        }
+
+        // Cek duplikasi nomor unit
+        if ($this->kendaraan_model->is_nomor_unit_exists($nomor_unit)) {
+            echo json_encode($response('error', 'Nomor Unit <strong>' . html_escape($nomor_unit) . '</strong> sudah terdaftar dalam sistem. Gunakan opsi Unit Lama jika ingin mengajukan ulang.'));
+            return;
+        }
+
+        $this->db->trans_start();
+
+        // Register master kendaraan baru
+        $id_kendaraan = $this->kendaraan_model->insert_kendaraan([
+            'no_polisi'         => $no_polisi ?: $nomor_unit,
+            'nomor_unit'        => $nomor_unit,
+            'model_unit'        => $model_unit ?: null,
+            'id_tipe_kendaraan' => $id_tipe,
+            'merk'              => $merk,
+            'tipe'              => $tipe ?: null,
+            'tahun'             => $tahun ?: null,
+            'perusahaan'        => $perusahaan,
+            'is_unit_baru'      => $is_unit_baru,
+            'status_uji'        => 'belum_uji',
+            'created_at'        => date('Y-m-d H:i:s'),
         ]);
 
-        if (!$id_pengajuan) {
-            if ($is_unit_baru) {
-                $this->db->where('id_kendaraan', $id_kendaraan)->delete('kendaraan');
-            }
-            echo json_encode($response('error', 'Gagal menyimpan pengajuan ke database.'));
-            return;
-        }
+        // Insert record pengajuan_uji
+        $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
+            'id_kendaraan'      => $id_kendaraan,
+            'id_pemohon'        => $id_user,
+            'tipe_pengajuan'    => 'baru',
+            'tipe_akses'        => $tipe_akses ?: null,
+            'tujuan'            => $tujuan ?: null,
+            'status'            => 'pengajuan_baru',
+            'tanggal_pengajuan' => date('Y-m-d H:i:s'),
+        ]);
 
-        // ════════════════════════════════════════════════════════
-        // UPLOAD LAMPIRAN — untuk Unit Baru & Unit Lama
-        // ════════════════════════════════════════════════════════
-        $upload_errors = $this->_upload_lampiran($id_pengajuan);
-        if (!empty($upload_errors) && $is_unit_baru) {
-            // Rollback jika unit baru gagal upload wajib
-            $this->pengajuan_model->delete_pengajuan($id_pengajuan);
-            $this->db->where('id_kendaraan', $id_kendaraan)->delete('kendaraan');
-            
-            $error_html = '<ul><li>' . implode('</li><li>', $upload_errors) . '</li></ul>';
-            echo json_encode($response('error', 'Gagal upload lampiran:<br>' . $error_html));
-            return;
-        }
-
-        // ════════════════════════════════════════════════════════
-        // UPLOAD MAINTENANCE RECORD (jika ada)
-        // ════════════════════════════════════════════════════════
-        if (!empty($_FILES['lampiran_maintenance_record']['name'])) {
-            $maintenance_error = $this->_upload_single_lampiran(
-                $id_pengajuan, 
-                'maintenance_record', 
-                'lampiran_maintenance_record'
-            );
-            if ($maintenance_error) {
-                // Warning saja, tidak rollback — pengajuan tetap tersimpan
-                log_message('error', 'Upload Maintenance Record failed for pengajuan #' . $id_pengajuan . ': ' . $maintenance_error);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════
-        // CREATE APPROVAL WORKFLOW
-        // ════════════════════════════════════════════════════════
+        // Insert log approval awal
         $this->pengajuan_model->insert_approval([
             'id_pengajuan'   => $id_pengajuan,
-            'id_approver'    => 0,
-            'level_approval' => 'dept_manager',
-            'status'         => 'pending',
+            'id_approver'    => $id_user,
+            'level_approval' => 'draft',
+            'status'         => 'submitted',
+            'catatan'        => 'Pengajuan baru disubmit oleh Admin Dept',
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
-        // ════════════════════════════════════════════════════════
-        // Audit log pengajuan baru
+        // Upload lampiran dokumen & foto
+        $upload_errors = $this->_upload_lampiran($id_pengajuan);
+
         $this->_audit('buat_pengajuan', 'pengajuan_uji', $id_pengajuan);
+        $this->db->trans_complete();
 
-        // Kirim Notifikasi Email Otomatis ke Pemohon & Dept Manager
-        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
-            try {
-                $this->load->library('sikuk_email');
-                $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
-            } catch (Throwable $e) {
-                log_message('error', '[Pengajuan Store] Exception email: ' . $e->getMessage());
+        if ($this->db->trans_status()) {
+            $msg = 'Pengajuan uji kelayakan unit baru berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
+            if (!empty($upload_errors)) {
+                $msg .= ' Catatan upload: ' . implode(', ', $upload_errors);
             }
+            echo json_encode($response('success', $msg, ['id_pengajuan' => $id_pengajuan]));
+        } else {
+            echo json_encode($response('error', 'Gagal menyimpan data pengajuan. Silakan coba lagi.'));
         }
-
-        // ════════════════════════════════════════════════════════
-        // SUCCESS RESPONSE ✅ dengan csrfHash
-        // ════════════════════════════════════════════════════════
-        $no_pengajuan = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
-        $message = 'Pengajuan <strong>' . $no_pengajuan . '</strong> berhasil disubmit. '
-                 . 'Menunggu review dari <strong>Manager Departemen</strong>.';
-
-        echo json_encode($response('success', $message, [
-            'redirect' => site_url('pengajuan'),
-            'id_pengajuan' => $id_pengajuan,
-        ]));
     }
 
+    /**
+     * Endpoint AJAX DataTables untuk menyajikan daftar pengajuan uji kelayakan.
+     * Menggunakan query terpaginasi dan penyaringan berhak akses.
+     * 
+     * @return void Output JSON DataTables + Hash CSRF
+     */
     public function get_data()
     {
         if (!$this->input->is_ajax_request()) show_404();
 
+        $start   = (int) $this->input->post('start');
+        $length  = (int) $this->input->post('length');
+        $draw    = (int) $this->input->post('draw');
+        $roles   = $this->_user_roles();
+        $id_user = (int) $this->session->userdata('id_user');
+
         $filters = [
-            'status'      => $this->input->post('filter_status'),
-            'jenis'       => $this->input->post('filter_jenis'),
-            'departemen'  => $this->input->post('filter_departemen'),
-            'tgl_dari'    => $this->input->post('filter_tgl_dari'),
-            'tgl_sampai'  => $this->input->post('filter_tgl_sampai'),
-            'search'      => $this->input->post('search')['value'] ?? '',
+            'status'     => trim($this->input->post('status')     ?? ''),
+            'jenis'      => trim($this->input->post('jenis')      ?? ''),
+            'tgl_dari'   => trim($this->input->post('tgl_dari')   ?? ''),
+            'tgl_sampai' => trim($this->input->post('tgl_sampai') ?? ''),
+            'search'     => trim($this->input->post('search[value]') ?? ''),
         ];
 
-        // Admin Dept hanya lihat pengajuan miliknya
-        $roles = $this->_user_roles();
+        // Filtering scoping hak akses pengguna
+        $user_dept = $this->session->userdata('departemen');
         if (in_array(7, $roles) && !in_array(1, $roles)) {
-            $filters['id_pemohon'] = (int) $this->session->userdata('id_user');
+            $filters['id_pemohon'] = $id_user;
+        } elseif (in_array(2, $roles) && !in_array(1, $roles) && !empty($user_dept)) {
+            $filters['departemen'] = $user_dept;
         }
 
-        $draw   = $this->input->post('draw');
-        $start  = $this->input->post('start');
-        $length = $this->input->post('length');
+        $total_records    = $this->pengajuan_model->count_all($filters);
+        $filtered_records = $this->pengajuan_model->count_filtered($filters);
+        $data_rows        = $this->pengajuan_model->get_datatable($start, $length, $filters);
 
-        $total    = $this->pengajuan_model->count_all($filters);
-        $filtered = $this->pengajuan_model->count_filtered($filters);
-        $rows     = $this->pengajuan_model->get_datatable($start, $length, $filters);
+        $data = [];
+        $no   = $start + 1;
 
-        $data_rows = [];
-        $no = $start + 1;
-        foreach ($rows as $row) {
-            $is_recomm = ($row->tipe_pengajuan === 'recommissioning' || $row->tipe_pengajuan === 'pengajuan_ulang');
-            $badge_pengajuan = $is_recomm
-                ? '<span class="badge bg-info text-white">Pengajuan Ulang</span>'
-                : '<span class="badge bg-primary text-white">Pengajuan Baru</span>';
-
-            $badge_akses = badge_tipe_akses($row->tipe_akses);
-
-            $data_rows[] = [
-                'no'              => $no++,
-                'id_display'      => '<span class="fw-bold text-primary">#PU-' . str_pad($row->id_pengajuan, 4, '0', STR_PAD_LEFT) . '</span>',
-                'pemohon'         => html_escape($row->nama_pemohon),
-                'nomor_unit'      => '<span class="badge bg-dark font-monospace">' . html_escape($row->nomor_unit ?? '-') . '</span>',
-                'no_polisi'       => '<span class="badge bg-secondary font-monospace">' . html_escape($row->no_polisi) . '</span>',
-                'jenis_kendaraan' => html_escape($row->jenis_kendaraan) . '<br><small class="text-muted">' . html_escape($row->merk) . ' ' . html_escape($row->tipe) . '</small>',
-                'tipe_pengajuan'  => $badge_pengajuan,
-                'tipe_akses'      => $badge_akses,
-                'status'          => $this->_badge_status($row->status),
-                'tgl_pengajuan'   => date('d M Y', strtotime($row->tanggal_pengajuan)) . '<br><small class="text-muted">' . date('H:i', strtotime($row->tanggal_pengajuan)) . '</small>',
-                'aksi'            => $this->_tombol_aksi($row),
+        foreach ($data_rows as $r) {
+            $nomor_unit_html = !empty($r->nomor_unit) 
+                ? html_escape($r->nomor_unit) 
+                : '<span class="text-muted small">—</span>';
+            
+            $data[] = [
+                'no'                => $no++,
+                'tanggal_pengajuan' => date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)),
+                'nomor_unit'        => $nomor_unit_html,
+                'no_polisi'         => html_escape($r->no_polisi ?: '-'),
+                'jenis_kendaraan'   => html_escape($r->jenis_kendaraan ?: '-'),
+                'merk_tipe'         => html_escape($r->merk) . ' ' . html_escape($r->tipe),
+                'perusahaan'        => html_escape($r->perusahaan),
+                'nama_pemohon'      => html_escape($r->nama_pemohon),
+                'tipe_akses'        => badge_tipe_akses($r->tipe_akses),
+                'status'            => $this->_badge_status($r->status),
+                'aksi'              => $this->_tombol_aksi($r),
             ];
         }
 
         echo json_encode([
-            'draw'            => (int)$draw,
-            'recordsTotal'    => $total,
-            'recordsFiltered' => $filtered,
-            'data'            => $data_rows,
+            'draw'            => $draw,
+            'recordsTotal'    => $total_records,
+            'recordsFiltered' => $filtered_records,
+            'data'            => $data,
             'csrfHash'        => $this->security->get_csrf_hash(),
-            'csrf_hash'       => $this->security->get_csrf_hash(),
         ]);
     }
 
+    /**
+     * Endpoint AJAX untuk mengambil detail pengajuan, lampiran, jadwal, uji, dan riwayat approval.
+     * 
+     * @param int|null $id ID Pengajuan
+     * @return void Output JSON detail pengajuan
+     */
     public function detail($id = null)
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $id   = (int) $id;
-        $roles = $this->_user_roles();
-        $filters = [];
-        $departemen = $this->session->userdata('departemen');
-        if (!in_array(1, $roles) && !empty($departemen)) {
-            $filters['departemen'] = $departemen;
-            if (in_array(7, $roles)) {
-                $filters['id_pemohon'] = (int) $this->session->userdata('id_user');
-            }
+        $id_pengajuan = (int) ($id ?: $this->input->post('id_pengajuan'));
+        $roles        = $this->_user_roles();
+        $id_user      = (int) $this->session->userdata('id_user');
+        $filters      = [];
+
+        $user_dept = $this->session->userdata('departemen');
+        if (in_array(7, $roles) && !in_array(1, $roles)) {
+            $filters['id_pemohon'] = $id_user;
+        } elseif (in_array(2, $roles) && !in_array(1, $roles) && !empty($user_dept)) {
+            $filters['departemen'] = $user_dept;
         }
 
-        $data = $this->pengajuan_model->get_detail($id, $filters);
-
-        if (!$data) {
+        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan, $filters);
+        if (!$pengajuan) {
             echo json_encode([
-                'status'  => 'error',
-                'message' => 'Data tidak ditemukan.'
+                'status'    => 'error', 
+                'message'   => 'Data pengajuan tidak ditemukan atau Anda tidak memiliki akses.',
+                'csrfHash'  => $this->security->get_csrf_hash()
             ]);
             return;
         }
 
-        $data->lampiran = $this->pengajuan_model->get_lampiran($id);
-        $data->approval = $this->pengajuan_model->get_approval($id);
-        $data->jadwal   = $this->pengajuan_model->get_jadwal($id);
-        $data->uji      = $this->pengajuan_model->get_uji($id);
-
-
-        $perbaikan_rows = $this->pengajuan_model->get_perbaikan_with_lampiran($id);
-
-        $data->perbaikan = $perbaikan_rows;
+        // Ambil relasi dokumen, approval, jadwal, dan uji
+        $lampiran  = $this->pengajuan_model->get_lampiran($id_pengajuan);
+        $approval  = $this->pengajuan_model->get_approval($id_pengajuan);
+        $jadwal    = $this->pengajuan_model->get_jadwal($id_pengajuan);
+        $uji       = $this->pengajuan_model->get_uji($id_pengajuan);
+        $perbaikan = $this->pengajuan_model->get_perbaikan_with_lampiran($id_pengajuan);
 
         echo json_encode([
-            'status' => 'success',
-            'data'   => $data
+            'status'    => 'success',
+            'data'      => [
+                'pengajuan' => $pengajuan,
+                'lampiran'  => $lampiran,
+                'approval'  => $approval,
+                'jadwal'    => $jadwal,
+                'uji'       => $uji,
+                'perbaikan' => $perbaikan,
+            ],
+            'csrfHash'  => $this->security->get_csrf_hash(),
         ]);
     }
 
+    /**
+     * Endpoint AJAX untuk mendapatkan informasi kendaraan saat memilih dropdown pada form pengajuan.
+     * 
+     * @return void JSON data kendaraan
+     */
     public function get_kendaraan_info()
     {
         if (!$this->input->is_ajax_request()) show_404();
-        $id  = (int) $this->input->post('id_kendaraan');
-        $row = $this->kendaraan_model->get_by_id($id);
-        echo $row ? json_encode(['status' => 'success', 'data' => $row]) : json_encode(['status' => 'error']);
+
+        $id = (int) $this->input->post('id_kendaraan');
+        $k  = $this->kendaraan_model->get_by_id($id);
+
+        if (!$k) {
+            echo json_encode(['status' => 'error', 'message' => 'Kendaraan tidak ditemukan.', 'csrfHash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        echo json_encode(['status' => 'success', 'data' => $k, 'csrfHash' => $this->security->get_csrf_hash()]);
     }
 
-    // ============================================================
-    // EDIT — tampilkan form edit pengajuan yang ditolak_manager
-    // ============================================================
+    /**
+     * Halaman Edit Pengajuan (Untuk status Draft atau Ditolak Manager).
+     * 
+     * @param int|null $id_pengajuan ID Pengajuan
+     * @return void Render view edit
+     */
     public function edit($id_pengajuan = null)
     {
         $id_pengajuan = (int) $id_pengajuan;
@@ -581,42 +562,37 @@ class Pengajuan extends CI_Controller
 
         $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
         if (!$pengajuan) {
-            $this->session->set_flashdata('error', 'Pengajuan tidak ditemukan.');
+            $this->session->set_flashdata('error', 'Data pengajuan tidak ditemukan.');
             redirect('pengajuan');
         }
 
-        // Hanya bisa edit jika ditolak_manager atau draft, dan milik pemohon sendiri
-        if (!in_array($pengajuan->status, ['ditolak_manager', 'draft'])) {
-            $this->session->set_flashdata('error', 'Pengajuan hanya dapat diedit dalam status Draft atau Ditolak Manager.');
-            redirect('pengajuan');
-        }
-        if (!in_array(1, $roles) && $pengajuan->id_pemohon != $id_user) {
-            $this->session->set_flashdata('error', 'Anda tidak memiliki akses ke pengajuan ini.');
+        // Hanya boleh diedit jika status draft atau ditolak_manager
+        if (!in_array($pengajuan->status, ['draft', 'ditolak_manager'])) {
+            $this->session->set_flashdata('error', 'Pengajuan dengan status ini tidak dapat diedit.');
             redirect('pengajuan');
         }
 
-        $lampiran   = $this->pengajuan_model->get_lampiran($id_pengajuan);
-        $kendaraan  = $this->kendaraan_model->get_by_id($pengajuan->id_kendaraan);
-        $riwayat    = $this->pengajuan_model->get_approval($id_pengajuan);
+        // Admin Dept hanya bisa edit pengajuannya sendiri (kecuali Super Admin)
+        if (in_array(7, $roles) && !in_array(1, $roles) && $pengajuan->id_pemohon != $id_user) {
+            $this->session->set_flashdata('error', 'Anda hanya dapat mengedit pengajuan milik Anda sendiri.');
+            redirect('pengajuan');
+        }
 
-        // Ambil catatan penolakan terakhir dari manager
-        $catatan_tolak = '';
-        foreach (array_reverse($riwayat) as $r) {
-            if ($r->level_approval === 'dept_manager' && $r->status === 'rejected') {
-                $catatan_tolak = $r->catatan ?? '';
-                break;
-            }
+        $this->_check_schema_alat_berat();
+
+        $lampiran_raw = $this->pengajuan_model->get_lampiran($id_pengajuan);
+        $lampiran     = [];
+        foreach ($lampiran_raw as $l) {
+            $lampiran[$l->jenis_lampiran] = $l;
         }
 
         $data = [
-            'title'        => 'Edit Pengajuan #PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT),
-            'user'         => $this->session->userdata(),
-            'pengajuan'    => $pengajuan,
-            'kendaraan'    => $kendaraan,
-            'lampiran'     => $lampiran,
-            'catatan_tolak' => $catatan_tolak,
-            'tipe_kendaraan' => $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result(),
-            'perusahaan'   => $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result(),
+            'title'          => 'Edit Pengajuan Uji Kelayakan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT),
+            'user'           => $this->session->userdata(),
+            'pengajuan'      => $pengajuan,
+            'lampiran'       => $lampiran,
+            'tipe_kendaraan' => $this->db->where('is_active', 1)->order_by('is_alat_berat', 'DESC')->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result(),
+            'perusahaan'     => $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result(),
         ];
 
         $this->load->view('templates/header',  $data);
@@ -625,115 +601,141 @@ class Pengajuan extends CI_Controller
         $this->load->view('templates/footer',  $data);
     }
 
-    // ============================================================
-    // UPDATE — simpan perubahan pengajuan + ubah status ke pengajuan_ulang
-    // ============================================================
+    /**
+     * Endpoint AJAX Update Data Pengajuan.
+     * Mengakomodasi pengubahan data kendaraan, tipe akses, serta penggantian berkas lampiran.
+     * 
+     * @return void Response JSON status update
+     */
     public function update()
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $roles   = $this->_user_roles();
-        $id_user = (int) $this->session->userdata('id_user');
+        $roles        = $this->_user_roles();
+        $id_user      = (int) $this->session->userdata('id_user');
+        $id_pengajuan = (int) $this->input->post('id_pengajuan');
+
+        $response = function($status, $message, $data = []) {
+            $output = [
+                'status'    => $status,
+                'message'   => $message,
+                'csrfHash'  => $this->security->get_csrf_hash(),
+            ];
+            return array_merge($output, $data);
+        };
 
         if (!$this->_has_role([1, 7], $roles)) {
-            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak.']);
+            echo json_encode($response('error', 'Akses ditolak.'));
             return;
         }
 
-        $id_pengajuan = (int) $this->input->post('id_pengajuan');
-        $pengajuan    = $this->pengajuan_model->get_detail($id_pengajuan);
-
-        if (!$pengajuan || !in_array($pengajuan->status, ['ditolak_manager', 'draft'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Pengajuan tidak dapat diedit saat ini.']);
-            return;
-        }
-        if (!in_array(1, $roles) && $pengajuan->id_pemohon != $id_user) {
-            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak.']);
+        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
+        if (!$pengajuan) {
+            echo json_encode($response('error', 'Data pengajuan tidak ditemukan.'));
             return;
         }
 
-        $tujuan      = trim($this->input->post('tujuan') ?? '');
-        $email       = trim($this->input->post('email_pemohon') ?? '');
-        $alasan_edit = trim($this->input->post('alasan_edit') ?? '');
+        if (!in_array($pengajuan->status, ['draft', 'ditolak_manager'])) {
+            echo json_encode($response('error', 'Pengajuan dengan status ini tidak dapat diperbarui.'));
+            return;
+        }
 
-        if (empty($tujuan) || empty($email)) {
-            echo json_encode(['status' => 'error', 'message' => 'Tujuan dan email pemohon wajib diisi.']);
+        if (in_array(7, $roles) && !in_array(1, $roles) && $pengajuan->id_pemohon != $id_user) {
+            echo json_encode($response('error', 'Anda hanya dapat memperbarui pengajuan milik Anda sendiri.'));
             return;
         }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(['status' => 'error', 'message' => 'Format email pemohon tidak valid.']);
+
+        // Ambil input form
+        $no_polisi     = strtoupper(trim($this->input->post('no_polisi')));
+        $nomor_unit    = strtoupper(trim($this->input->post('nomor_unit')));
+        $model_unit    = trim($this->input->post('model_unit'));
+        $id_tipe       = (int) $this->input->post('id_tipe_kendaraan');
+        $merk          = trim($this->input->post('merk'));
+        $tipe          = trim($this->input->post('tipe'));
+        $tahun         = (int) $this->input->post('tahun');
+        $perusahaan    = trim($this->input->post('perusahaan'));
+        $tipe_akses    = trim($this->input->post('tipe_akses'));
+        $tujuan        = trim($this->input->post('tujuan'));
+        $is_unit_baru  = (int) $this->input->post('is_unit_baru');
+
+        if (!$nomor_unit || !$id_tipe || !$merk || !$perusahaan) {
+            echo json_encode($response('error', 'Nomor Unit, Tipe Kendaraan, Merk, dan Perusahaan wajib diisi.'));
             return;
         }
-        if (empty($alasan_edit)) {
-            echo json_encode(['status' => 'error', 'message' => 'Jelaskan tindakan perbaikan / alasan pengajuan ulang.']);
+
+        // Cek duplikasi nomor unit (abaikan ID kendaraan sendiri)
+        if ($this->kendaraan_model->is_nomor_unit_exists($nomor_unit, $pengajuan->id_kendaraan)) {
+            echo json_encode($response('error', 'Nomor Unit <strong>' . html_escape($nomor_unit) . '</strong> sudah terdaftar pada kendaraan lain.'));
             return;
         }
 
         $this->db->trans_start();
 
-        // Update data pengajuan
-        $this->db->where('id_pengajuan', $id_pengajuan)->update('pengajuan_uji', [
-            'tujuan'                  => $tujuan,
-            'email_pemohon'           => $email,
-            'tipe_akses'              => $this->input->post('tipe_akses') ?: $pengajuan->tipe_akses,
-            'status'                  => 'pengajuan_ulang',
-            'tanggal_pengajuan'       => date('Y-m-d H:i:s'),
-            'alasan_pengajuan_ulang'  => $alasan_edit,
+        // 1. Update data master kendaraan
+        $this->kendaraan_model->update_kendaraan($pengajuan->id_kendaraan, [
+            'no_polisi'         => $no_polisi ?: $nomor_unit,
+            'nomor_unit'        => $nomor_unit,
+            'model_unit'        => $model_unit ?: null,
+            'id_tipe_kendaraan' => $id_tipe,
+            'merk'              => $merk,
+            'tipe'              => $tipe ?: null,
+            'tahun'             => $tahun ?: null,
+            'perusahaan'        => $perusahaan,
+            'is_unit_baru'      => $is_unit_baru,
+            'updated_at'        => date('Y-m-d H:i:s'),
         ]);
 
-        // ── Replace lampiran per jenis ──────────────────────────────────────
-        // Hanya jenis yang dikirim user (ada di $_FILES) yang diupdate
-        $jenis_list = ['stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan', 'maintenance_record'];
-        $upload_errors = [];
+        // 2. Update data pengajuan_uji & ubah status ke pengajuan_baru (agar masuk ke queue manager lagi)
+        $this->db->where('id_pengajuan', $id_pengajuan)->update('pengajuan_uji', [
+            'tipe_akses'        => $tipe_akses ?: null,
+            'tujuan'            => $tujuan ?: null,
+            'status'            => 'pengajuan_baru',
+            'tanggal_pengajuan' => date('Y-m-d H:i:s'),
+        ]);
 
-        foreach ($jenis_list as $jenis) {
-            $field = 'lampiran_' . $jenis;
-            if (empty($_FILES[$field]['name'])) continue; // tidak dikirim, skip
-
-            $err = $this->_upload_replace_lampiran($id_pengajuan, $jenis, $field);
-            if ($err) {
-                $upload_errors[] = $jenis . ': ' . $err;
-            }
-        }
-
-        // Catat di approval log
-        $this->db->insert('pengajuan_approval', [
+        // 3. Catat log approval resubmit
+        $this->pengajuan_model->insert_approval([
             'id_pengajuan'   => $id_pengajuan,
             'id_approver'    => $id_user,
-            'level_approval' => 'edit_admin_dept',
-            'status'         => 'approved',
-            'catatan'        => 'Diedit dan diajukan ulang: ' . $alasan_edit,
+            'level_approval' => 'edit_resubmit',
+            'status'         => 'submitted',
+            'catatan'        => 'Pengajuan diperbarui & dikirim ulang oleh Admin Dept',
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
-        $this->_audit('edit_pengajuan', 'pengajuan_uji', $id_pengajuan);
+        // 4. Update file lampiran jika diunggah file baru
+        $jenis_list   = ['sertifikasi', 'stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan', 'maintenance_record'];
+        $upload_errs  = [];
+
+        foreach ($jenis_list as $jenis) {
+            $field = 'lampiran_' . $jenis;
+            if (!empty($_FILES[$field]['name'])) {
+                $err = $this->_upload_replace_lampiran($id_pengajuan, $jenis, $field);
+                if ($err) $upload_errs[] = strtoupper($jenis) . ': ' . $err;
+            }
+        }
+
+        $this->_audit('update_pengajuan', 'pengajuan_uji', $id_pengajuan);
         $this->db->trans_complete();
 
-        if (!$this->db->trans_status()) {
-            echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan perubahan.']);
-            return;
+        if ($this->db->trans_status()) {
+            $no  = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
+            $msg = 'Pengajuan <strong>' . $no . '</strong> berhasil diperbarui dan dikirim ulang ke <strong>Dept Manager</strong>.';
+            if (!empty($upload_errs)) {
+                $msg .= ' Catatan upload: ' . implode(', ', $upload_errs);
+            }
+            echo json_encode($response('success', $msg));
+        } else {
+            echo json_encode($response('error', 'Gagal memperbarui pengajuan. Silakan coba lagi.'));
         }
-
-        $no  = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
-        $msg = 'Pengajuan <strong>' . $no . '</strong> telah diperbaiki dan dikirim ulang ke '
-            . '<strong>Dept Manager</strong> untuk review.';
-
-        if (!empty($upload_errors)) {
-            $msg .= '<br><small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>'
-                . 'Beberapa lampiran gagal diupload: ' . implode(', ', $upload_errors) . '</small>';
-        }
-
-        echo json_encode([
-            'status'   => 'success',
-            'message'  => $msg,
-            'redirect' => site_url('pengajuan'),
-        ]);
     }
-    //   - tidak_lulus_inspeksi (setelah perbaikan unit)
-    //   - ditolak_ktt
-    //   - ditolak_ohs_supt
-    // Langsung masuk ke antrian Dept Manager (status = diterima_manager)
-    // ============================================================
+
+    /**
+     * Endpoint AJAX Pengajuan Ulang (Resubmit) Unit pasca perbaikan atau pasca penolakan.
+     * Mengembalikan status berkas ke antrean Dept Manager.
+     * 
+     * @return void Response JSON status resubmit
+     */
     public function resubmit()
     {
         if (!$this->input->is_ajax_request()) show_404();
@@ -760,17 +762,15 @@ class Pengajuan extends CI_Controller
             return;
         }
 
-        // Status yang diizinkan untuk diajukan ulang
         $status_boleh = ['tidak_lulus_inspeksi', 'ditolak_ktt', 'ditolak_ohs_supt'];
         if (!in_array($pengajuan->status, $status_boleh)) {
             echo json_encode([
                 'status'  => 'error',
-                'message' => 'Pengajuan dengan status <strong>' . $pengajuan->status . '</strong> tidak dapat diajukan ulang.',
+                'message' => 'Pengajuan dengan status <strong>' . html_escape($pengajuan->status) . '</strong> tidak dapat diajukan ulang.',
             ]);
             return;
         }
 
-        // Admin Dept hanya bisa resubmit pengajuannya sendiri
         if (in_array(7, $roles) && !in_array(1, $roles) && $pengajuan->id_pemohon != $id_user) {
             echo json_encode(['status' => 'error', 'message' => 'Anda hanya dapat mengajukan ulang pengajuan milik Anda sendiri.']);
             return;
@@ -778,14 +778,14 @@ class Pengajuan extends CI_Controller
 
         $this->db->trans_start();
 
-        // Ubah status: langsung masuk antrian Dept Manager untuk di-review ulang
+        // Update status pengajuan ulang
         $this->db->where('id_pengajuan', $id_pengajuan)->update('pengajuan_uji', [
-            'status'                  => 'pengajuan_ulang',
-            'alasan_pengajuan_ulang'  => $alasan,
-            'tanggal_pengajuan'       => date('Y-m-d H:i:s'), // update tanggal
+            'status'                 => 'pengajuan_ulang',
+            'alasan_pengajuan_ulang' => $alasan,
+            'tanggal_pengajuan'      => date('Y-m-d H:i:s'),
         ]);
 
-        // Catat di approval log
+        // Catat log approval
         $this->db->insert('pengajuan_approval', [
             'id_pengajuan'   => $id_pengajuan,
             'id_approver'    => $id_user,
@@ -796,7 +796,6 @@ class Pengajuan extends CI_Controller
         ]);
 
         $this->_audit('resubmit_pengajuan', 'pengajuan_uji', $id_pengajuan);
-
         $this->db->trans_complete();
 
         if (!$this->db->trans_status()) {
@@ -811,6 +810,11 @@ class Pengajuan extends CI_Controller
         ]);
     }
 
+    /**
+     * Helper privat verifikasi skema kolom is_alat_berat pada tipe_kendaraan.
+     * 
+     * @return void
+     */
     private function _check_schema_alat_berat()
     {
         static $checked = false;
@@ -823,43 +827,73 @@ class Pengajuan extends CI_Controller
         }
     }
 
+    /**
+     * Helper privat upload multiple lampiran dokumen dan foto unit baru.
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @return array List pesan error upload jika ada
+     */
     private function _upload_lampiran($id_pengajuan)
     {
         $errors     = [];
         $jenis_list = ['sertifikasi', 'stnk', 'unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'];
         $path       = FCPATH . 'uploads/lampiran/' . $id_pengajuan . '/';
         if (!is_dir($path)) mkdir($path, 0755, true);
+
         foreach ($jenis_list as $jenis) {
             $field = 'lampiran_' . $jenis;
             if (empty($_FILES[$field]['name'])) continue;
+
             $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
-            $this->upload->initialize(['upload_path' => $path, 'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|webp|JPG|JPEG|PNG|PDF|DOC|DOCX|WEBP', 'max_size' => 10240, 'file_name' => $unique_name, 'overwrite' => false]);
+            $this->upload->initialize([
+                'upload_path'   => $path, 
+                'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|webp|JPG|JPEG|PNG|PDF|DOC|DOCX|WEBP', 
+                'max_size'      => 10240, 
+                'file_name'     => $unique_name, 
+                'overwrite'     => false
+            ]);
+
             if (!$this->upload->do_upload($field)) {
                 $errors[] = $this->upload->display_errors('', '');
             } else {
                 $info = $this->upload->data();
-                $this->pengajuan_model->insert_lampiran(['id_pengajuan' => $id_pengajuan, 'jenis_lampiran' => $jenis, 'file_path' => 'uploads/lampiran/' . $id_pengajuan . '/' . $info['file_name'], 'uploaded_at' => date('Y-m-d H:i:s')]);
+                $this->pengajuan_model->insert_lampiran([
+                    'id_pengajuan'   => $id_pengajuan, 
+                    'jenis_lampiran' => $jenis, 
+                    'file_path'      => 'uploads/lampiran/' . $id_pengajuan . '/' . $info['file_name'], 
+                    'uploaded_at'    => date('Y-m-d H:i:s')
+                ]);
             }
         }
         return $errors;
     }
 
-    // Upload satu file lampiran — untuk maintenance_record (opsional)
+    /**
+     * Helper privat upload 1 lampiran dokumen tunggal.
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @param string $jenis Jenis lampiran
+     * @param string $field_name Nama field form input file
+     * @return string|null String pesan error jika gagal, null jika sukses
+     */
     private function _upload_single_lampiran($id_pengajuan, $jenis, $field_name)
     {
         $path = FCPATH . 'uploads/lampiran/' . $id_pengajuan . '/';
         if (!is_dir($path)) mkdir($path, 0755, true);
+
         $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
         $this->upload->initialize([
             'upload_path'   => $path,
             'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx|xls|xlsx|webp|JPG|JPEG|PNG|PDF|DOC|DOCX|XLS|XLSX|WEBP',
-            'max_size'      => 10240,   // 10MB
+            'max_size'      => 10240,
             'file_name'     => $unique_name,
             'overwrite'     => false,
         ]);
+
         if (!$this->upload->do_upload($field_name)) {
             return $this->upload->display_errors('', '');
         }
+
         $info = $this->upload->data();
         $this->pengajuan_model->insert_lampiran([
             'id_pengajuan'   => $id_pengajuan,
@@ -867,9 +901,16 @@ class Pengajuan extends CI_Controller
             'file_path'      => 'uploads/lampiran/' . $id_pengajuan . '/' . $info['file_name'],
             'uploaded_at'    => date('Y-m-d H:i:s'),
         ]);
-        return null; // null = sukses
+
+        return null;
     }
 
+    /**
+     * Helper privat pembentuk elemen HTML badge status pengajuan.
+     * 
+     * @param string $status Kode status pengajuan
+     * @return string HTML Badge Status
+     */
     private function _badge_status($status)
     {
         $map = [
@@ -892,10 +933,16 @@ class Pengajuan extends CI_Controller
             'stiker_keluar'          => ['bg-success text-white',    'Stiker Sudah Keluar'],
             'rejected'               => ['bg-danger text-white',     'Ditolak'],
         ];
-        $cfg = $map[$status] ?? ['bg-secondary text-white', $status];
+        $cfg = $map[$status] ?? ['bg-secondary text-white', html_escape($status)];
         return '<span class="badge ' . $cfg[0] . '">' . $cfg[1] . '</span>';
     }
 
+    /**
+     * Helper privat penyusun kumpulan tombol aksi pada baris tabel DataTables berdasarkan role & status.
+     * 
+     * @param object $row Object data baris pengajuan
+     * @return string HTML konsol tombol aksi
+     */
     private function _tombol_aksi($row)
     {
         $id    = $row->id_pengajuan;
@@ -905,7 +952,6 @@ class Pengajuan extends CI_Controller
         $btn  = '<div class="d-flex gap-1 flex-wrap">';
         $btn .= '<button class="btn btn-sm btn-outline-primary py-0 btn-detail" data-id="' . $id . '" title="Lihat Detail"><i class="bi bi-eye"></i></button>';
 
-        // Admin Dept edit kalau draft / ditolak manager
         if (
             $this->_has_role([1, 7], $roles)
             && in_array($row->status, ['draft', 'ditolak_manager'])
@@ -917,40 +963,30 @@ class Pengajuan extends CI_Controller
                 . '<i class="bi bi-pencil me-1"></i>Edit</a>';
         }
 
-        // Dept Manager
         if ($this->_has_role([1, 6], $roles) && in_array($row->status, ['pengajuan_baru', 'pengajuan_ulang', 'ditolak_admin_ohs'])) {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-approve" data-id="' . $id . '" data-level="dept_manager" title="Setujui"><i class="bi bi-check-lg"></i></button>';
             $btn .= '<button class="btn btn-sm btn-danger  py-0 btn-reject"  data-id="' . $id . '" data-level="dept_manager" title="Tolak"><i class="bi bi-x-lg"></i></button>';
         }
 
-        // Admin OHS — review dokumen
         if ($this->_has_role([1, 5], $roles) && $row->status === 'diterima_manager') {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-approve" data-id="' . $id . '" data-level="admin_ohs" title="Setujui & Jadwalkan"><i class="bi bi-calendar-check"></i></button>';
             $btn .= '<button class="btn btn-sm btn-danger  py-0 btn-reject"  data-id="' . $id . '" data-level="admin_ohs" title="Tolak"><i class="bi bi-x-lg"></i></button>';
         }
 
-        // Admin OHS — review hasil inspeksi sudah dihapus (langsung ke OHS Supt jika lulus)
-        // Status lulus_inspeksi → OHS Supt yang handle
-        // Status tidak_lulus_inspeksi → Dept Manager yang handle (sudah di bagian atas)
-
-        // Admin OHS — release stiker setelah acc KTT
         if ($this->_has_role([1, 5], $roles) && $row->status === 'acc_ktt') {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-release-stiker" data-id="' . $id . '" title="Terbitkan Stiker"><i class="bi bi-patch-check"></i></button>';
         }
 
-        // OHS Superintendent
         if ($this->_has_role([1, 3], $roles) && $row->status === 'diterima_admin_ohs') {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-approve" data-id="' . $id . '" data-level="ohs_supt" title="Setujui OHS Supt"><i class="bi bi-check-lg"></i></button>';
             $btn .= '<button class="btn btn-sm btn-danger  py-0 btn-reject"  data-id="' . $id . '" data-level="ohs_supt" title="Tolak"><i class="bi bi-x-lg"></i></button>';
         }
 
-        // KTT
         if ($this->_has_role([1, 2], $roles) && $row->status === 'diterima_ohs_supt') {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-approve" data-id="' . $id . '" data-level="ktt" title="ACC KTT"><i class="bi bi-check-lg"></i></button>';
             $btn .= '<button class="btn btn-sm btn-danger  py-0 btn-reject"  data-id="' . $id . '" data-level="ktt" title="Tolak"><i class="bi bi-x-lg"></i></button>';
         }
 
-        // Mekanik / Inspektor — form inspeksi (dijadwalkan) atau verifikasi perbaikan (inspeksi_ulang)
         if ($this->_has_role([1, 4], $roles) && $row->status === 'dijadwalkan') {
             $btn .= '<a href="' . site_url('checklist/form/' . $id) . '" class="btn btn-sm btn-warning py-0" title="Isi Form Inspeksi"><i class="bi bi-tools"></i></a>';
         }
@@ -958,14 +994,12 @@ class Pengajuan extends CI_Controller
             $btn .= '<a href="' . site_url('checklist/form/' . $id) . '" class="btn btn-sm btn-info py-0 text-white" title="Verifikasi Hasil Perbaikan"><i class="bi bi-patch-check"></i></a>';
         }
 
-        // Admin Dept — tombol tindakan untuk status yang dikembalikan
         $status_boleh_ulang = ['ditolak_ktt', 'ditolak_ohs_supt'];
         if (
             $this->_has_role([1, 7], $roles)
             && $row->status === 'tidak_lulus_inspeksi'
             && ($uid == $row->id_pemohon || in_array(1, $roles))
         ) {
-            // → form perbaikan (input bukti perbaikan, langsung ke inspektor)
             $btn .= '<a href="' . site_url('perbaikan/form/' . $id) . '"'
                 . ' class="btn btn-sm btn-danger py-0 fw-semibold text-white"'
                 . ' title="Input Data Perbaikan Unit">'
@@ -977,12 +1011,11 @@ class Pengajuan extends CI_Controller
             && in_array($row->status, $status_boleh_ulang)
             && ($uid == $row->id_pemohon || in_array(1, $roles))
         ) {
-            // ditolak_ktt / ditolak_ohs_supt → modal resubmit biasa
             $info_btn = 'Pengajuan dikembalikan — ajukan ulang ke Dept Manager';
             $btn .= '<button class="btn btn-sm btn-warning py-0 btn-resubmit fw-semibold"'
                 . ' data-id="' . $id . '"'
                 . ' data-polisi="' . html_escape($row->no_polisi) . '"'
-                . ' data-status="' . $row->status . '"'
+                . ' data-status="' . html_escape($row->status) . '"'
                 . ' data-info="' . html_escape($info_btn) . '"'
                 . ' title="Ajukan Ulang">'
                 . '<i class="bi bi-arrow-repeat me-1"></i>Ajukan Ulang</button>';
@@ -991,17 +1024,23 @@ class Pengajuan extends CI_Controller
         $btn .= '</div>';
         return $btn;
     }
+
+    /**
+     * Helper privat penggantian file lampiran dokumen/foto.
+     * 
+     * @param int $id_pengajuan ID Pengajuan
+     * @param string $jenis Jenis lampiran
+     * @param string $field_name Field file form
+     * @return string|null String error jika ada, null jika sukses
+     */
     private function _upload_replace_lampiran($id_pengajuan, $jenis, $field_name)
     {
         $path = FCPATH . 'uploads/lampiran/' . $id_pengajuan . '/';
         if (!is_dir($path)) mkdir($path, 0755, true);
 
-        // Tentukan allowed types berdasarkan jenis
         $doc_types = 'jpg|jpeg|png|pdf|doc|docx|xls|xlsx';
         $img_types = 'jpg|jpeg|png';
-        $allowed   = ($jenis === 'stnk' || $jenis === 'maintenance_record')
-            ? $doc_types
-            : $img_types;
+        $allowed   = ($jenis === 'stnk' || $jenis === 'maintenance_record') ? $doc_types : $img_types;
 
         $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
 
@@ -1017,10 +1056,9 @@ class Pengajuan extends CI_Controller
             return $this->upload->display_errors('', '');
         }
 
-        $info       = $this->upload->data();
-        $new_path   = 'uploads/lampiran/' . $id_pengajuan . '/' . $info['file_name'];
+        $info     = $this->upload->data();
+        $new_path = 'uploads/lampiran/' . $id_pengajuan . '/' . $info['file_name'];
 
-        // Cek apakah record lama ada
         $existing = $this->db
             ->where('id_pengajuan', $id_pengajuan)
             ->where('jenis_lampiran', $jenis)
@@ -1028,8 +1066,6 @@ class Pengajuan extends CI_Controller
             ->row();
 
         if ($existing) {
-            // File fisik lama TIDAK DIHAPUS (disimpan permanen di server)
-            // Cukup perbarui pointer path ke file baru di database
             $this->db
                 ->where('id_lampiran', $existing->id_lampiran)
                 ->update('pengajuan_lampiran', [
@@ -1037,7 +1073,6 @@ class Pengajuan extends CI_Controller
                     'uploaded_at' => date('Y-m-d H:i:s'),
                 ]);
         } else {
-            // Insert baru
             $this->pengajuan_model->insert_lampiran([
                 'id_pengajuan'   => $id_pengajuan,
                 'jenis_lampiran' => $jenis,
@@ -1046,8 +1081,14 @@ class Pengajuan extends CI_Controller
             ]);
         }
 
-        return null; // sukses
+        return null;
     }
+
+    /**
+     * Helper privat mengambil daftar ID role pengguna yang sedang login.
+     * 
+     * @return array Array integer ID role
+     */
     private function _user_roles()
     {
         $raw = $this->session->userdata('roles');
@@ -1056,6 +1097,13 @@ class Pengajuan extends CI_Controller
         return $r > 0 ? [$r] : [];
     }
 
+    /**
+     * Helper privat pengecekan apakah pengguna memiliki salah satu role yang disyaratkan.
+     * 
+     * @param array $required List ID role yang disyaratkan
+     * @param array $user_roles List ID role yang dimiliki user
+     * @return bool True jika memenuhi hak akses
+     */
     private function _has_role(array $required, array $user_roles)
     {
         foreach ($required as $r) {
@@ -1064,8 +1112,22 @@ class Pengajuan extends CI_Controller
         return false;
     }
 
+    /**
+     * Helper privat mencatat aktivitas pengguna ke tabel audit_log.
+     * 
+     * @param string $aksi Jenis aksi aktivitas
+     * @param string $tabel Nama tabel sasaran
+     * @param int|string $id_ref ID referensi record
+     * @return void
+     */
     private function _audit($aksi, $tabel, $id_ref)
     {
-        $this->db->insert('audit_log', ['id_user' => $this->session->userdata('id_user'), 'aksi' => $aksi, 'tabel' => $tabel, 'id_ref' => $id_ref, 'created_at' => date('Y-m-d H:i:s')]);
+        $this->db->insert('audit_log', [
+            'id_user'    => $this->session->userdata('id_user'), 
+            'aksi'       => $aksi, 
+            'tabel'      => $tabel, 
+            'id_ref'     => $id_ref, 
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
     }
 }

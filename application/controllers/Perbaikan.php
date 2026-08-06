@@ -1,22 +1,41 @@
 <?php
-
-
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Controller Perbaikan
+ * 
+ * Pengelolaan alur tindakan perbaikan unit kendaraan pasca inspeksi yang tidak lulus (temuan NO).
+ * Alur Kerja:
+ * 1. Admin Departemen menginput tindakan perbaikan & mengunggah foto bukti perbaikan (form / store).
+ * 2. Status pengajuan berubah menjadi 'siap_verifikasi'.
+ * 3. Inspektor melakukan verifikasi fisik perbaikan (verifikasi / acc_verifikasi).
+ * 4. Jika verifikasi fisik disetujui (ACC) -> Status berubah ke 'inspeksi_ulang' (siap diuji ulang checklist).
+ * 5. Jika verifikasi fisik ditolak -> Status kembali ke 'tidak_lulus_inspeksi' untuk perbaikan ulang.
+ */
 class Perbaikan extends CI_Controller
 {
+    /**
+     * Konstruktor Controller Perbaikan
+     * Memuat model, library, helper, dan memverifikasi otentikasi login pengguna.
+     */
     public function __construct()
     {
         parent::__construct();
         $this->load->model(['Pengajuan_model' => 'pengajuan_model']);
         $this->load->library(['session', 'upload']);
         $this->load->helper(['url', 'form']);
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // FORM — Admin Dept input data perbaikan
-    // ─────────────────────────────────────────────────────────────────
+    /**
+     * Form Input Data Perbaikan Unit oleh Admin Departemen.
+     * 
+     * @param int|null $id_pengajuan ID Pengajuan
+     * @return void Render view perbaikan/form
+     */
     public function form($id_pengajuan = null)
     {
         $id_pengajuan = (int) $id_pengajuan;
@@ -33,7 +52,7 @@ class Perbaikan extends CI_Controller
             redirect('pengajuan');
         }
 
-        if (!in_array(1, $roles) && $pengajuan->id_pemohon != $this->session->userdata('id_user')) {
+        if (!in_array(1, $roles, true) && $pengajuan->id_pemohon != $this->session->userdata('id_user')) {
             $this->session->set_flashdata('error', 'Anda hanya dapat menginput perbaikan untuk pengajuan milik Anda.');
             redirect('pengajuan');
         }
@@ -47,7 +66,7 @@ class Perbaikan extends CI_Controller
             ->order_by('uk.id_uji', 'DESC')
             ->get()->row();
 
-        // Item TIDAK LULUS (NO) — temuan yang harus diperbaiki
+        // Temuan kriteria yang bernilai NO (tidak lulus)
         $checklist_no = [];
         if ($uji) {
             $checklist_no = $this->db
@@ -61,7 +80,7 @@ class Perbaikan extends CI_Controller
                 ->get()->result();
         }
 
-        // Foto temuan dari hasil inspeksi
+        // Foto temuan dari inspeksi sebelumnya
         $foto_temuan  = [];
         $foto_mekanik = [];
         if ($uji) {
@@ -78,7 +97,7 @@ class Perbaikan extends CI_Controller
                 ->get('uji_foto')->result();
         }
 
-        // Perbaikan yang mungkin sudah ada (re-entry)
+        // Ambil record perbaikan_unit yang ada jika re-entry
         $perbaikan_existing = $this->db
             ->where('id_pengajuan', $id_pengajuan)
             ->order_by('id_perbaikan', 'DESC')
@@ -113,9 +132,12 @@ class Perbaikan extends CI_Controller
         $this->load->view('templates/footer',  $data);
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // STORE — Simpan data perbaikan → status: siap_verifikasi
-    // ─────────────────────────────────────────────────────────────────
+    /**
+     * Endpoint Simpan (Store) Perbaikan Unit oleh Admin Departemen.
+     * Mengunggah file bukti perbaikan dan mengubah status pengajuan ke 'siap_verifikasi'.
+     * 
+     * @return void Redirect ke halaman pengajuan
+     */
     public function store()
     {
         $roles = $this->_roles();
@@ -139,7 +161,6 @@ class Perbaikan extends CI_Controller
             redirect('perbaikan/form/' . $id_pengajuan);
         }
 
-        // Ambil perbaikan_unit yang diinsert otomatis oleh Checklist::submit()
         $perbaikan_existing = $this->db
             ->where('id_pengajuan', $id_pengajuan)
             ->where('id_uji', $id_uji)
@@ -152,14 +173,11 @@ class Perbaikan extends CI_Controller
             $id_perbaikan = $perbaikan_existing->id_perbaikan;
             $this->db->where('id_perbaikan', $id_perbaikan)->update('perbaikan_unit', [
                 'catatan_perbaikan' => $catatan ?: null,
-                // Status "menunggu_verifikasi" menandakan Admin Dept sudah input,
-                // belum diverifikasi fisik oleh inspektor
                 'status'            => 'menunggu_verifikasi',
                 'tgl_selesai'       => date('Y-m-d'),
                 'updated_at'        => date('Y-m-d H:i:s'),
             ]);
         } else {
-            // Fallback: insert baru
             $this->db->insert('perbaikan_unit', [
                 'id_pengajuan'      => $id_pengajuan,
                 'id_uji'            => $id_uji,
@@ -173,7 +191,7 @@ class Perbaikan extends CI_Controller
             $id_perbaikan = $this->db->insert_id();
         }
 
-        // Upload bukti perbaikan (multiple, maks 10)
+        // Upload berkas bukti perbaikan
         $upload_errors = [];
         if (!empty($_FILES['bukti_perbaikan']['name'][0])) {
             $path = FCPATH . 'uploads/perbaikan/' . $id_pengajuan . '/';
@@ -213,12 +231,11 @@ class Perbaikan extends CI_Controller
             }
         }
 
-        // ── Status berubah ke siap_verifikasi ────────────────────────
-        // Inspektor yang menginspeksi sebelumnya akan menerima notifikasi
-        // bahwa unit sudah diperbaiki dan siap diperiksa secara fisik
+        // Ubah status pengajuan ke siap_verifikasi
         $this->db->where('id_pengajuan', $id_pengajuan)
             ->update('pengajuan_uji', ['status' => 'siap_verifikasi']);
 
+        // Log approval & audit
         $this->db->insert('pengajuan_approval', [
             'id_pengajuan'   => $id_pengajuan,
             'id_approver'    => $this->session->userdata('id_user'),
@@ -257,11 +274,12 @@ class Perbaikan extends CI_Controller
         redirect('pengajuan');
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // VERIFIKASI — Halaman verifikasi fisik oleh Inspektor
-    // Status masuk: siap_verifikasi
-    // Aksi: acc → inspeksi_ulang | tolak → tidak_lulus_inspeksi (kembali perbaikan)
-    // ─────────────────────────────────────────────────────────────────
+    /**
+     * Halaman Verifikasi Fisik Hasil Perbaikan oleh Inspektor (Role ID = 4).
+     * 
+     * @param int|null $id_pengajuan ID Pengajuan
+     * @return void Render view perbaikan/verifikasi
+     */
     public function verifikasi($id_pengajuan = null)
     {
         $id_pengajuan = (int) $id_pengajuan;
@@ -278,7 +296,6 @@ class Perbaikan extends CI_Controller
             redirect('inspeksi');
         }
 
-        // Ambil data uji inspeksi terakhir
         $uji = $this->db
             ->select('uk.*, u.nama AS nama_inspektor_user')
             ->from('uji_kelayakan uk')
@@ -287,7 +304,6 @@ class Perbaikan extends CI_Controller
             ->order_by('uk.id_uji', 'DESC')
             ->get()->row();
 
-        // Item NO dari inspeksi sebelumnya
         $checklist_no = [];
         if ($uji) {
             $checklist_no = $this->db
@@ -301,7 +317,6 @@ class Perbaikan extends CI_Controller
                 ->get()->result();
         }
 
-        // Data perbaikan yang diinput Admin Dept
         $perbaikan = $this->db
             ->select('pu.*, u.nama AS nama_verifikator')
             ->from('perbaikan_unit pu')
@@ -310,7 +325,6 @@ class Perbaikan extends CI_Controller
             ->order_by('pu.id_perbaikan', 'DESC')
             ->get()->row();
 
-        // Lampiran bukti perbaikan
         $lampiran_perbaikan = [];
         if ($perbaikan) {
             $lampiran_perbaikan = $this->db
@@ -328,17 +342,19 @@ class Perbaikan extends CI_Controller
             'lampiran_perbaikan' => $lampiran_perbaikan,
         ];
 
-        $this->load->view('templates/header',         $data);
-        $this->load->view('templates/sidebar',        $data);
-        $this->load->view('perbaikan/verifikasi',     $data);
-        $this->load->view('templates/footer',         $data);
+        $this->load->view('templates/header',     $data);
+        $this->load->view('templates/sidebar',    $data);
+        $this->load->view('perbaikan/verifikasi', $data);
+        $this->load->view('templates/footer',     $data);
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // ACC VERIFIKASI — AJAX: inspektor acc atau tolak verifikasi fisik
-    // acc   → status: inspeksi_ulang  (inspektor bisa isi checklist ulang)
-    // tolak → status: tidak_lulus_inspeksi (Admin Dept harus perbaiki ulang)
-    // ─────────────────────────────────────────────────────────────────
+    /**
+     * Endpoint AJAX ACC / Tolak Verifikasi Fisik oleh Inspektor.
+     * ACC   -> status berubah ke 'inspeksi_ulang' (siap diisi checklist ulang).
+     * Tolak -> status berubah ke 'tidak_lulus_inspeksi' (kembali ke perbaikan).
+     * 
+     * @return void Output JSON status verifikasi & URL redirect
+     */
     public function acc_verifikasi()
     {
         if (!$this->input->is_ajax_request()) show_404();
@@ -350,11 +366,11 @@ class Perbaikan extends CI_Controller
         }
 
         $id_pengajuan = (int) $this->input->post('id_pengajuan');
-        $aksi         = $this->input->post('aksi'); // 'acc' atau 'tolak'
+        $aksi         = $this->input->post('aksi');
         $catatan      = trim($this->input->post('catatan') ?? '');
         $id_inspektor = (int) $this->session->userdata('id_user');
 
-        if (!in_array($aksi, ['acc', 'tolak'])) {
+        if (!in_array($aksi, ['acc', 'tolak'], true)) {
             echo json_encode(['status' => 'error', 'message' => 'Aksi tidak valid.']);
             return;
         }
@@ -377,21 +393,18 @@ class Perbaikan extends CI_Controller
         $this->db->trans_start();
 
         if ($aksi === 'acc') {
-            // ── ACC: verifikasi fisik OK → siap pengujian ulang checklist ──
             $new_status       = 'inspeksi_ulang';
             $perbaikan_status = 'diverifikasi';
             $catatan_log      = 'Verifikasi fisik DITERIMA oleh inspektor. Unit siap diuji ulang.'
                 . ($catatan ? ' Catatan: ' . $catatan : '');
             $level_log        = 'verifikasi_perbaikan_acc';
         } else {
-            // ── TOLAK: perbaikan belum sesuai → kembali ke Admin Dept ──
             $new_status       = 'tidak_lulus_inspeksi';
             $perbaikan_status = 'ditolak_verifikasi';
             $catatan_log      = 'Verifikasi fisik DITOLAK. Perbaikan belum sesuai. ' . $catatan;
             $level_log        = 'verifikasi_perbaikan_tolak';
         }
 
-        // Update perbaikan_unit
         if ($perbaikan) {
             $this->db->where('id_perbaikan', $perbaikan->id_perbaikan)->update('perbaikan_unit', [
                 'status'         => $perbaikan_status,
@@ -400,11 +413,9 @@ class Perbaikan extends CI_Controller
             ]);
         }
 
-        // Update status pengajuan
         $this->db->where('id_pengajuan', $id_pengajuan)
             ->update('pengajuan_uji', ['status' => $new_status]);
 
-        // Log approval
         $this->db->insert('pengajuan_approval', [
             'id_pengajuan'   => $id_pengajuan,
             'id_approver'    => $id_inspektor,
@@ -414,7 +425,6 @@ class Perbaikan extends CI_Controller
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
-        // Audit log
         $this->db->insert('audit_log', [
             'id_user'    => $id_inspektor,
             'aksi'       => $aksi === 'acc' ? 'verif_perbaikan_acc' : 'verif_perbaikan_tolak',
@@ -435,24 +445,23 @@ class Perbaikan extends CI_Controller
         if ($aksi === 'acc') {
             echo json_encode([
                 'status'   => 'success',
-                'message'  => 'Verifikasi fisik <strong>' . $no . '</strong> diterima. '
-                    . 'Unit sekarang berstatus <strong>Siap Pengujian Ulang</strong>. '
-                    . 'Silakan lakukan pengujian checklist ulang.',
+                'message'  => 'Verifikasi fisik <strong>' . $no . '</strong> diterima. Unit berstatus <strong>Siap Pengujian Ulang</strong>.',
                 'redirect' => site_url('checklist/form/' . $id_pengajuan),
             ]);
         } else {
             echo json_encode([
                 'status'   => 'success',
-                'message'  => 'Verifikasi fisik <strong>' . $no . '</strong> ditolak. '
-                    . 'Admin Departemen akan diminta melakukan perbaikan ulang.',
+                'message'  => 'Verifikasi fisik <strong>' . $no . '</strong> ditolak. Admin Departemen diminta melakukan perbaikan ulang.',
                 'redirect' => site_url('inspeksi'),
             ]);
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────────────────────────
+    /**
+     * Helper privat mengambil array ID role pengguna.
+     * 
+     * @return array Array integer ID role
+     */
     private function _roles()
     {
         $raw = $this->session->userdata('roles');
@@ -461,10 +470,17 @@ class Perbaikan extends CI_Controller
         return $r > 0 ? [$r] : [];
     }
 
+    /**
+     * Helper privat mengecek kecocokan hak akses role.
+     * 
+     * @param array $req Role yang disyaratkan
+     * @param array $user_roles Role yang dimiliki user
+     * @return bool True jika diizinkan
+     */
     private function _has(array $req, array $user_roles)
     {
         foreach ($req as $r) {
-            if (in_array((int) $r, $user_roles)) return true;
+            if (in_array((int) $r, $user_roles, true)) return true;
         }
         return false;
     }

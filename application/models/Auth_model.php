@@ -1,10 +1,19 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+/**
+ * Model Auth_model
+ * 
+ * Pengelolaan otentikasi akun pengguna (Login via email/username),
+ * penarikan daftar role user, serta Just-In-Time (JIT) provisioning pengguna dari LDAP.
+ */
 class Auth_model extends CI_Model
 {
     /**
-     * Login by email — return user row lengkap termasuk foto, jabatan, departemen
+     * Memeriksa otentikasi login berdasarkan alamat email pengguna.
+     * 
+     * @param string $email Alamat email yang diinput
+     * @return object|null Object data user jika aktif dan terdaftar, null jika tidak ada
      */
     public function check_login_by_email($email)
     {
@@ -22,14 +31,17 @@ class Auth_model extends CI_Model
 
         if ($user && !isset($user->auth_source)) {
             $user->auth_source = 'local';
-            $user->ldap_dn = null;
+            $user->ldap_dn     = null;
         }
 
         return $user;
     }
 
     /**
-     * Login by username — return user row lengkap
+     * Memeriksa otentikasi login berdasarkan username pengguna.
+     * 
+     * @param string $username Username yang diinput
+     * @return object|null Object data user jika aktif dan terdaftar, null jika tidak ada
      */
     public function check_login_by_username($username)
     {
@@ -47,15 +59,17 @@ class Auth_model extends CI_Model
 
         if ($user && !isset($user->auth_source)) {
             $user->auth_source = 'local';
-            $user->ldap_dn = null;
+            $user->ldap_dn     = null;
         }
 
         return $user;
     }
 
     /**
-     * Ambil semua role milik user dari tabel user_roles + nama role
-     * Return: array of objects [{id_role, nama_role}]
+     * Mengambil daftar seluruh role yang dimiliki oleh pengguna dari tabel user_roles.
+     * 
+     * @param int $id_user ID User
+     * @return array List object [{id_role, nama_role}]
      */
     public function get_user_roles($id_user)
     {
@@ -63,15 +77,18 @@ class Auth_model extends CI_Model
             ->select('r.id_role, r.nama_role')
             ->from('user_roles ur')
             ->join('roles r', 'r.id_role = ur.id_role')
-            ->where('ur.id_user', $id_user)
+            ->where('ur.id_user', (int) $id_user)
             ->order_by('r.id_role', 'ASC')
             ->get()
             ->result();
     }
 
     /**
-     * Otomatis mendaftarkan user baru dari LDAP ke DB lokal (JIT Provisioning)
-     * User baru diberi id_role = 0 (Menunggu penetapan Role oleh Administrator)
+     * Mendaftarkan pengguna baru secara otomatis saat berhasil login via LDAP (JIT Provisioning).
+     * 
+     * @param string $username Username pengguna
+     * @param array $ldap_attrs Atribut tambahan dari LDAP (email, full_name, dn)
+     * @return object|bool Object data user baru jika sukses, false jika gagal
      */
     public function auto_provision_ldap_user($username, $ldap_attrs = [])
     {
@@ -79,7 +96,7 @@ class Auth_model extends CI_Model
         $full_name = !empty($ldap_attrs['full_name']) ? $ldap_attrs['full_name'] : ucfirst($username);
 
         $data_user = [
-            'id_role'     => 0, // Pending Role: Menunggu penetapan role dari Admin
+            'id_role'     => 0, // Role default: Pending menetapkan role dari Administrator
             'nama'        => $full_name,
             'username'    => $username,
             'email'       => $email,

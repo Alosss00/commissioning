@@ -2,21 +2,17 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
- * Inspeksi Controller
- * Roles: 1=Super Admin, 4=Inspektor
- *
- * ROOT CAUSE FINAL:
- * Semua jadwal scheduled sudah di-assign ke id_inspektor tertentu (misal id=8).
- * Filter (j.id_inspektor = $id_user OR j.id_inspektor IS NULL) menyebabkan
- * inspektor lain (misal id=3) tidak melihat jadwal tersebut sama sekali.
- *
- * KEPUTUSAN BISNIS:
- * Semua inspektor (role 4) dapat melihat SEMUA kendaraan yang berstatus
- * 'dijadwalkan' atau 'inspeksi_ulang' — tanpa filter id_inspektor.
- * Kolom "Inspektor" di tabel hanya bersifat informasi siapa yang ditugaskan.
+ * Controller Inspeksi
+ * 
+ * Pengelolaan antarmuka khusus Inspektor (Role ID = 4) & Super Admin (Role ID = 1)
+ * untuk melihat daftar antrean pengajuan unit yang siap diinspeksi atau diuji ulang.
  */
 class Inspeksi extends CI_Controller
 {
+    /**
+     * Konstruktor Controller Inspeksi
+     * Memuat model, library, helper, dan memverifikasi otorisasi Inspektor (4) & Super Admin (1).
+     */
     public function __construct()
     {
         parent::__construct();
@@ -27,7 +23,9 @@ class Inspeksi extends CI_Controller
         $this->load->library('session');
         $this->load->helper('url');
 
-        if (!$this->session->userdata('id_user')) redirect('auth/login');
+        if (!$this->session->userdata('id_user')) {
+            redirect('auth/login');
+        }
 
         $roles = $this->_user_roles();
         if (!$this->_has_role([1, 4], $roles)) {
@@ -36,15 +34,19 @@ class Inspeksi extends CI_Controller
         }
     }
 
-    // =========================================================
-    // INDEX — daftar pengajuan siap diinspeksi
-    // =========================================================
+    /**
+     * Halaman Indeks Daftar Unit Siap Diinspeksi.
+     * Mengambil daftar pengajuan berstatus 'dijadwalkan' atau 'inspeksi_ulang' (Eager JOIN).
+     * 
+     * @return void Render view inspeksi/index
+     */
     public function index()
     {
         $id_user  = (int) $this->session->userdata('id_user');
         $roles    = $this->_user_roles();
-        $is_admin = in_array(1, $roles);
+        $is_admin = in_array(1, $roles, true);
 
+        // Query ter-optimasikan (JOIN 1 kali query)
         $this->db->select('
             pu.id_pengajuan, pu.status, pu.tipe_pengajuan, pu.tipe_akses, pu.tujuan,
             k.no_polisi, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun,
@@ -65,19 +67,16 @@ class Inspeksi extends CI_Controller
         $this->db->join('users ui',          'ui.id_user = j.id_inspektor',               'left');
         $this->db->join('uji_kelayakan uk',  'uk.id_pengajuan = pu.id_pengajuan',         'left');
 
-        // Hanya pengajuan yang siap diinspeksi
+        // Pengajuan dalam status dijadwalkan atau inspeksi_ulang
         $this->db->where_in('pu.status', ['dijadwalkan', 'inspeksi_ulang']);
 
-        // Hanya jadwal yang masih aktif (scheduled) atau belum ada jadwal
+        // Jadwal aktif atau belum terbit jadwal
         $this->db->group_start();
         $this->db->where('j.status', 'scheduled');
         $this->db->or_where('j.id_jadwal IS NULL', null, false);
         $this->db->group_end();
 
-        // TIDAK ada filter id_inspektor — semua inspektor role 4 melihat semua jadwal
-        // id_inspektor di tabel hanya sebagai informasi penugasan, bukan pembatas akses
-
-        // Jadwal yang ditugaskan ke inspektor ini tampil paling atas
+        // Mengurutkan jadwal penugasan pribadi di bagian paling atas
         $this->db->order_by("CASE WHEN j.id_inspektor = {$id_user} THEN 0 ELSE 1 END", 'ASC', false);
         $this->db->order_by("CASE WHEN pu.status = 'inspeksi_ulang' THEN 0 ELSE 1 END", 'ASC', false);
         $this->db->order_by('j.tanggal_uji', 'ASC');
@@ -92,9 +91,11 @@ class Inspeksi extends CI_Controller
         $this->load->view('templates/footer',  $data);
     }
 
-    // =========================================================
-    // Helpers
-    // =========================================================
+    /**
+     * Helper privat mengambil array ID role pengguna.
+     * 
+     * @return array Array integer ID role
+     */
     private function _user_roles()
     {
         $raw = $this->session->userdata('roles');
@@ -103,10 +104,17 @@ class Inspeksi extends CI_Controller
         return $r > 0 ? [$r] : [];
     }
 
+    /**
+     * Helper privat verifikasi hak akses pengguna.
+     * 
+     * @param array $required List ID role yang disyaratkan
+     * @param array $user_roles List ID role yang dimiliki user
+     * @return bool True jika diizinkan
+     */
     private function _has_role(array $required, array $user_roles)
     {
         foreach ($required as $r) {
-            if (in_array((int) $r, $user_roles)) return true;
+            if (in_array((int) $r, $user_roles, true)) return true;
         }
         return false;
     }
