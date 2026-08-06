@@ -175,6 +175,7 @@
 
 
 <script>
+    $(function() {
         var modal = new bootstrap.Modal(document.getElementById('modalTipe'));
 
         /* ── DataTable ──────────────────────────────────────────────── */
