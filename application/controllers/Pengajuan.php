@@ -324,16 +324,16 @@ class Pengajuan extends CI_Controller
         }
 
         // Mode Unit Baru
-        $no_polisi     = strtoupper(trim($this->input->post('no_polisi')));
-        $nomor_unit    = strtoupper(trim($this->input->post('nomor_unit')));
-        $model_unit    = trim($this->input->post('model_unit'));
+        $no_polisi     = strtoupper(trim((string) $this->input->post('no_polisi')));
+        $nomor_unit    = strtoupper(trim((string) $this->input->post('nomor_unit')));
+        $model_unit    = trim((string) $this->input->post('model_unit'));
         $id_tipe       = (int) $this->input->post('id_tipe_kendaraan');
-        $merk          = trim($this->input->post('merk'));
-        $tipe          = trim($this->input->post('tipe'));
+        $merk          = trim((string) $this->input->post('merk'));
+        $tipe          = trim((string) $this->input->post('tipe'));
         $tahun         = (int) $this->input->post('tahun');
-        $perusahaan    = trim($this->input->post('perusahaan'));
-        $tipe_akses    = trim($this->input->post('tipe_akses'));
-        $tujuan        = trim($this->input->post('tujuan'));
+        $perusahaan    = trim((string) $this->input->post('perusahaan'));
+        $tipe_akses    = trim((string) $this->input->post('tipe_akses'));
+        $tujuan        = trim((string) $this->input->post('tujuan'));
         $is_unit_baru  = (int) $this->input->post('is_unit_baru');
 
         if (!$nomor_unit || !$id_tipe || !$merk || !$perusahaan) {
