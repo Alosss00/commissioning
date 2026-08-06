@@ -412,11 +412,17 @@ class Pengajuan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $start   = (int) $this->input->post('start');
+        $start   = max(0, (int) $this->input->post('start'));
         $length  = (int) $this->input->post('length');
         $draw    = (int) $this->input->post('draw');
         $roles   = $this->_user_roles();
         $id_user = (int) $this->session->userdata('id_user');
+
+        // Proteksi beban server: Batasi jumlah data per query (default 10, max 500)
+        if ($length <= 0) {
+            $length = 10;
+        }
+        $length = min($length, 500);
 
         $filters = [
             'status'     => trim($this->input->post('status')     ?? ''),

@@ -58,8 +58,12 @@ class Kendaraan extends CI_Controller
         if (!$this->input->is_ajax_request()) show_404();
 
         $draw   = $this->input->post('draw');
-        $start  = (int) $this->input->post('start');
+        $start  = max(0, (int) $this->input->post('start'));
         $length = (int) $this->input->post('length');
+        if ($length <= 0) {
+            $length = 25;
+        }
+        $length = min($length, 500);
 
         $filters = [
             'search'          => $this->input->post('search')['value'],
