@@ -360,7 +360,6 @@ class Pengajuan extends CI_Controller
             'tahun'             => $tahun ?: null,
             'perusahaan'        => $perusahaan,
             'is_unit_baru'      => $is_unit_baru,
-            'status_uji'        => 'belum_uji',
             'created_at'        => date('Y-m-d H:i:s'),
         ]);
 
