@@ -537,21 +537,20 @@
                 }
             });
         }
+        // Initialize DataTables with lengthMenu (10/25/50/100/200)
+        if ($('#tblApproval').length && $('#tblApproval tbody tr').length > 0) {
+            $('#tblApproval').DataTable({
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100, 200],
+                order: [],
+                autoWidth: false,
+                columnDefs: [
+                    { orderable: false, targets: [0, 6] }
+                ],
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                }
+            });
+        }
     });
-
-    // Initialize DataTables with lengthMenu (10/25/50/100/200)
-    if ($('#tblApproval').length && $('#tblApproval tbody tr').length > 0) {
-        $('#tblApproval').DataTable({
-            pageLength: 10,
-            lengthMenu: [10, 25, 50, 100, 200],
-            order: [],
-            autoWidth: false,
-            columnDefs: [
-                { orderable: false, targets: [0, 6] }
-            ],
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
-            }
-        });
-    }
 </script>
