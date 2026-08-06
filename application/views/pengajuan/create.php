@@ -1325,7 +1325,7 @@
                         fd.append('is_na_foto_' + fk, $('#na_' + fk + '_' + s).prop('checked') ? '1' : '0');
                     });
 
-                    fd.append('jenis_kendaraan', $('#jenis_kendaraan_' + s).val());
+                    fd.append('id_tipe_kendaraan', $('#jenis_kendaraan_' + s).val());
                     fd.append('nomor_unit', $tab.find('.inp-nomor-unit').val().trim());
                     fd.append('merk', $tab.find('.inp-merk').val());
                     fd.append('model_unit', $('#na_model_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-model-unit').val());
