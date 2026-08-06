@@ -139,16 +139,18 @@ class TipeKendaraan extends CI_Controller
                 : '';
 
             $data[] = [
+                'id'                => $r->id_tipe_kendaraan,
                 'id_tipe_kendaraan' => $r->id_tipe_kendaraan,
                 'nama_tipe'         => '<strong>' . html_escape($r->nama_tipe) . '</strong>' . $badge_alat_berat,
                 'kode_tipe'         => '<span class="badge bg-light text-dark font-monospace border">' . html_escape($r->kode_tipe ?? '-') . '</span>',
                 'doc_no'            => $badge_doc,
                 'no_revisi'         => html_escape($r->no_revisi ?? '01'),
+                'status'            => $badge_status,
+                'is_active'         => $badge_status,
                 'total_kendaraan'   => '<span class="badge bg-light text-dark border">' . $r->total_kendaraan . ' unit</span>',
                 'total_template'    => '<span class="badge bg-light text-dark border">' . $r->total_template . ' template</span>',
                 'total_mekanik'     => '<span class="badge bg-light text-dark border">' . $r->total_mekanik . ' orang</span>',
-                'is_active'         => $badge_status,
-                'aksi'              => '<div class="d-flex gap-1">' . $btn_edit . $btn_toggle . $btn_del . '</div>',
+                'aksi'              => '<div class="d-flex gap-1 justify-content-center text-nowrap">' . $btn_edit . $btn_toggle . $btn_del . '</div>',
             ];
         }
 
