@@ -102,6 +102,8 @@ class Kendaraan extends CI_Controller
 
         // Susun baris response tabel
         $data = [];
+        $no   = $start + 1;
+
         foreach ($rows as $r) {
             $stiker = $stiker_map[$r->id_kendaraan] ?? null;
             $badge_stiker = $this->_badge_stiker($stiker);
@@ -119,14 +121,18 @@ class Kendaraan extends CI_Controller
               </div>';
 
             $data[] = [
+                'no'              => $no++,
                 'no_polisi'       => '<strong>' . html_escape($r->no_polisi) . '</strong>',
                 'nomor_unit'      => '<strong>' . html_escape($r->nomor_unit ?: '-') . '</strong>',
                 'jenis_kendaraan' => html_escape($r->jenis_kendaraan ?? '-'),
                 'merk_tipe'       => html_escape($r->merk) . ' ' . html_escape($r->tipe),
+                'tahun'           => html_escape($r->tahun ?: '-'),
+                'unit'            => $badge_unit,
+                'is_unit_baru'    => $badge_unit,
+                'sisa_stiker'     => $badge_stiker,
+                'status_stiker'   => $badge_stiker,
                 'perusahaan'      => html_escape($r->perusahaan),
                 'tipe_akses'      => $tipe_akses_badge,
-                'status_stiker'   => $badge_stiker,
-                'is_unit_baru'    => $badge_unit,
                 'total_pengajuan' => '<span class="badge bg-light text-dark border">' . $r->total_pengajuan . ' kali</span>',
                 'tgl_lulus'       => $r->tgl_lulus ? date('d/m/Y', strtotime($r->tgl_lulus)) : '<span class="text-muted small">—</span>',
                 'aksi'            => $aksi,

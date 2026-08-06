@@ -446,17 +446,24 @@ class Pengajuan extends CI_Controller
                 ? html_escape($r->nomor_unit) 
                 : '<span class="text-muted small">—</span>';
             
+            $id_display_html = '<span class="badge bg-light text-dark font-monospace border">#PU-' . str_pad($r->id_pengajuan, 4, '0', STR_PAD_LEFT) . '</span>';
+            $tipe_pengajuan_html = '<span class="badge bg-light text-dark border">' . html_escape(ucfirst($r->tipe_pengajuan ?: 'baru')) . '</span>';
+
             $data[] = [
                 'no'                => $no++,
-                'tanggal_pengajuan' => date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)),
+                'id_display'        => $id_display_html,
+                'pemohon'           => html_escape($r->nama_pemohon ?: '-'),
                 'nomor_unit'        => $nomor_unit_html,
-                'no_polisi'         => html_escape($r->no_polisi ?: '-'),
+                'no_polisi'         => html_escape($r->no_polisi ?: 'N/A'),
                 'jenis_kendaraan'   => html_escape($r->jenis_kendaraan ?: '-'),
-                'merk_tipe'         => html_escape($r->merk) . ' ' . html_escape($r->tipe),
-                'perusahaan'        => html_escape($r->perusahaan),
-                'nama_pemohon'      => html_escape($r->nama_pemohon),
+                'tipe_pengajuan'    => $tipe_pengajuan_html,
                 'tipe_akses'        => badge_tipe_akses($r->tipe_akses),
                 'status'            => $this->_badge_status($r->status),
+                'tgl_pengajuan'     => date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)),
+                'tanggal_pengajuan' => date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)),
+                'nama_pemohon'      => html_escape($r->nama_pemohon ?: '-'),
+                'merk_tipe'         => html_escape($r->merk) . ' ' . html_escape($r->tipe),
+                'perusahaan'        => html_escape($r->perusahaan),
                 'aksi'              => $this->_tombol_aksi($r),
             ];
         }
