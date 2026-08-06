@@ -175,6 +175,9 @@
 
 
 <script>
+    if (typeof window.csrfTokenName === 'undefined') window.csrfTokenName = '<?= $this->security->get_csrf_token_name() ?>';
+    if (typeof window.csrfTokenHash === 'undefined') window.csrfTokenHash = '<?= $this->security->get_csrf_hash() ?>';
+
     $(function() {
         var modal = new bootstrap.Modal(document.getElementById('modalTipe'));
 
@@ -186,6 +189,12 @@
                 data: function(d) {
                     d[window.csrfTokenName] = window.csrfTokenHash;
                 },
+                dataSrc: function(json) {
+                    if (json && json.csrf_hash) {
+                        window.csrfTokenHash = json.csrf_hash;
+                    }
+                    return json.data || [];
+                }
             },
             columns: [{
                     data: 'id',
@@ -360,6 +369,7 @@
             d.no_revisi = $.trim($('#no_revisi').val()) || '01';
 
             $.post('<?= site_url('tipekendaraan/save') ?>', d, function(res) {
+                if (res && res.csrf_hash) window.csrfTokenHash = res.csrf_hash;
                 $btn.prop('disabled', false)
                     .html('<i class="bi bi-check-lg me-1"></i>Simpan');
                 if (res.status === 'success') {
@@ -387,6 +397,7 @@
             d[window.csrfTokenName] = window.csrfTokenHash;
             d.id = $(this).data('id');
             $.post('<?= site_url('tipekendaraan/toggle') ?>', d, function(res) {
+                if (res && res.csrf_hash) window.csrfTokenHash = res.csrf_hash;
                 if (res.status === 'success') {
                     toastr.success(res.message);
                     refreshDt();
@@ -414,6 +425,7 @@
                 d[window.csrfTokenName] = window.csrfTokenHash;
                 d.id = id;
                 $.post('<?= site_url('tipekendaraan/delete') ?>', d, function(res) {
+                    if (res && res.csrf_hash) window.csrfTokenHash = res.csrf_hash;
                     if (res.status === 'success') {
                         toastr.success(res.message);
                         refreshDt();
