@@ -79,16 +79,16 @@ $isAdminOHS  = in_array(5, $_roles);
 
                         <!-- Tabel Daftar Request Pencabutan -->
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
+                            <table class="table table-bordered table-hover align-middle w-100" id="tblPencabutan" style="width:100%">
+                                <thead class="table-light align-middle text-nowrap">
                                     <tr>
-                                        <th>No</th>
-                                        <th>No. Stiker / Unit</th>
+                                        <th width="35" class="text-center">No</th>
+                                        <th width="130">No. Stiker / Unit</th>
                                         <th>Pengaju</th>
                                         <th>Alasan Pencabutan</th>
-                                        <th>Tanggal Request</th>
-                                        <th>Status Workflow</th>
-                                        <th class="text-center">Aksi</th>
+                                        <th width="120" class="text-center">Tanggal Request</th>
+                                        <th width="140" class="text-center">Status Workflow</th>
+                                        <th width="100" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -406,5 +406,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Initialize DataTables with lengthMenu (10/25/50/100/200)
+    if ($('#tblPencabutan').length && $('#tblPencabutan tbody tr').length > 0 && !$('#tblPencabutan tbody tr td').hasClass('text-center text-muted')) {
+        $('#tblPencabutan').DataTable({
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100, 200],
+            order: [],
+            autoWidth: false,
+            columnDefs: [
+                { orderable: false, targets: [0, 6] }
+            ],
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+            }
+        });
+    }
 });
 </script>

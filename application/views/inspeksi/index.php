@@ -34,19 +34,19 @@
                         <?php else: ?>
 
                             <div class="table-responsive">
-                                <table class="table table-hover align-middle">
-                                    <thead class="table-light">
+                                <table class="table table-bordered table-hover align-middle w-100" id="tblInspeksi" style="width:100%">
+                                    <thead class="table-light align-middle text-nowrap">
                                         <tr>
-                                            <th>#</th>
-                                            <th>No. Polisi</th>
+                                            <th width="35" class="text-center">#</th>
+                                            <th width="100" class="text-center">No. Polisi</th>
                                             <th>Jenis / Merk</th>
                                             <th>Pemohon</th>
-                                            <th>Jadwal Inspeksi</th>
+                                            <th width="120" class="text-center">Jadwal Inspeksi</th>
                                             <th>Lokasi</th>
                                             <th>Mekanik</th>
                                             <th>Inspektor</th>
-                                            <th>Status Form</th>
-                                            <th class="text-center">Aksi</th>
+                                            <th width="120" class="text-center">Status Form</th>
+                                            <th width="110" class="text-center">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -148,3 +148,22 @@
         </div>
     </section>
 </main>
+
+<script>
+    $(function() {
+        if ($('#tblInspeksi').length && $('#tblInspeksi tbody tr').length > 0) {
+            $('#tblInspeksi').DataTable({
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100, 200],
+                order: [],
+                autoWidth: false,
+                columnDefs: [
+                    { orderable: false, targets: [0, 9] }
+                ],
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                }
+            });
+        }
+    });
+</script>

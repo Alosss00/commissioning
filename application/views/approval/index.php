@@ -68,16 +68,16 @@
                         <?php else: ?>
 
                             <div class="table-responsive">
-                                <table class="table table-hover align-middle">
-                                    <thead class="table-light">
+                                <table class="table table-bordered table-hover align-middle w-100" id="tblApproval" style="width:100%">
+                                    <thead class="table-light align-middle text-nowrap">
                                         <tr>
-                                            <th style="width:40px;">#</th>
-                                            <th>No. Pengajuan</th>
+                                            <th width="35" class="text-center">#</th>
+                                            <th width="110" class="text-center">No. Pengajuan</th>
                                             <th>Kendaraan</th>
                                             <th>Pemohon</th>
-                                            <th>Tgl Pengajuan</th>
-                                            <th>Status</th>
-                                            <th class="text-center">Aksi</th>
+                                            <th width="130" class="text-center">Tgl Pengajuan</th>
+                                            <th width="140" class="text-center">Status</th>
+                                            <th width="140" class="text-center">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -538,4 +538,20 @@
             });
         }
     });
+
+    // Initialize DataTables with lengthMenu (10/25/50/100/200)
+    if ($('#tblApproval').length && $('#tblApproval tbody tr').length > 0) {
+        $('#tblApproval').DataTable({
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100, 200],
+            order: [],
+            autoWidth: false,
+            columnDefs: [
+                { orderable: false, targets: [0, 6] }
+            ],
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+            }
+        });
+    }
 </script>
