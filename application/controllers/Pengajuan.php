@@ -316,7 +316,7 @@ class Pengajuan extends CI_Controller
                 if (!empty($upload_errs)) {
                     $msg .= ' Namun ada catatan upload: ' . implode(', ', $upload_errs);
                 }
-                echo json_encode($response('success', $msg, ['id_pengajuan' => $id_pengajuan]));
+                echo json_encode($response('success', $msg, ['id_pengajuan' => $id_pengajuan, 'redirect' => site_url('pengajuan')]));
             } else {
                 echo json_encode($response('error', 'Gagal menyimpan pengajuan unit lama. Silakan coba lagi.'));
             }
@@ -395,7 +395,7 @@ class Pengajuan extends CI_Controller
             if (!empty($upload_errors)) {
                 $msg .= ' Catatan upload: ' . implode(', ', $upload_errors);
             }
-            echo json_encode($response('success', $msg, ['id_pengajuan' => $id_pengajuan]));
+            echo json_encode($response('success', $msg, ['id_pengajuan' => $id_pengajuan, 'redirect' => site_url('pengajuan')]));
         } else {
             echo json_encode($response('error', 'Gagal menyimpan data pengajuan. Silakan coba lagi.'));
         }
