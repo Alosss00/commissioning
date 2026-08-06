@@ -109,20 +109,20 @@
 
                         <!-- Tabel -->
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover align-middle" id="tabelPengajuan" style="width:100%">
-                                <thead class="table-light">
+                            <table class="table table-bordered table-hover align-middle w-100" id="tabelPengajuan" style="width:100%">
+                                <thead class="table-light align-middle text-nowrap">
                                     <tr>
-                                        <th width="40">No</th>
-                                        <th>ID</th>
+                                        <th width="35" class="text-center">No</th>
+                                        <th width="85" class="text-center">ID</th>
                                         <th>Pemohon</th>
-                                        <th>No. Unit</th>
-                                        <th>No. Polisi</th>
+                                        <th width="90" class="text-center">No. Unit</th>
+                                        <th width="100" class="text-center">No. Polisi</th>
                                         <th>Kendaraan</th>
-                                        <th>Tipe Pengajuan</th>
-                                        <th>Tipe Akses</th>
-                                        <th>Status</th>
-                                        <th>Tgl Pengajuan</th>
-                                        <th width="140">Aksi</th>
+                                        <th width="135" class="text-center">Tipe Pengajuan</th>
+                                        <th width="120" class="text-center">Tipe Akses</th>
+                                        <th width="130" class="text-center">Status</th>
+                                        <th width="125" class="text-center">Tgl Pengajuan</th>
+                                        <th width="90" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -271,45 +271,48 @@
                 },
                 {
                     data: 'id_display',
-                    orderable: false
+                    orderable: false,
+                    className: 'text-center text-nowrap'
                 },
                 {
-                    data: 'pemohon'
+                    data: 'pemohon',
+                    className: 'text-nowrap'
                 },
                 {
                     data: 'nomor_unit',
-                    className: 'text-center'
+                    className: 'text-center text-nowrap'
                 },
                 {
                     data: 'no_polisi',
-                    className: 'text-center'
+                    className: 'text-center text-nowrap'
                 },
                 {
-                    data: 'jenis_kendaraan'
+                    data: 'jenis_kendaraan',
+                    className: 'text-nowrap'
                 },
                 {
                     data: 'tipe_pengajuan',
-                    className: 'text-center',
+                    className: 'text-center text-nowrap',
                     orderable: false
                 },
                 {
                     data: 'tipe_akses',
-                    className: 'text-center',
+                    className: 'text-center text-nowrap',
                     orderable: false
                 },
                 {
                     data: 'status',
-                    className: 'text-center',
+                    className: 'text-center text-nowrap',
                     orderable: false
                 },
                 {
                     data: 'tgl_pengajuan',
-                    className: 'text-center'
+                    className: 'text-center text-nowrap'
                 },
                 {
                     data: 'aksi',
                     orderable: false,
-                    className: 'text-center'
+                    className: 'text-center text-nowrap'
                 },
             ],
             order: [

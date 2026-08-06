@@ -447,7 +447,11 @@ class Pengajuan extends CI_Controller
                 : '<span class="text-muted small">—</span>';
             
             $id_display_html = '<span class="badge bg-light text-dark font-monospace border">#PU-' . str_pad($r->id_pengajuan, 4, '0', STR_PAD_LEFT) . '</span>';
-            $tipe_pengajuan_html = '<span class="badge bg-light text-dark border">' . html_escape(ucfirst($r->tipe_pengajuan ?: 'baru')) . '</span>';
+            
+            $raw_tipe_pengajuan  = $r->tipe_pengajuan ?: 'baru';
+            $clean_tipe_pengajuan = ucwords(str_replace('_', ' ', $raw_tipe_pengajuan));
+            $tipe_pengajuan_html  = '<span class="badge bg-light text-dark border text-nowrap">' . html_escape($clean_tipe_pengajuan) . '</span>';
+            $tgl_pengajuan_html   = '<span class="text-nowrap">' . date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)) . '</span>';
 
             $data[] = [
                 'no'                => $no++,
@@ -459,7 +463,7 @@ class Pengajuan extends CI_Controller
                 'tipe_pengajuan'    => $tipe_pengajuan_html,
                 'tipe_akses'        => badge_tipe_akses($r->tipe_akses),
                 'status'            => $this->_badge_status($r->status),
-                'tgl_pengajuan'     => date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)),
+                'tgl_pengajuan'     => $tgl_pengajuan_html,
                 'tanggal_pengajuan' => date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)),
                 'nama_pemohon'      => html_escape($r->nama_pemohon ?: '-'),
                 'merk_tipe'         => html_escape($r->merk) . ' ' . html_escape($r->tipe),
@@ -941,7 +945,7 @@ class Pengajuan extends CI_Controller
             'rejected'               => ['bg-danger text-white',     'Ditolak'],
         ];
         $cfg = $map[$status] ?? ['bg-secondary text-white', html_escape($status)];
-        return '<span class="badge ' . $cfg[0] . '">' . $cfg[1] . '</span>';
+        return '<span class="badge ' . $cfg[0] . ' text-nowrap">' . $cfg[1] . '</span>';
     }
 
     /**
@@ -956,7 +960,7 @@ class Pengajuan extends CI_Controller
         $roles = $this->_user_roles();
         $uid   = (int) $this->session->userdata('id_user');
 
-        $btn  = '<div class="d-flex gap-1 flex-wrap">';
+        $btn  = '<div class="d-flex gap-1 justify-content-center text-nowrap flex-nowrap">';
         $btn .= '<button class="btn btn-sm btn-outline-primary py-0 btn-detail" data-id="' . $id . '" title="Lihat Detail"><i class="bi bi-eye"></i></button>';
 
         if (
