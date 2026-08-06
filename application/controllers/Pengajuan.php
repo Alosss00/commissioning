@@ -312,6 +312,14 @@ class Pengajuan extends CI_Controller
             $this->db->trans_complete();
 
             if ($this->db->trans_status()) {
+                if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+                    try {
+                        $this->load->library('sikuk_email');
+                        $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
+                    } catch (Throwable $e) {
+                        log_message('error', '[Pengajuan Store] Exception email: ' . $e->getMessage());
+                    }
+                }
                 $msg = 'Pengajuan uji kelayakan unit lama berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
                 if (!empty($upload_errs)) {
                     $msg .= ' Namun ada catatan upload: ' . implode(', ', $upload_errs);
@@ -391,6 +399,14 @@ class Pengajuan extends CI_Controller
         $this->db->trans_complete();
 
         if ($this->db->trans_status()) {
+            if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+                try {
+                    $this->load->library('sikuk_email');
+                    $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
+                } catch (Throwable $e) {
+                    log_message('error', '[Pengajuan Store] Exception email: ' . $e->getMessage());
+                }
+            }
             $msg = 'Pengajuan uji kelayakan unit baru berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
             if (!empty($upload_errors)) {
                 $msg .= ' Catatan upload: ' . implode(', ', $upload_errors);
