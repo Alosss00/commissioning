@@ -8,10 +8,8 @@ application/logs/*
 
 !application/*/.htaccess
 
-# Ignore uploads directory
-uploads/*
-!uploads/.htaccess
-!uploads/index.html
+# Ignore uploads directory completely for Symlink setup
+uploads/
 composer.lock
 tests/mocks/database/ci_test.sqlite
 
