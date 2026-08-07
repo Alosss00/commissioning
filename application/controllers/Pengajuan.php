@@ -151,13 +151,22 @@ class Pengajuan extends CI_Controller
         }
 
         try {
+            $status     = trim((string) ($this->input->post('filter_status')     ?? $this->input->post('status')     ?? ''));
+            $jenis      = trim((string) ($this->input->post('filter_jenis')      ?? $this->input->post('jenis')      ?? ''));
+            $departemen = trim((string) ($this->input->post('filter_departemen') ?? $this->input->post('departemen') ?? ''));
+            $tgl_dari   = trim((string) ($this->input->post('filter_tgl_dari')   ?? $this->input->post('tgl_dari')   ?? ''));
+            $tgl_sampai = trim((string) ($this->input->post('filter_tgl_sampai') ?? $this->input->post('tgl_sampai') ?? ''));
+
+            $search_post = $this->input->post('search');
+            $search_val  = is_array($search_post) ? ($search_post['value'] ?? '') : ($search_post ?? '');
+
             $filters = [
-                'status'     => trim($this->input->post('status')     ?? ''),
-                'jenis'      => trim($this->input->post('jenis')      ?? ''),
-                'departemen' => trim($this->input->post('departemen') ?? ''),
-                'tgl_dari'   => trim($this->input->post('tgl_dari')   ?? ''),
-                'tgl_sampai' => trim($this->input->post('tgl_sampai') ?? ''),
-                'search'     => trim($this->input->post('search')     ?? ''),
+                'status'     => $status,
+                'jenis'      => $jenis,
+                'departemen' => $departemen,
+                'tgl_dari'   => $tgl_dari,
+                'tgl_sampai' => $tgl_sampai,
+                'search'     => trim((string) $search_val),
             ];
 
             $roles     = $this->_user_roles();
@@ -439,12 +448,22 @@ class Pengajuan extends CI_Controller
         }
         $length = min($length, 500);
 
+        $status     = trim((string) ($this->input->post('filter_status')     ?? $this->input->post('status')     ?? ''));
+        $jenis      = trim((string) ($this->input->post('filter_jenis')      ?? $this->input->post('jenis')      ?? ''));
+        $departemen = trim((string) ($this->input->post('filter_departemen') ?? $this->input->post('departemen') ?? ''));
+        $tgl_dari   = trim((string) ($this->input->post('filter_tgl_dari')   ?? $this->input->post('tgl_dari')   ?? ''));
+        $tgl_sampai = trim((string) ($this->input->post('filter_tgl_sampai') ?? $this->input->post('tgl_sampai') ?? ''));
+
+        $search_post = $this->input->post('search');
+        $search_val  = is_array($search_post) ? ($search_post['value'] ?? '') : ($search_post ?? '');
+
         $filters = [
-            'status'     => trim($this->input->post('status')     ?? ''),
-            'jenis'      => trim($this->input->post('jenis')      ?? ''),
-            'tgl_dari'   => trim($this->input->post('tgl_dari')   ?? ''),
-            'tgl_sampai' => trim($this->input->post('tgl_sampai') ?? ''),
-            'search'     => trim($this->input->post('search[value]') ?? ''),
+            'status'     => $status,
+            'jenis'      => $jenis,
+            'departemen' => $departemen,
+            'tgl_dari'   => $tgl_dari,
+            'tgl_sampai' => $tgl_sampai,
+            'search'     => trim((string) $search_val),
         ];
 
         // Filtering scoping hak akses pengguna

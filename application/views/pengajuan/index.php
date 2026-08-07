@@ -250,6 +250,11 @@
                 url: '<?= site_url('pengajuan/get_data') ?>',
                 type: 'POST',
                 data: function(d) {
+                    d.status            = $('#filterStatus').val();
+                    d.jenis             = $('#filterJenis').val();
+                    d.departemen        = $('#filterPerusahaan').val();
+                    d.tgl_dari          = $('#filterTglDari').val();
+                    d.tgl_sampai        = $('#filterTglSampai').val();
                     d.filter_status     = $('#filterStatus').val();
                     d.filter_jenis      = $('#filterJenis').val();
                     d.filter_departemen = $('#filterPerusahaan').val();
