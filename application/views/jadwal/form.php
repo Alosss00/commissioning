@@ -347,13 +347,13 @@
                 '<span class="badge-avail-warn"><i class="bi bi-hourglass-split me-1"></i>Memeriksa...</span>'
             );
 
-            var post = {};
-            post[csrfName] = csrfHash;
-            post.jenis_kendaraan = jenisKendaraan;
-            post.tanggal_uji = tanggal;
-            post.exclude_jadwal_id = excludeJadwalId;
+            var params = {
+                jenis_kendaraan: jenisKendaraan,
+                tanggal_uji: tanggal,
+                exclude_jadwal_id: excludeJadwalId
+            };
 
-            $.post('<?= site_url('mekanik_master/get_available') ?>', post, function(res) {
+            $.get('<?= site_url('mekanik_master/get_available') ?>', params, function(res) {
                 if (!res || res.status !== 'success') return;
 
                 // Update mekanik master cards
@@ -373,19 +373,19 @@
                 tampilJadwalHari(tanggal);
             }, 'json');
 
-            // Cek inspektor (users role 4) satu per satu via AJAX
+            // Cek inspektor (users role 4) satu per satu via AJAX GET
             $('.inspektor-radio').each(function() {
                 var id_ins = $(this).val();
                 var $status = $('.avail-status-i[data-id="' + id_ins + '"]');
                 var $card = $(this).closest('.person-card');
 
-                var postIns = {};
-                postIns[csrfName] = csrfHash;
-                postIns.id_inspektor = id_ins;
-                postIns.tanggal_uji = tanggal;
-                postIns.exclude_jadwal_id = excludeJadwalId;
+                var paramsIns = {
+                    id_inspektor: id_ins,
+                    tanggal_uji: tanggal,
+                    exclude_jadwal_id: excludeJadwalId
+                };
 
-                $.post('<?= site_url('jadwal/cek_konflik_inspektor') ?>', postIns, function(res) {
+                $.get('<?= site_url('jadwal/cek_konflik_inspektor') ?>', paramsIns, function(res) {
                     if (!res) return;
                     if (res.konflik) {
                         $status.html('<span class="badge-avail-busy"><i class="bi bi-x-circle me-1"></i>Konflik (&lt;1 jam)</span>');
@@ -400,11 +400,7 @@
 
         // ── Tampilkan jadwal lain di hari yang sama ────────────────────────
         function tampilJadwalHari(tanggal) {
-            var post = {};
-            post[csrfName] = csrfHash;
-            post.tanggal = tanggal;
-
-            $.post('<?= site_url('jadwal/get_by_date') ?>', post, function(res) {
+            $.get('<?= site_url('jadwal/get_by_date') ?>', { tanggal: tanggal }, function(res) {
                 if (!res || res.status !== 'success') return;
 
                 var $box = $('#boxJadwalHari');

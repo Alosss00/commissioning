@@ -271,9 +271,9 @@ class Mekanik extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $nama_tipe   = $this->input->post('jenis_kendaraan');
-        $tanggal_uji = $this->input->post('tanggal_uji');
-        $exclude_id  = (int) $this->input->post('exclude_jadwal_id');
+        $nama_tipe   = $this->input->post('jenis_kendaraan') ?: $this->input->get('jenis_kendaraan');
+        $tanggal_uji = $this->input->post('tanggal_uji') ?: $this->input->get('tanggal_uji');
+        $exclude_id  = (int) ($this->input->post('exclude_jadwal_id') ?: $this->input->get('exclude_jadwal_id'));
 
         $mekaniks = $nama_tipe
             ? $this->mekanik_model->get_by_jenis($nama_tipe)

@@ -310,9 +310,9 @@ class Jadwal extends CI_Controller
      */
     public function cek_konflik_inspektor()
     {
-        $id_inspektor      = (int) $this->input->post('id_inspektor');
-        $tanggal_uji       = trim($this->input->post('tanggal_uji'));
-        $exclude_jadwal_id = (int) $this->input->post('exclude_jadwal_id');
+        $id_inspektor      = (int) ($this->input->post('id_inspektor') ?: $this->input->get('id_inspektor'));
+        $tanggal_uji       = trim($this->input->post('tanggal_uji') ?: $this->input->get('tanggal_uji'));
+        $exclude_jadwal_id = (int) ($this->input->post('exclude_jadwal_id') ?: $this->input->get('exclude_jadwal_id'));
 
         if (!$id_inspektor || !$tanggal_uji) {
             echo json_encode(['status' => 'error', 'konflik' => false]);
@@ -330,7 +330,7 @@ class Jadwal extends CI_Controller
      */
     public function get_by_date()
     {
-        $tanggal = trim($this->input->post('tanggal'));
+        $tanggal = trim($this->input->post('tanggal') ?: $this->input->get('tanggal'));
         if (!$tanggal) {
             echo json_encode(['status' => 'error', 'data' => []]);
             return;
