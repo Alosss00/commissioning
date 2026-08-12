@@ -205,6 +205,144 @@
                     </div>
                 <?php endforeach; ?>
 
+                <!-- DOKUMENTASI FOTO INSPEKSI & LAMPIRAN -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark">
+                            <i class="bi bi-camera-fill me-2 text-primary"></i>Dokumentasi Foto Inspeksi & Lampiran
+                        </h6>
+                        <?php if (!empty($foto_list)): ?>
+                            <span class="badge bg-primary text-white"><?= count($foto_list) ?> foto inspeksi</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="card-body pt-3">
+                        <?php if (empty($foto_list) && empty($lampiran_pengajuan)): ?>
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-image-alt fs-2 d-block mb-1 opacity-50"></i>
+                                Belum ada foto dokumentasi inspeksi atau lampiran yang diupload.
+                            </div>
+                        <?php else: ?>
+                            
+                            <?php
+                            $foto_mekanik = [];
+                            $foto_temuan  = [];
+                            if (!empty($foto_list)) {
+                                foreach ($foto_list as $f) {
+                                    if ($f->jenis === 'mekanik') {
+                                        $foto_mekanik[] = $f;
+                                    } else {
+                                        $foto_temuan[] = $f;
+                                    }
+                                }
+                            }
+                            ?>
+
+                            <!-- FOTO MEKANIK / PESERTA COMMISSIONING -->
+                            <?php if (!empty($foto_mekanik)): ?>
+                                <div class="mb-3">
+                                    <h6 class="fw-bold small text-muted text-uppercase mb-2">
+                                        <i class="bi bi-person-badge me-1 text-warning"></i>Foto Mekanik / Peserta Commissioning
+                                    </h6>
+                                    <div class="row g-2">
+                                        <?php foreach ($foto_mekanik as $fm): ?>
+                                            <div class="col-6 col-sm-4 col-md-3">
+                                                <div class="border rounded p-2 text-center h-100 bg-light">
+                                                    <a href="<?= base_url($fm->file_path) ?>" target="_blank" class="d-block">
+                                                        <img src="<?= base_url($fm->file_path) ?>" 
+                                                             class="img-fluid rounded border mb-2" 
+                                                             style="height:140px;width:100%;object-fit:cover;"
+                                                             alt="Foto Mekanik"
+                                                             onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'140\' viewBox=\'0 0 100 140\'><rect width=\'100%\' height=\'100%\' fill=\'%23f8f9fa\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23dc3545\' font-size=\'10\' font-family=\'sans-serif\'>File Tidak Ada</text></svg>';">
+                                                    </a>
+                                                    <div class="fw-semibold small text-truncate" title="<?= html_escape(basename($fm->file_path)) ?>"><?= html_escape(basename($fm->file_path)) ?></div>
+                                                    <?php if (!empty($fm->keterangan)): ?>
+                                                        <small class="text-muted d-block mt-1" style="font-size:11px;"><?= html_escape($fm->keterangan) ?></small>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- FOTO TEMUAN / HASIL INSPEKSI -->
+                            <?php if (!empty($foto_temuan)): ?>
+                                <div class="mb-3">
+                                    <h6 class="fw-bold small text-muted text-uppercase mb-2">
+                                        <i class="bi bi-images me-1 text-danger"></i>Foto Temuan / Dokumentasi Pemeriksaan Unit
+                                    </h6>
+                                    <div class="row g-2">
+                                        <?php foreach ($foto_temuan as $ft): ?>
+                                            <div class="col-6 col-sm-4 col-md-3">
+                                                <div class="border rounded p-2 text-center h-100 bg-light">
+                                                    <a href="<?= base_url($ft->file_path) ?>" target="_blank" class="d-block">
+                                                        <img src="<?= base_url($ft->file_path) ?>" 
+                                                             class="img-fluid rounded border mb-2" 
+                                                             style="height:140px;width:100%;object-fit:cover;"
+                                                             alt="Foto Temuan"
+                                                             onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'140\' viewBox=\'0 0 100 140\'><rect width=\'100%\' height=\'100%\' fill=\'%23f8f9fa\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23dc3545\' font-size=\'10\' font-family=\'sans-serif\'>File Tidak Ada</text></svg>';">
+                                                    </a>
+                                                    <div class="fw-semibold small text-truncate" title="<?= html_escape(basename($ft->file_path)) ?>"><?= html_escape(basename($ft->file_path)) ?></div>
+                                                    <?php if (!empty($ft->keterangan)): ?>
+                                                        <small class="text-muted d-block mt-1" style="font-size:11px;"><?= html_escape($ft->keterangan) ?></small>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- LAMPIRAN UNIT PENGAJUAN -->
+                            <?php if (!empty($lampiran_pengajuan)): ?>
+                                <div>
+                                    <h6 class="fw-bold small text-muted text-uppercase mb-2">
+                                        <i class="bi bi-paperclip me-1 text-info"></i>Foto Unit & Lampiran Dokumen Pengajuan
+                                    </h6>
+                                    <div class="row g-2">
+                                        <?php 
+                                        $jenis_label = [
+                                            'sertifikasi'        => 'Sertifikat / Layak Operasi',
+                                            'stnk'               => 'STNK Kendaraan',
+                                            'unit_depan'         => 'Foto Depan',
+                                            'unit_belakang'      => 'Foto Belakang',
+                                            'unit_kiri'          => 'Foto Kiri',
+                                            'unit_kanan'         => 'Foto Kanan',
+                                            'maintenance_record' => 'Maintenance Record',
+                                        ];
+                                        foreach ($lampiran_pengajuan as $lamp):
+                                            $label  = $jenis_label[$lamp->jenis_lampiran] ?? ucfirst(str_replace('_', ' ', $lamp->jenis_lampiran));
+                                            $ext    = strtolower(pathinfo($lamp->file_path, PATHINFO_EXTENSION));
+                                            $is_img = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']);
+                                        ?>
+                                            <div class="col-6 col-sm-4 col-md-3">
+                                                <div class="border rounded p-2 text-center h-100">
+                                                    <?php if ($is_img): ?>
+                                                        <a href="<?= base_url($lamp->file_path) ?>" target="_blank">
+                                                            <img src="<?= base_url($lamp->file_path) ?>" 
+                                                                 class="img-fluid rounded mb-1" 
+                                                                 style="height:100px;width:100%;object-fit:cover;"
+                                                                 alt="<?= html_escape($label) ?>"
+                                                                 onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'><rect width=\'100%\' height=\'100%\' fill=\'%23f8f9fa\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23dc3545\' font-size=\'10\' font-family=\'sans-serif\'>File Tidak Ada</text></svg>';">
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <a href="<?= base_url($lamp->file_path) ?>" target="_blank" class="d-block py-3 text-danger">
+                                                            <i class="bi bi-file-earmark-pdf fs-1"></i>
+                                                        </a>
+                                                    <?php endif; ?>
+                                                    <div class="fw-semibold small"><?= html_escape($label) ?></div>
+                                                    <small class="text-muted d-block text-truncate" style="font-size:10px;"><?= html_escape(basename($lamp->file_path)) ?></small>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- TOMBOL BAWAH -->
                 <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
                     <button onclick="history.back();" class="btn btn-outline-secondary">

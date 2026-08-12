@@ -706,6 +706,7 @@ class Checklist extends CI_Controller
             'history_versions' => $history_versions,
             'history_detail'   => $history_detail,
             'perbaikan_list'   => $this->_get_perbaikan_list($uji->id_pengajuan),
+            'lampiran_pengajuan' => $this->pengajuan_model->get_lampiran($uji->id_pengajuan),
         ];
 
         $this->load->view('templates/header',  $data);
