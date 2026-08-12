@@ -247,7 +247,7 @@ class Jadwal extends CI_Controller
                 'id_inspektor'      => $id_inspektor,
                 'id_mekanik_master' => $id_mekanik_master ?: null,
                 'lokasi'            => $lokasi ?: 'Workshop Main',
-                'catatan'           => $catatan ?: null,
+                'keterangan'        => $catatan ?: null,
             ]);
 
             $this->db->insert('audit_log', [
@@ -265,7 +265,7 @@ class Jadwal extends CI_Controller
                 'id_inspektor'      => $id_inspektor,
                 'id_mekanik_master' => $id_mekanik_master ?: null,
                 'lokasi'            => $lokasi ?: 'Workshop Main',
-                'catatan'           => $catatan ?: null,
+                'keterangan'        => $catatan ?: null,
                 'status'            => 'scheduled',
                 'dibuat_oleh'       => $id_user,
                 'created_at'        => date('Y-m-d H:i:s'),
