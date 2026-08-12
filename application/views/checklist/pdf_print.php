@@ -754,6 +754,30 @@
         </tr>
     </table>
 
+    <?php if (!empty($foto_list)): ?>
+        <div class="sec-title gap">
+            DOKUMENTASI FOTO INSPEKSI & TEMUAN
+        </div>
+        <table class="fault" style="width:100%;table-layout:fixed;">
+            <tr>
+                <?php foreach ($foto_list as $idx => $f): 
+                    $ext = strtolower(pathinfo($f->file_path, PATHINFO_EXTENSION));
+                    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) continue;
+                    $tag = $f->jenis === 'mekanik' ? 'Foto Mekanik / Peserta' : 'Foto Temuan';
+                ?>
+                    <td style="width:25%;text-align:center;padding:6px;vertical-align:top;border:1px solid #ccc;">
+                        <img src="<?= base_url($f->file_path) ?>" style="max-height:130px;max-width:100%;object-fit:cover;border:1px solid #ddd;border-radius:3px;"><br>
+                        <strong style="font-size:7.5pt;color:#333;display:block;margin-top:4px;"><?= $tag ?></strong>
+                        <?php if (!empty($f->keterangan)): ?>
+                            <span style="font-size:6.5pt;color:#555;display:block;margin-top:2px;"><?= html_escape($f->keterangan) ?></span>
+                        <?php endif; ?>
+                    </td>
+                    <?php if (($idx + 1) % 4 == 0): ?></tr><tr><?php endif; ?>
+                <?php endforeach; ?>
+            </tr>
+        </table>
+    <?php endif; ?>
+
 </body>
 
 </html>

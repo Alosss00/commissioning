@@ -776,6 +776,7 @@ class Checklist extends CI_Controller
             'summary'          => $summary,
             'history_versions' => $history_versions,
             'history_detail'   => $history_detail,
+            'foto_list'        => $this->db->where('id_uji', $id_uji)->get('uji_foto')->result(),
         ];
 
         $this->load->view('checklist/pdf_print', $data);
