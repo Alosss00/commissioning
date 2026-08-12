@@ -33,7 +33,8 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 /tests/tests/
 /tests/results/
 
-# Private Email & LDAP Environment Config
+# Private Email, LDAP & API Environment Config
 application/config/email_env.php
 application/config/ldap_env.php
+application/config/api_env.php
 

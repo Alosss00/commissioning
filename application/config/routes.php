@@ -152,3 +152,13 @@ $route['tipekendaraan/get_dropdown']    = 'TipeKendaraan/get_dropdown';
 // MEKANIK (alias)
 // =========================
 $route['mekanik'] = 'Mekanik/index';
+
+
+// =========================
+// API — Read-Only (Excel Power Query / External)
+// =========================
+// Autentikasi via header X-API-KEY (lihat application/config/api_env.php)
+// CSRF dikecualikan di config/config.php (csrf_exclude_uris)
+$route['api/laporan']       = 'api/Laporan/index';
+$route['api/laporan/index'] = 'api/Laporan/index';
+

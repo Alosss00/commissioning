@@ -469,7 +469,12 @@ $config['csrf_token_name'] = 'csrf_token';
 $config['csrf_cookie_name'] = 'csrf_cookie';
 $config['csrf_expire'] = 7200;
 $config['csrf_regenerate'] = TRUE;
-$config['csrf_exclude_uris'] = array();
+// Endpoint API read-only yang diakses via GET tanpa form (misal: Excel Power Query)
+// Dikecualikan dari CSRF karena tidak memakai form submission — autentikasinya via header X-API-KEY
+$config['csrf_exclude_uris'] = array(
+    'api/laporan',
+    'api/laporan/index',
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -551,4 +556,14 @@ if (file_exists(APPPATH . 'config/email_env.php')) {
     $config['sikuk_smtp_crypto'] = 'ssl';
     $config['sikuk_smtp_user']   = 'alosjo123@gmail.com';
     $config['sikuk_smtp_pass']   = 'bubhmqwjuzrtvfop';
+}
+
+// ── API Key Configuration ──────────────────────────────────────────────
+// Muat API key sensitif dari api_env.php (diabaikan oleh git)
+// Salin api_env.example.php → api_env.php lalu isi nilai API key sebelum deploy.
+if (file_exists(APPPATH . 'config/api_env.php')) {
+    require_once APPPATH . 'config/api_env.php';
+} else {
+    // Fallback default — WAJIB diganti sebelum digunakan di production
+    $config['laporan_api_key'] = 'GANTI_DENGAN_API_KEY_RAHASIA_ANDA';
 }
