@@ -89,7 +89,7 @@
                                         <td>
                                             <small>
                                                 <?= html_escape($a->jenis_kendaraan) ?> — <?= html_escape($a->merk) ?> <?= html_escape($a->tipe) ?>
-                                                <?= badge_tipe_akses($a->tipe_akses, 'font-size:10px;') ?>
+                                                <?= badge_tipe_akses(isset($a->tipe_akses) ? $a->tipe_akses : null, 'font-size:10px;') ?>
                                             </small>
                                         </td>
                                         <td><small><?= html_escape($a->nama_pemohon) ?></small></td>
