@@ -154,7 +154,7 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div>
                                                 <span class="fw-bold text-primary small"><?= html_escape($j->no_polisi) ?></span>
-                                                <?= badge_tipe_akses($j->tipe_akses, 'font-size:9px;') ?>
+                                                <?= badge_tipe_akses(isset($j->tipe_akses) ? $j->tipe_akses : null, 'font-size:9px;') ?>
                                                 <span class="ms-1 text-muted small"><?= html_escape($j->jenis_kendaraan) ?></span>
                                             </div>
                                             <span class="badge <?= $badge_color ?> small"><?= $badge_label ?></span>

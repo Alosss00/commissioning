@@ -96,8 +96,8 @@
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <span class="fw-semibold"><?= html_escape($row->no_polisi) ?></span>
-                                                    <?= badge_tipe_akses($row->tipe_akses, 'font-size:10px;') ?><br>
+                                                    <strong class="text-primary"><?= html_escape($row->no_polisi) ?></strong>
+                                                    <?= badge_tipe_akses(isset($row->tipe_akses) ? $row->tipe_akses : null, 'font-size:10px;') ?><br>
                                                     <small class="text-muted">No. Unit: </small><span class="badge bg-dark font-monospace" style="font-size:11px;"><?= html_escape(!empty($row->nomor_unit) ? $row->nomor_unit : '-') ?></span><br>
                                                     <small class="text-muted">
                                                         <?= html_escape($row->jenis_kendaraan ?? '') ?>
