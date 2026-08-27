@@ -63,6 +63,30 @@ class Cron extends CI_Controller
             return;
         }
 
+        // Ambil daftar stiker yang baru saja melewati tanggal expired
+        $newly_expired = $this->db
+            ->select('id_sticker, id_pengajuan, nomor_sticker')
+            ->from('sticker_release')
+            ->where('tgl_expired < NOW()')
+            ->where('is_expired', 0)
+            ->where('dicabut', 0)
+            ->get()->result();
+
+        $notif_sent = 0;
+        if (!empty($newly_expired)) {
+            $this->load->library('sikuk_email');
+            foreach ($newly_expired as $stk) {
+                try {
+                    $sent = $this->sikuk_email->notif_stiker_expired_inspektor($stk->id_sticker);
+                    if ($sent) {
+                        $notif_sent += (int) $sent;
+                    }
+                } catch (Throwable $e) {
+                    log_message('error', '[Cron mark_expired] Exception notif stiker expired #' . $stk->id_sticker . ': ' . $e->getMessage());
+                }
+            }
+        }
+
         $this->db->query("
             UPDATE sticker_release
             SET is_expired = 1
@@ -72,7 +96,7 @@ class Cron extends CI_Controller
         ");
 
         $count = $this->db->affected_rows();
-        $log   = '[' . date('Y-m-d H:i:s') . '] mark_expired — updated: ' . $count;
+        $log   = '[' . date('Y-m-d H:i:s') . '] mark_expired — updated: ' . $count . ', emails sent: ' . $notif_sent;
         echo $log . PHP_EOL;
         log_message('info', $log);
     }

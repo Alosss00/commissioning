@@ -65,11 +65,32 @@ class Kendaraan extends CI_Controller
         }
         $length = min($length, 500);
 
+        $roles_sess = $this->session->userdata('roles');
+        $role_int   = (int) $this->session->userdata('role');
+        $roles      = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
+        $id_user    = (int) $this->session->userdata('id_user');
+        $user_dept  = trim((string) $this->session->userdata('departemen'));
+
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
+        }
+
+        $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
+
         $filters = [
             'search'          => $this->input->post('search')['value'],
             'jenis_kendaraan' => $this->input->post('filter_jenis'),
             'is_unit_baru'    => $this->input->post('filter_unit'),
         ];
+
+        if (!$is_site_wide && !empty($user_dept)) {
+            $filters['perusahaan'] = $user_dept;
+        }
+
         $filter_stiker = $this->input->post('filter_stiker');
 
         // Ambil data kendaraan yang pernah lulus komisioning

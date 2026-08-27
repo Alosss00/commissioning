@@ -119,10 +119,24 @@ class Pengajuan extends CI_Controller
      */
     public function index()
     {
-        $data['title']      = 'Daftar Pengajuan';
-        $data['user']       = $this->session->userdata();
-        $data['perusahaan'] = $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result();
-        $data['tipe_unit']  = $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result();
+        $roles     = $this->_user_roles();
+        $user_dept = trim((string) $this->session->userdata('departemen'));
+        $id_user   = (int) $this->session->userdata('id_user');
+
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
+        }
+
+        $data['title']        = 'Daftar Pengajuan';
+        $data['user']         = $this->session->userdata();
+        $data['user_dept']    = $user_dept;
+        $data['is_site_wide'] = $this->_has_role([1, 3, 4, 5, 8], $roles);
+        $data['perusahaan']   = $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result();
+        $data['tipe_unit']    = $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result();
         
         $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
@@ -169,12 +183,7 @@ class Pengajuan extends CI_Controller
                 'search'     => trim((string) $search_val),
             ];
 
-            $roles     = $this->_user_roles();
-            $user_dept = $this->session->userdata('departemen');
-
-            if ($this->_has_role([7, 2], $roles) && !empty($user_dept)) {
-                $filters['departemen'] = $user_dept;
-            }
+            $this->_apply_user_scoping($filters);
 
             $rows = $this->pengajuan_model->get_export_history_data($filters);
 
@@ -467,12 +476,7 @@ class Pengajuan extends CI_Controller
         ];
 
         // Filtering scoping hak akses pengguna
-        $user_dept = $this->session->userdata('departemen');
-        if (in_array(7, $roles) && !in_array(1, $roles)) {
-            $filters['id_pemohon'] = $id_user;
-        } elseif (in_array(2, $roles) && !in_array(1, $roles) && !empty($user_dept)) {
-            $filters['departemen'] = $user_dept;
-        }
+        $this->_apply_user_scoping($filters);
 
         $total_records    = $this->pengajuan_model->count_all($filters);
         $filtered_records = $this->pengajuan_model->count_filtered($filters);
@@ -536,12 +540,7 @@ class Pengajuan extends CI_Controller
         $id_user      = (int) $this->session->userdata('id_user');
         $filters      = [];
 
-        $user_dept = $this->session->userdata('departemen');
-        if (in_array(7, $roles) && !in_array(1, $roles)) {
-            $filters['id_pemohon'] = $id_user;
-        } elseif (in_array(2, $roles) && !in_array(1, $roles) && !empty($user_dept)) {
-            $filters['departemen'] = $user_dept;
-        }
+        $this->_apply_user_scoping($filters);
 
         $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan, $filters);
         if (!$pengajuan) {
@@ -611,21 +610,18 @@ class Pengajuan extends CI_Controller
             redirect('pengajuan');
         }
 
-        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
+        $filters = [];
+        $this->_apply_user_scoping($filters);
+
+        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan, $filters);
         if (!$pengajuan) {
-            $this->session->set_flashdata('error', 'Data pengajuan tidak ditemukan.');
+            $this->session->set_flashdata('error', 'Data pengajuan tidak ditemukan atau Anda tidak memiliki akses.');
             redirect('pengajuan');
         }
 
         // Hanya boleh diedit jika status draft atau ditolak_manager
         if (!in_array($pengajuan->status, ['draft', 'ditolak_manager'])) {
             $this->session->set_flashdata('error', 'Pengajuan dengan status ini tidak dapat diedit.');
-            redirect('pengajuan');
-        }
-
-        // Admin Dept hanya bisa edit pengajuannya sendiri (kecuali Super Admin)
-        if (in_array(7, $roles) && !in_array(1, $roles) && $pengajuan->id_pemohon != $id_user) {
-            $this->session->set_flashdata('error', 'Anda hanya dapat mengedit pengajuan milik Anda sendiri.');
             redirect('pengajuan');
         }
 
@@ -1006,7 +1002,6 @@ class Pengajuan extends CI_Controller
         if (
             $this->_has_role([1, 7], $roles)
             && in_array($row->status, ['draft', 'ditolak_manager'])
-            && ($uid == $row->id_pemohon || in_array(1, $roles))
         ) {
             $btn .= '<a href="' . site_url('pengajuan/edit/' . $id) . '"'
                 . ' class="btn btn-sm btn-outline-warning py-0 text-dark fw-semibold"'
@@ -1049,7 +1044,6 @@ class Pengajuan extends CI_Controller
         if (
             $this->_has_role([1, 7], $roles)
             && $row->status === 'tidak_lulus_inspeksi'
-            && ($uid == $row->id_pemohon || in_array(1, $roles))
         ) {
             $btn .= '<a href="' . site_url('perbaikan/form/' . $id) . '"'
                 . ' class="btn btn-sm btn-danger py-0 fw-semibold text-white"'
@@ -1060,13 +1054,20 @@ class Pengajuan extends CI_Controller
         if (
             $this->_has_role([1, 7], $roles)
             && in_array($row->status, $status_boleh_ulang)
-            && ($uid == $row->id_pemohon || in_array(1, $roles))
         ) {
+            $last_app = $this->db
+                ->where('id_pengajuan', $id)
+                ->where('status', 'rejected')
+                ->order_by('id_approval', 'DESC')
+                ->get('pengajuan_approval')->row();
+            $catatan_last = $last_app ? trim((string) $last_app->catatan) : '';
+
             $info_btn = 'Pengajuan dikembalikan — ajukan ulang ke Dept Manager';
             $btn .= '<button class="btn btn-sm btn-warning py-0 btn-resubmit fw-semibold"'
                 . ' data-id="' . $id . '"'
                 . ' data-polisi="' . html_escape($row->no_polisi) . '"'
                 . ' data-status="' . html_escape($row->status) . '"'
+                . ' data-catatan="' . html_escape($catatan_last) . '"'
                 . ' data-info="' . html_escape($info_btn) . '"'
                 . ' title="Ajukan Ulang">'
                 . '<i class="bi bi-arrow-repeat me-1"></i>Ajukan Ulang</button>';
@@ -1180,5 +1181,39 @@ class Pengajuan extends CI_Controller
             'id_ref'     => $id_ref, 
             'created_at' => date('Y-m-d H:i:s')
         ]);
+    }
+
+    /**
+     * Helper privat penerapan batasan hak akses data (data scoping) berbasis departemen/perusahaan.
+     * Roles global (1=Super Admin, 3=OHS Supt, 4=Inspektor, 5=Admin OHS, 8=Planner) dapat mengakses seluruh data,
+     * sedangkan role departemen (6=Dept Manager, 7=Admin Dept, dll.) mengakses data berdasarkan scope_dept_pemohon
+     * (k.perusahaan = user_dept OR u.departemen = user_dept OR pu.id_pemohon = id_user).
+     * 
+     * @param array &$filters Reference array filter
+     * @return void
+     */
+    private function _apply_user_scoping(&$filters)
+    {
+        $roles     = $this->_user_roles();
+        $user_dept = trim((string) $this->session->userdata('departemen'));
+        $id_user   = (int) $this->session->userdata('id_user');
+
+        // Jika departemen belum tersimpan di sesi login, ambil langsung dari database user
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
+        }
+
+        $is_site_wide = $this->_has_role([1, 3, 4, 5, 8], $roles);
+
+        if (!$is_site_wide) {
+            $filters['scope_dept_pemohon'] = [
+                'id_pemohon' => $id_user,
+                'departemen' => $user_dept,
+            ];
+        }
     }
 }

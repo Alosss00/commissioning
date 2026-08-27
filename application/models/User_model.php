@@ -140,6 +140,10 @@ class User_model extends CI_Model
     {
         $this->db->trans_start(); // Memulai transaksi database
 
+        if ($this->db->field_exists('created_at', 'users') && !isset($data['created_at'])) {
+            $data['created_at'] = date('Y-m-d H:i:s');
+        }
+
         // Langkah 1: Simpan data utama pengguna ke tabel users
         $this->db->insert('users', $data);
         $id_user = $this->db->insert_id();

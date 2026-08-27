@@ -30,8 +30,12 @@ class UserManagement extends CI_Controller
             redirect('auth/login');
         }
 
-        // Proteksi Hak Akses: Hanya Super Admin (Role 1) yang boleh mengakses controller ini
-        if ((int)$this->session->userdata('role') !== 1) {
+        // Proteksi Hak Akses: Periksa apakah user memiliki Role Super Admin (Role ID = 1)
+        $roles_raw  = $this->session->userdata('roles');
+        $role_int   = (int) $this->session->userdata('role');
+        $user_roles = is_array($roles_raw) ? array_map('intval', $roles_raw) : ($role_int > 0 ? [$role_int] : []);
+
+        if (!in_array(1, $user_roles, true)) {
             $this->session->set_flashdata('error', 'Akses ditolak.');
             redirect('dashboard');
         }
@@ -308,6 +312,7 @@ class UserManagement extends CI_Controller
             'jabatan'    => $jabatan ?: null,
             'no_hp'      => $no_hp ?: null,
             'departemen' => $departemen ?: null,
+            'id_role'    => !empty($roles) ? (int) $roles[0] : 0,
         ];
         if ($foto)     $payload['foto']     = $foto;
         if ($password) $payload['password'] = password_hash($password, PASSWORD_BCRYPT);

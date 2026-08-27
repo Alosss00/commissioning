@@ -248,7 +248,7 @@
                     });
                 }
                 $('#tblUserBody').html(html);
-                CSRF_TOKEN = res.csrf_token || CSRF_TOKEN;
+                CSRF_TOKEN = res.csrf_hash || res.csrf_token || CSRF_TOKEN;
             }
         });
     }
@@ -282,6 +282,7 @@
             },
             dataType: 'json',
             success: function(res) {
+                if (res.csrf_hash) CSRF_TOKEN = res.csrf_hash;
                 if (res.status !== 'success') {
                     toastr.error(res.message);
                     return;
@@ -362,6 +363,7 @@
             dataType: 'json',
             success: function(res) {
                 NProgress.done();
+                if (res.csrf_hash) CSRF_TOKEN = res.csrf_hash;
                 if (res.status === 'success') {
                     Swal.fire({
                         icon: 'success',
@@ -407,6 +409,7 @@
                 },
                 dataType: 'json',
                 success: function(res) {
+                    if (res.csrf_hash) CSRF_TOKEN = res.csrf_hash;
                     if (res.status === 'success') {
                         toastr.success('Status user diperbarui.');
                         loadUsers();
@@ -430,7 +433,7 @@
         }).then(function(r) {
             if (!r.isConfirmed) return;
             $.ajax({
-                url: SITE_URL + '/user_management/delete',
+                url: SITE_URL + '/usermanagement/delete',
                 type: 'POST',
                 data: {
                     [CSRF_NAME]: CSRF_TOKEN,
@@ -438,6 +441,7 @@
                 },
                 dataType: 'json',
                 success: function(res) {
+                    if (res.csrf_hash) CSRF_TOKEN = res.csrf_hash;
                     if (res.status === 'success') {
                         toastr.success(res.message);
                         loadUsers();

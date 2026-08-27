@@ -205,14 +205,10 @@ class Approval extends CI_Controller
             }
         }
 
-        $status_show = array_unique(array_merge(
-            $cfg['status_masuk'],
-            [$cfg['status_approve']],
-            !empty($cfg['status_reject']) ? [$cfg['status_reject']] : []
-        ));
+        $status_show = $cfg['status_masuk'];
 
-        $list    = $this->approval_model->get_list($status_show, array_merge($filters, ['search' => $this->input->get('search')]) );
-        $pending = $this->approval_model->get_list($cfg['status_masuk'], $filters);
+        $list    = $this->approval_model->get_list($status_show, array_merge($filters, ['search' => $this->input->get('search')]));
+        $pending = $list;
 
         $id_user = (int) $this->session->userdata('id_user');
         $my_approvals = [];

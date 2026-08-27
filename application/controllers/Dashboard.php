@@ -213,7 +213,7 @@ class Dashboard extends CI_Controller
             if (in_array(7, $roles) && !in_array(1, $roles)) {
                 $q->where('pu.id_pemohon', $id_user);
             }
-            $approval_queue = $q->order_by('pu.tanggal_pengajuan', 'DESC')->order_by('pu.id_pengajuan', 'DESC')->limit(5)->get()->result();
+            $approval_queue = $q->order_by('pu.tanggal_pengajuan', 'ASC')->order_by('pu.id_pengajuan', 'ASC')->limit(5)->get()->result();
         }
 
         // Stiker siap diterbitkan
@@ -230,7 +230,8 @@ class Dashboard extends CI_Controller
                 $siap_stiker->where('k.perusahaan', $departemen);
             }
             $siap_stiker = $siap_stiker
-                ->order_by('pu.tanggal_pengajuan', 'DESC')
+                ->order_by('pu.tanggal_pengajuan', 'ASC')
+                ->order_by('pu.id_pengajuan', 'ASC')
                 ->limit(5)->get()->result();
         }
 

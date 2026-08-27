@@ -41,13 +41,46 @@ class Pengajuan_model extends CI_Model
         $this->db->join('users u',            'u.id_user = pu.id_pemohon',                 'left');
 
         // Filter spesifik jika ditentukan dalam parameter
-        if (!empty($filters['status']))      $this->db->where('pu.status', $filters['status']);
+        if (!empty($filters['status_in']) && is_array($filters['status_in'])) {
+            $this->db->where_in('pu.status', $filters['status_in']);
+        } elseif (!empty($filters['status'])) {
+            $this->db->where('pu.status', $filters['status']);
+        }
         if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']);
         if (!empty($filters['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filters['tgl_dari']);
         if (!empty($filters['tgl_sampai'])) $this->db->where('DATE(pu.tanggal_pengajuan) <=', $filters['tgl_sampai']);
-        if (!empty($filters['id_pemohon'])) $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
-        if (!empty($filters['departemen']))  $this->db->where('k.perusahaan', $filters['departemen']);
 
+        if (!empty($filters['scope_dept_pemohon'])) {
+            $id_pem = (int) ($filters['scope_dept_pemohon']['id_pemohon'] ?? 0);
+            $dept   = trim((string)($filters['scope_dept_pemohon']['departemen'] ?? ''));
+
+            $this->db->group_start();
+            $has_cond = false;
+            if ($id_pem > 0) {
+                $this->db->where('pu.id_pemohon', $id_pem);
+                $has_cond = true;
+            }
+            if (!empty($dept)) {
+                $dept_clean = strtolower($dept);
+                if ($has_cond) {
+                    $this->db->or_where('LOWER(TRIM(k.perusahaan)) =', $dept_clean);
+                } else {
+                    $this->db->where('LOWER(TRIM(k.perusahaan)) =', $dept_clean);
+                    $has_cond = true;
+                }
+                $this->db->or_where('LOWER(TRIM(u.departemen)) =', $dept_clean);
+            }
+            $this->db->group_end();
+        } elseif (!empty($filters['departemen'])) {
+            $dept_clean = strtolower(trim((string)$filters['departemen']));
+            $this->db->group_start()
+                ->where('LOWER(TRIM(k.perusahaan)) =', $dept_clean)
+                ->or_where('LOWER(TRIM(u.departemen)) =', $dept_clean)
+                ->group_end();
+        } elseif (!empty($filters['id_pemohon'])) {
+            $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
+        }
+        
         // Filter kata kunci pencarian global
         if (!empty($filters['search'])) {
             $kw = $filters['search'];
@@ -71,7 +104,8 @@ class Pengajuan_model extends CI_Model
      */
     public function count_all($filters = [])
     {
-        $scope_only = array_intersect_key($filters, array_flip(['id_pemohon', 'departemen']));
+        $scope_keys = ['id_pemohon', 'departemen', 'scope_dept_pemohon', 'status', 'status_in'];
+        $scope_only = array_intersect_key($filters, array_flip($scope_keys));
         $this->_base_query($scope_only);
         return $this->db->count_all_results();
     }
@@ -127,10 +161,27 @@ class Pengajuan_model extends CI_Model
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
         $this->db->where('pu.id_pengajuan', (int) $id);
 
-        if (!empty($filters['departemen'])) {
-            $this->db->where('k.perusahaan', $filters['departemen']);
-        }
-        if (!empty($filters['id_pemohon'])) {
+        if (!empty($filters['scope_dept_pemohon'])) {
+            $id_pem = (int) ($filters['scope_dept_pemohon']['id_pemohon'] ?? 0);
+            $dept   = trim((string)($filters['scope_dept_pemohon']['departemen'] ?? ''));
+
+            $this->db->group_start();
+            if ($id_pem > 0) {
+                $this->db->where('pu.id_pemohon', $id_pem);
+            }
+            if (!empty($dept)) {
+                $dept_clean = strtolower($dept);
+                $this->db->or_where('LOWER(TRIM(k.perusahaan)) =', $dept_clean);
+                $this->db->or_where('LOWER(TRIM(u.departemen)) =', $dept_clean);
+            }
+            $this->db->group_end();
+        } elseif (!empty($filters['departemen'])) {
+            $dept_clean = strtolower(trim((string)$filters['departemen']));
+            $this->db->group_start()
+                ->where('LOWER(TRIM(k.perusahaan)) =', $dept_clean)
+                ->or_where('LOWER(TRIM(u.departemen)) =', $dept_clean)
+                ->group_end();
+        } elseif (!empty($filters['id_pemohon'])) {
             $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
         }
 
@@ -277,8 +328,27 @@ class Pengajuan_model extends CI_Model
         if (!empty($filters['jenis'])) {
             $where_clauses[] = "t.nama_tipe = " . $this->db->escape($filters['jenis']);
         }
-        if (!empty($filters['departemen'])) {
-            $where_clauses[] = "k.perusahaan = " . $this->db->escape($filters['departemen']);
+        if (!empty($filters['scope_dept_pemohon'])) {
+            $id_pem   = (int) ($filters['scope_dept_pemohon']['id_pemohon'] ?? 0);
+            $dept_val = trim((string)($filters['scope_dept_pemohon']['departemen'] ?? ''));
+
+            $sub_conds = [];
+            if ($id_pem > 0) {
+                $sub_conds[] = "pu.id_pemohon = {$id_pem}";
+            }
+            if (!empty($dept_val)) {
+                $dept_esc = $this->db->escape(strtolower($dept_val));
+                $sub_conds[] = "LOWER(TRIM(k.perusahaan)) = {$dept_esc}";
+                $sub_conds[] = "LOWER(TRIM(u_pem.departemen)) = {$dept_esc}";
+            }
+            if (!empty($sub_conds)) {
+                $where_clauses[] = "(" . implode(" OR ", $sub_conds) . ")";
+            }
+        } elseif (!empty($filters['departemen'])) {
+            $dept_esc = $this->db->escape(strtolower(trim((string)$filters['departemen'])));
+            $where_clauses[] = "(LOWER(TRIM(k.perusahaan)) = {$dept_esc} OR LOWER(TRIM(u_pem.departemen)) = {$dept_esc})";
+        } elseif (!empty($filters['id_pemohon'])) {
+            $where_clauses[] = "pu.id_pemohon = " . (int)$filters['id_pemohon'];
         }
         if (!empty($filters['tgl_dari'])) {
             $where_clauses[] = "DATE(pu.tanggal_pengajuan) >= " . $this->db->escape($filters['tgl_dari']);

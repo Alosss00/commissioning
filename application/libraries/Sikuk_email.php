@@ -612,8 +612,6 @@ class Sikuk_email
                       COALESCE(NULLIF(TRIM(u.nama), ""), "Pemohon") AS nama_pemohon,
                       (SELECT GROUP_CONCAT(r.nama_role SEPARATOR ", ") FROM user_roles ur JOIN roles r ON r.id_role = ur.id_role WHERE ur.id_user = u.id_user) AS role_pemohon,
                       k.no_polisi, k.nomor_unit, k.perusahaan, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
-            ->from('pengajuan_uji pu')
-            ->join('users u',          'u.id_user = pu.id_pemohon',                 'left')
             ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')
             ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
             ->where('pu.id_pengajuan', $id_pengajuan)
@@ -736,68 +734,62 @@ class Sikuk_email
         return true;
     }
 
-    // ============================================================
-    // PRIVATE — Core send + template helpers
-    // ============================================================
-
     /**
-     * Kirim email HTML — return true/false
+     * Notifikasi Stiker Expired ke Seluruh Inspektor
+     * Dipanggil saat cron mark_expired mendeteksi stiker yang telah melewati tgl_expired.
      */
-    private function _send($to, $subject, $body)
+    public function notif_stiker_expired_inspektor($id_sticker)
     {
-        if (empty($to)) return false;
+        $s = $this->CI->db
+            ->select('sr.id_sticker, sr.nomor_sticker, sr.tgl_expired, pu.id_pengajuan, pu.email_pemohon,
+                      k.no_polisi, k.nomor_unit, k.merk, k.tipe, k.tahun, k.perusahaan, t.nama_tipe AS jenis_kendaraan')
+            ->from('sticker_release sr')
+            ->join('pengajuan_uji pu',   'pu.id_pengajuan = sr.id_pengajuan',        'left')
+            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
+            ->where('sr.id_sticker', (int)$id_sticker)
+            ->get()->row();
 
-        try {
-            $this->CI->email->initialize($this->_smtp_config());
-            $this->CI->email->clear();
-            $this->CI->email->from($this->from_email, $this->from_name);
-            $this->CI->email->to($to);
-            $this->CI->email->subject($subject);
-            $this->CI->email->message($body);
-            $this->CI->email->set_mailtype('html');
+        if (!$s) return false;
 
-            $result = $this->CI->email->send(false);
+        $inspektors = $this->_get_users_by_role(4);
+        if (empty($inspektors)) return false;
 
-            if ($result) {
-                $msg_success = '[Sikuk_email] STATUS: TERKIRIM | Ke: ' . $to . ' | Subject: ' . $subject;
-                log_message('info', $msg_success);
-                error_log($msg_success);
-            } else {
-                $raw_debugger   = $this->CI->email->print_debugger([]);
-                $clean_debugger = strip_tags($raw_debugger);
+        $unit_name = !empty($s->nomor_unit) ? $s->nomor_unit : $s->no_polisi;
+        $subject   = '[Stiker Expired] Unit ' . $unit_name . ' Telah Kadaluwarsa / Tidak Aktif';
+        $body      = $this->_wrap(
+            'Pemberitahuan Stiker Expired & Unit Tidak Aktif',
+            'Informasi kepada seluruh tim Inspektor bahwa stiker kelayakan komisioning untuk unit <strong>' . htmlspecialchars($unit_name) . '</strong> telah <strong>EXPIRED / KADALUWARSA</strong>.',
+            '<div style="background:#f8d7da;color:#721c24;padding:12px 16px;border-radius:4px;border:1px solid #f5c6cb;">'
+            . '<strong>Nomor Stiker:</strong> ' . htmlspecialchars($s->nomor_sticker ?? '-') . '<br>'
+            . '<strong>Nomor Unit / Polisi:</strong> ' . htmlspecialchars($unit_name) . ' (' . htmlspecialchars($s->no_polisi ?? '-') . ')<br>'
+            . '<strong>Jenis / Merk:</strong> ' . htmlspecialchars($s->jenis_kendaraan ?? '-') . ' — ' . htmlspecialchars($s->merk ?? '') . ' ' . htmlspecialchars($s->tipe ?? '') . '<br>'
+            . '<strong>Perusahaan:</strong> ' . htmlspecialchars($s->perusahaan ?? '-') . '<br>'
+            . '<strong>Tanggal Expired:</strong> <span style="font-weight:bold;color:#dc3545;">' . date('d M Y H:i', strtotime($s->tgl_expired ?? 'now')) . ' WIB</span>'
+            . '</div>',
+            '<div style="text-align:center;margin:18px 0;">'
+            . '<span style="background:#dc3545;color:#fff;padding:10px 24px;border-radius:20px;font-size:15px;font-weight:bold;">'
+            . '⛔ UNIT TIDAK AKTIF — DILARANG BEROPERASI'
+            . '</span>'
+            . '</div>',
+            'Unit tersebut <strong>TIDAK DIIZINKAN BEROPERASI</strong> di area kerja sampai dilakukan pengajuan commissioning ulang dan stiker baru diterbitkan.',
+            $this->_btn_link('Lihat Daftar Kendaraan', $this->base_url . '/kendaraan')
+        );
 
-                $lines       = explode("\n", str_replace("\r", "", $clean_debugger));
-                $error_lines = [];
-                foreach ($lines as $line) {
-                    $trimmed = trim($line);
-                    if (empty($trimmed)) continue;
-                    if (preg_match('/^(Date|From|Return-Path|To|Subject|Reply-To|User-Agent|X-Sender|X-Mailer|X-Priority|Message-ID|Mime-Version|Content-Type|Content-Transfer-Encoding):/i', $trimmed)) {
-                        continue;
-                    }
-                    if (strpos($trimmed, 'This is a multi-part message') !== false || strpos($trimmed, '--B_ALT_') !== false) {
-                        continue;
-                    }
-                    $error_lines[] = $trimmed;
+        $sent_count = 0;
+        foreach ($inspektors as $ins) {
+            if (!empty($ins->email)) {
+                if ($this->_send($ins->email, $subject, $body)) {
+                    $sent_count++;
                 }
-
-                $err_summary = !empty($error_lines) ? implode(' | ', array_slice($error_lines, 0, 3)) : 'SMTP Authentication or Connection Failed';
-                $msg_fail    = '[Sikuk_email] STATUS: GAGAL | Ke: ' . $to . ' | Error: ' . $err_summary;
-                log_message('error', $msg_fail);
-                error_log($msg_fail);
             }
-
-            return $result;
-        } catch (Throwable $e) {
-            $msg_exc = '[Sikuk_email] STATUS: EXCEPTION | Ke: ' . $to . ' | Error: ' . $e->getMessage();
-            log_message('error', $msg_exc);
-            error_log($msg_exc);
-            return false;
         }
+
+        return $sent_count;
     }
 
     /**
      * Bungkus konten ke dalam HTML email yang konsisten
-     * Parameter variadic: setiap string jadi satu paragraf/block
      */
     private function _wrap($greeting, ...$blocks)
     {

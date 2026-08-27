@@ -53,11 +53,13 @@ class Seeder extends CI_Controller
 
         $executed = 0;
         foreach ($queries as $query) {
-            // Abaikan komentar atau statemen kosong
-            if (strpos($query, '--') === 0 || strpos($query, '/*') === 0) {
+            // Bersihkan komentar header dan spasi di awal string query
+            $clean_query = preg_replace('/^(\s*(--[^\r\n]*|\/\*[\s\S]*?\*\/)\s*)*/i', '', $query);
+            $clean_query = trim($clean_query);
+            if (empty($clean_query)) {
                 continue;
             }
-            $this->db->query($query);
+            $this->db->query($clean_query);
             $executed++;
         }
 

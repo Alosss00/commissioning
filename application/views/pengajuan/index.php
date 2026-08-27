@@ -25,7 +25,8 @@
                             $roles_sess = $this->session->userdata('roles');
                             $role_int   = (int)$this->session->userdata('role');
                             $_r = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
-                            $canCreate = in_array(1, $_r) || in_array(7, $_r);
+                            $canCreate       = in_array(1, $_r) || in_array(7, $_r);
+                            $isAdminDeptOnly = in_array(7, $_r) && !in_array(1, $_r);
                             ?>
                             <div class="d-flex gap-2">
                                 <button class="btn btn-outline-success btn-sm fw-semibold" id="btnExportExcelHistory">
@@ -64,14 +65,20 @@
                                 </select>
                             </div>
                             <div class="col-sm-6 col-md-3">
-                                <select class="form-select form-select-sm" id="filterPerusahaan">
-                                    <option value="">— Semua Perusahaan / Dept —</option>
-                                    <?php if (!empty($perusahaan)): ?>
-                                        <?php foreach ($perusahaan as $p): ?>
-                                            <option value="<?= html_escape($p->nama_perusahaan) ?>"><?= html_escape($p->nama_perusahaan) ?></option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
+                                <?php if (!empty($user_dept) && !($is_site_wide ?? false)): ?>
+                                    <select class="form-select form-select-sm border-primary text-primary fw-bold" id="filterPerusahaan" disabled title="Terkunci berdasarkan departemen akun Anda">
+                                        <option value="<?= html_escape($user_dept) ?>" selected>Dept: <?= html_escape($user_dept) ?></option>
+                                    </select>
+                                <?php else: ?>
+                                    <select class="form-select form-select-sm" id="filterPerusahaan">
+                                        <option value="">— Semua Perusahaan / Dept —</option>
+                                        <?php if (!empty($perusahaan)): ?>
+                                            <?php foreach ($perusahaan as $p): ?>
+                                                <option value="<?= html_escape($p->nama_perusahaan) ?>"><?= html_escape($p->nama_perusahaan) ?></option>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                <?php endif; ?>
                             </div>
                             <div class="col-sm-6 col-md-2">
                                 <select class="form-select form-select-sm" id="filterJenis">
@@ -250,14 +257,15 @@
                 url: '<?= site_url('pengajuan/get_data') ?>',
                 type: 'POST',
                 data: function(d) {
+                    var deptVal         = '<?= html_escape($user_dept ?? '') ?>' || $('#filterPerusahaan').val() || '';
                     d.status            = $('#filterStatus').val();
                     d.jenis             = $('#filterJenis').val();
-                    d.departemen        = $('#filterPerusahaan').val();
+                    d.departemen        = deptVal;
                     d.tgl_dari          = $('#filterTglDari').val();
                     d.tgl_sampai        = $('#filterTglSampai').val();
                     d.filter_status     = $('#filterStatus').val();
                     d.filter_jenis      = $('#filterJenis').val();
-                    d.filter_departemen = $('#filterPerusahaan').val();
+                    d.filter_departemen = deptVal;
                     d.filter_tgl_dari   = $('#filterTglDari').val();
                     d.filter_tgl_sampai = $('#filterTglSampai').val();
                     d[window.csrfTokenName] = window.csrfTokenHash;
@@ -659,12 +667,16 @@
         }
 
         // ── Render Detail Modal ───────────────────────────────────────────
-        // BUG FIX #1: renderDetail sekarang menjadi function declaration
-        // yang bisa dipanggil dari mana saja, bukan function expression
-        // yang bermasalah dengan hoisting di dalam $(function(){})
-        function renderDetail(d) {
+        function renderDetail(data) {
             var baseUrl = '<?= base_url() ?>';
             var siteUrl = '<?= site_url() ?>';
+
+            var p            = (data && data.pengajuan) ? data.pengajuan : (data || {});
+            var lampiranList  = (data && data.lampiran)  ? data.lampiran  : [];
+            var approvalList  = (data && data.approval)  ? data.approval  : [];
+            var jadwalData    = (data && data.jadwal)    ? data.jadwal    : null;
+            var ujiData       = (data && data.uji)       ? data.uji       : null;
+            var perbaikanList = (data && data.perbaikan) ? data.perbaikan : [];
 
             var statusLabel = {
                 draft: 'Draft',
@@ -704,27 +716,66 @@
                 stiker_keluar: 'success text-white',
                 rejected: 'danger text-white'
             };
-            var sc = statusClass[d.status] || 'secondary text-white';
-            var sl = statusLabel[d.status] || d.status;
+            var sc = statusClass[p.status] || 'secondary text-white';
+            var sl = statusLabel[p.status] || p.status || '—';
 
             var ditolakStatuses = ['ditolak_manager', 'ditolak_admin_ohs', 'ditolak_ohs_supt', 'ditolak_ktt', 'tidak_lulus_inspeksi'];
             var alertDitolak = '';
-            if (ditolakStatuses.indexOf(d.status) >= 0) {
-                var msgDitolak = d.status === 'tidak_lulus_inspeksi' ?
-                    '<strong>Unit tidak lulus inspeksi.</strong> Lakukan perbaikan unit lalu ajukan kembali.' :
-                    '<strong>Pengajuan ini dikembalikan.</strong> Periksa catatan di riwayat approval.';
-                alertDitolak = '<div class="alert alert-danger py-2 mb-0 mt-2" style="font-size:13px;">' +
-                    '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + msgDitolak + '</div>';
+            if (p.status && ditolakStatuses.indexOf(p.status) >= 0) {
+                var lastRejectNote = '';
+                if (p.status === 'tidak_lulus_inspeksi' && ujiData && (ujiData.catatan_temuan || ujiData.catatan_umum)) {
+                    lastRejectNote = ujiData.catatan_temuan || ujiData.catatan_umum;
+                }
+                
+                if (!lastRejectNote && approvalList && approvalList.length > 0) {
+                    for (var i = approvalList.length - 1; i >= 0; i--) {
+                        var appItem = approvalList[i];
+                        if (appItem && appItem.catatan && String(appItem.catatan).trim() !== '' && String(appItem.catatan).trim() !== '—') {
+                            if (appItem.status === 'rejected' || (appItem.level_approval && appItem.level_approval.indexOf('ditolak') >= 0)) {
+                                lastRejectNote = appItem.catatan;
+                                break;
+                            }
+                        }
+                    }
+                    if (!lastRejectNote) {
+                        for (var j = approvalList.length - 1; j >= 0; j--) {
+                            if (approvalList[j] && approvalList[j].catatan && String(approvalList[j].catatan).trim() !== '') {
+                                lastRejectNote = approvalList[j].catatan;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                var titleText = p.status === 'tidak_lulus_inspeksi' ?
+                    'Pengajuan Tidak Lulus Inspeksi' :
+                    'Pengajuan Dikembalikan / Ditolak (' + sl + ')';
+
+                var noteBlock = lastRejectNote ?
+                    '<div class="mt-2 pt-2 border-top border-danger border-opacity-25 fs-6 fw-semibold text-danger-emphasis">' +
+                    '<i class="bi bi-chat-left-quote-fill me-2 text-danger"></i>Catatan Penolakan: ' +
+                    '<span class="fw-normal text-dark bg-white p-2 rounded border d-block mt-1 shadow-sm">' + valOrDash(lastRejectNote) + '</span>' +
+                    '</div>' :
+                    '<div class="small text-muted mt-1"><i class="bi bi-info-circle me-1"></i>Periksa tabel Riwayat Approval di bawah untuk rincian catatan.</div>';
+
+                alertDitolak =
+                    '<div class="card border-danger bg-danger-subtle mb-3 shadow-sm">' +
+                    '<div class="card-body p-3">' +
+                    '<div class="d-flex align-items-center mb-1 text-danger fw-bold fs-6">' +
+                    '<i class="bi bi-exclamation-triangle-fill fs-4 me-2"></i>' + titleText +
+                    '</div>' +
+                    noteBlock +
+                    '</div></div>';
             }
 
-            var unitBadge = d.is_unit_baru == 1 ?
+            var unitBadge = (p.is_unit_baru == 1) ?
                 '<span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Unit Baru</span>' :
                 '<span class="badge bg-secondary">Unit Lama</span>';
 
-            var tipeLabel = d.tipe_pengajuan === 'new_commissioning' ? 'New Commissioning' : 'Recommissioning';
+            var tipeLabel = (p.tipe_pengajuan === 'new_commissioning' || p.tipe_pengajuan === 'baru') ? 'New Commissioning' : 'Recommissioning';
 
             function valOrDash(v) {
-                return (v && String(v).trim()) ? v : '—';
+                return (v && String(v).trim() && String(v).trim() !== 'null') ? v : '—';
             }
 
             // ── Info Kendaraan ────────────────────────────────────────────
@@ -732,16 +783,16 @@
                 '<div class="card border-0 bg-light h-100"><div class="card-body">' +
                 '<h6 class="fw-bold text-primary mb-3"><i class="bi bi-truck me-2"></i>Informasi Kendaraan</h6>' +
                 '<div class="row g-2">' +
-                '<div class="col-6"><small class="text-muted d-block">No. Polisi</small><span class="badge bg-dark font-monospace fs-6">' + valOrDash(d.no_polisi) + '</span></div>' +
+                '<div class="col-6"><small class="text-muted d-block">No. Polisi</small><span class="badge bg-dark font-monospace fs-6">' + valOrDash(p.no_polisi) + '</span></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Tipe Unit</small>' + unitBadge + '</div>' +
-                '<div class="col-6"><small class="text-muted d-block">Jenis Kendaraan</small><strong class="small">' + valOrDash(d.jenis_kendaraan) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Merk</small><strong class="small">' + valOrDash(d.merk) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Tipe / Model</small><strong class="small">' + valOrDash(d.tipe) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Tahun</small><strong class="small">' + valOrDash(d.tahun) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Nomor Unit</small><strong class="small">' + valOrDash(d.nomor_unit) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Perusahaan</small><strong class="small">' + valOrDash(d.perusahaan) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Jenis Kendaraan</small><strong class="small">' + valOrDash(p.jenis_kendaraan) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Merk</small><strong class="small">' + valOrDash(p.merk) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Tipe / Model</small><strong class="small">' + valOrDash(p.tipe || p.model_unit) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Tahun</small><strong class="small">' + valOrDash(p.tahun) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Nomor Unit</small><strong class="small">' + valOrDash(p.nomor_unit) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Perusahaan</small><strong class="small">' + valOrDash(p.perusahaan) + '</strong></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Tipe Pengajuan</small><span class="badge bg-primary text-white">' + tipeLabel + '</span></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Tipe Akses</small>' + renderBadgeTipeAkses(d.tipe_akses) + '</div>' +
+                '<div class="col-6"><small class="text-muted d-block">Tipe Akses</small>' + renderBadgeTipeAkses(p.tipe_akses) + '</div>' +
                 '</div></div></div>';
 
             // ── Info Pemohon ──────────────────────────────────────────────
@@ -749,11 +800,11 @@
                 '<div class="card border-0 bg-light h-100"><div class="card-body">' +
                 '<h6 class="fw-bold text-success mb-3"><i class="bi bi-person me-2"></i>Informasi Pemohon</h6>' +
                 '<div class="row g-2">' +
-                '<div class="col-12"><small class="text-muted d-block">Nama</small><strong class="small">' + valOrDash(d.nama_pemohon) + '</strong></div>' +
-                '<div class="col-12"><small class="text-muted d-block">Email</small><strong class="small">' + valOrDash(d.email_pemohon || d.email_user) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Tgl Pengajuan</small><strong class="small">' + (d.tanggal_pengajuan ? d.tanggal_pengajuan.substr(0, 16) : '—') + '</strong></div>' +
+                '<div class="col-12"><small class="text-muted d-block">Nama</small><strong class="small">' + valOrDash(p.nama_pemohon) + '</strong></div>' +
+                '<div class="col-12"><small class="text-muted d-block">Email</small><strong class="small">' + valOrDash(p.email_pemohon || p.email_user) + '</strong></div>' +
+                '<div class="col-6"><small class="text-muted d-block">Tgl Pengajuan</small><strong class="small">' + (p.tanggal_pengajuan ? p.tanggal_pengajuan.substr(0, 16) : '—') + '</strong></div>' +
                 '<div class="col-6"><small class="text-muted d-block">Status</small><span class="badge bg-' + sc + '">' + sl + '</span></div>' +
-                '<div class="col-12"><small class="text-muted d-block">Tujuan</small><span class="small">' + valOrDash(d.tujuan) + '</span></div>' +
+                '<div class="col-12"><small class="text-muted d-block">Tujuan</small><span class="small">' + valOrDash(p.tujuan) + '</span></div>' +
                 '</div></div></div>';
 
             // ── Lampiran ──────────────────────────────────────────────────
@@ -766,9 +817,9 @@
                 maintenance_record: 'Maintenance'
             };
             var lampiranHtml = '';
-            if (d.lampiran && d.lampiran.length > 0) {
-                $.each(d.lampiran, function(i, l) {
-                    var ext = l.file_path.split('.').pop().toLowerCase();
+            if (lampiranList && lampiranList.length > 0) {
+                $.each(lampiranList, function(i, l) {
+                    var ext = l.file_path ? l.file_path.split('.').pop().toLowerCase() : '';
                     var isImg = ['jpg', 'jpeg', 'png', 'webp'].indexOf(ext) >= 0;
                     var preview = isImg ?
                         '<a href="' + baseUrl + l.file_path + '" target="_blank"><img src="' + baseUrl + l.file_path + '" class="img-fluid rounded mb-1" style="height:80px;width:100%;object-fit:cover;" onerror="this.onerror=null;this.src=\'' + baseUrl + 'assets/img/img-error.png\';"></a>' :
@@ -780,31 +831,30 @@
             }
 
             // ── Jadwal ────────────────────────────────────────────────────
-            var jadwalHtml = d.jadwal ?
+            var jadwalHtml = jadwalData ?
                 '<div class="row g-3">' +
-                '<div class="col-md-4"><small class="text-muted d-block">Tanggal Uji</small><strong>' + valOrDash(d.jadwal.tanggal_uji) + '</strong></div>' +
-                '<div class="col-md-4"><small class="text-muted d-block">Lokasi</small><strong>' + valOrDash(d.jadwal.lokasi) + '</strong></div>' +
-                '<div class="col-md-4"><small class="text-muted d-block">Dibuat oleh</small><strong>' + valOrDash(d.jadwal.dibuat_oleh_nama) + '</strong></div>' +
-                '<div class="col-md-6"><small class="text-muted d-block"><i class="bi bi-tools me-1 text-warning"></i>Mekanik Lapangan</small><strong>' + valOrDash(d.jadwal.nama_mekanik_master) + '</strong>' + (d.jadwal.perusahaan_mekanik ? '<br><small class="text-muted">' + d.jadwal.perusahaan_mekanik + '</small>' : '') + '</div>' +
-                '<div class="col-md-6"><small class="text-muted d-block"><i class="bi bi-person-badge me-1 text-primary"></i>Inspektor</small><strong>' + valOrDash(d.jadwal.nama_inspektor_user) + '</strong></div>' +
+                '<div class="col-md-4"><small class="text-muted d-block">Tanggal Uji</small><strong>' + valOrDash(jadwalData.tanggal_uji) + '</strong></div>' +
+                '<div class="col-md-4"><small class="text-muted d-block">Lokasi</small><strong>' + valOrDash(jadwalData.lokasi) + '</strong></div>' +
+                '<div class="col-md-4"><small class="text-muted d-block">Dibuat oleh</small><strong>' + valOrDash(jadwalData.dibuat_oleh_nama) + '</strong></div>' +
+                '<div class="col-md-6"><small class="text-muted d-block"><i class="bi bi-tools me-1 text-warning"></i>Mekanik Lapangan</small><strong>' + valOrDash(jadwalData.nama_mekanik_master) + '</strong>' + (jadwalData.perusahaan_mekanik ? '<br><small class="text-muted">' + jadwalData.perusahaan_mekanik + '</small>' : '') + '</div>' +
+                '<div class="col-md-6"><small class="text-muted d-block"><i class="bi bi-person-badge me-1 text-primary"></i>Inspektor</small><strong>' + valOrDash(jadwalData.nama_inspektor_user) + '</strong></div>' +
                 '</div>' :
                 '<div class="text-center py-3 text-muted"><i class="bi bi-calendar-x fs-3 d-block mb-1 opacity-50"></i><small>Belum dijadwalkan.</small></div>';
 
             // ── Hasil Uji ─────────────────────────────────────────────────
             var ujiHtml = '';
-            if (d.uji) {
-                var hasilOk = (d.uji.hasil === 'lulus');
-                // Tombol checklist + tombol riwayat (jika ada perbaikan)
-                var ujiButtons = '<a href="' + siteUrl + '/checklist/detail/' + d.uji.id_uji + '" target="_blank" class="btn btn-sm btn-outline-info"><i class="bi bi-clipboard2-check me-1"></i>Checklist</a>';
-                if (d.perbaikan && d.perbaikan.length > 0) {
-                    ujiButtons += ' <a href="' + siteUrl + '/checklist/detail/' + d.uji.id_uji + '#sectionHistoryInspeksi" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-clock-history me-1"></i>Riwayat <span class="badge bg-warning text-dark ms-1">' + d.perbaikan.length + '</span></a>';
+            if (ujiData) {
+                var hasilOk = (ujiData.hasil === 'lulus');
+                var ujiButtons = '<a href="' + siteUrl + '/checklist/detail/' + ujiData.id_uji + '" target="_blank" class="btn btn-sm btn-outline-info"><i class="bi bi-clipboard2-check me-1"></i>Checklist</a>';
+                if (perbaikanList && perbaikanList.length > 0) {
+                    ujiButtons += ' <a href="' + siteUrl + '/checklist/detail/' + ujiData.id_uji + '#sectionHistoryInspeksi" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-clock-history me-1"></i>Riwayat <span class="badge bg-warning text-dark ms-1">' + perbaikanList.length + '</span></a>';
                 }
                 ujiHtml =
                     '<div class="row g-3 align-items-center">' +
-                    '<div class="col-md-3"><small class="text-muted d-block"><i class="bi bi-person-badge me-1"></i>Inspektor</small><strong>' + valOrDash(d.uji.nama_inspektor || d.uji.nama_mekanik) + '</strong>' + (d.uji.perusahaan_inspektor ? '<br><small class="text-muted">' + d.uji.perusahaan_inspektor + '</small>' : '') + '</div>' +
-                    '<div class="col-md-3"><small class="text-muted d-block">Tanggal</small><strong>' + valOrDash(d.uji.updated_at || d.uji.created_at) + '</strong></div>' +
+                    '<div class="col-md-3"><small class="text-muted d-block"><i class="bi bi-person-badge me-1"></i>Inspektor</small><strong>' + valOrDash(ujiData.nama_inspektor || ujiData.nama_mekanik) + '</strong>' + (ujiData.perusahaan_inspektor ? '<br><small class="text-muted">' + ujiData.perusahaan_inspektor + '</small>' : '') + '</div>' +
+                    '<div class="col-md-3"><small class="text-muted d-block">Tanggal</small><strong>' + valOrDash(ujiData.updated_at || ujiData.created_at) + '</strong></div>' +
                     '<div class="col-md-2"><small class="text-muted d-block">Hasil</small><span class="badge bg-' + (hasilOk ? 'success' : 'danger') + ' text-white fs-6 px-3">' + (hasilOk ? 'LULUS' : 'TIDAK LULUS') + '</span></div>' +
-                    '<div class="col-md-2"><small class="text-muted d-block">Catatan Temuan</small><span class="small">' + valOrDash(d.uji.catatan_temuan || d.uji.catatan_umum) + '</span></div>' +
+                    '<div class="col-md-2"><small class="text-muted d-block">Catatan Temuan</small><span class="small">' + valOrDash(ujiData.catatan_temuan || ujiData.catatan_umum) + '</span></div>' +
                     '<div class="col-md-2 text-md-end d-flex flex-column gap-1 align-items-end">' + ujiButtons + '</div>' +
                     '</div>';
             } else {
@@ -826,8 +876,8 @@
                 admin: 'Admin OHS'
             };
             var approvalHtml = '';
-            if (d.approval && d.approval.length > 0) {
-                $.each(d.approval, function(i, a) {
+            if (approvalList && approvalList.length > 0) {
+                $.each(approvalList, function(i, a) {
                     var ac = a.status === 'approved' ? 'success' : (a.status === 'rejected' ? 'danger' : 'secondary');
                     var al = a.status === 'approved' ? 'Disetujui' : (a.status === 'rejected' ? 'Ditolak' : 'Pending');
                     approvalHtml += '<tr><td><span class="badge bg-light text-dark border">' + (levelLabel[a.level_approval] || a.level_approval) + '</span></td><td>' + (a.nama_approver || '<em class="text-muted small">Belum ditentukan</em>') + '</td><td><span class="badge bg-' + ac + '">' + al + '</span></td><td class="text-muted small">' + (a.created_at ? a.created_at.substr(0, 16) : '—') + '</td><td class="text-muted small">' + valOrDash(a.catatan) + '</td></tr>';
@@ -837,27 +887,33 @@
             }
 
             // ── Perbaikan Unit ────────────────────────────────────────────
-            // BUG FIX #2: renderPerbaikan dipanggil di DALAM renderDetail,
-            // bukan di luar scope-nya seperti versi sebelumnya
             var perbaikanSection = '';
-            if (d.perbaikan && d.perbaikan.length > 0) {
-                perbaikanSection = '<div class="mt-3">' + renderPerbaikan(d.perbaikan, baseUrl) + '</div>';
+            if (perbaikanList && perbaikanList.length > 0) {
+                perbaikanSection = '<div class="mt-3">' + renderPerbaikan(perbaikanList, baseUrl) + '</div>';
             }
 
             // ── Susun HTML akhir ──────────────────────────────────────────
-            // BUG FIX #3: perbaikanSection dan histBtn digabung di SINI,
-            // bukan di luar function renderDetail() seperti versi sebelumnya
-            var html =
-                '<div class="row g-3 mb-3">' +
-                '<div class="col-md-6">' + kendaraanHtml + '</div>' +
-                '<div class="col-md-6">' + pemohonHtml + '</div>' +
-                '</div>' +
-                alertDitolak +
-                '<div class="card border mb-3"><div class="card-header bg-white py-2"><i class="bi bi-images text-primary me-2"></i><strong class="small">Lampiran Dokumen</strong></div><div class="card-body py-3"><div class="row g-2">' + lampiranHtml + '</div></div></div>' +
-                '<div class="card border mb-3"><div class="card-header bg-white py-2"><i class="bi bi-calendar-event text-primary me-2"></i><strong class="small">Jadwal Uji Kelayakan</strong></div><div class="card-body py-3">' + jadwalHtml + '</div></div>' +
-                '<div class="card border mb-3"><div class="card-header bg-white py-2"><i class="bi bi-clipboard2-check text-primary me-2"></i><strong class="small">Hasil Uji Kelayakan</strong></div><div class="card-body py-3">' + ujiHtml + '</div></div>' +
-                '<div class="card border mb-0"><div class="card-header bg-white py-2"><i class="bi bi-check2-all text-primary me-2"></i><strong class="small">Riwayat Approval</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Level</th><th>Approver</th><th>Status</th><th>Tanggal</th><th>Catatan</th></tr></thead><tbody>' + approvalHtml + '</tbody></table></div></div></div>' +
-                perbaikanSection;
+            var isAdminDeptOnly = <?= json_encode($isAdminDeptOnly ?? false) ?>;
+            var html = '';
+
+            if (isAdminDeptOnly) {
+                html =
+                    '<div class="mb-3">' + kendaraanHtml + '</div>' +
+                    alertDitolak +
+                    '<div class="card border mb-0"><div class="card-header bg-white py-2"><i class="bi bi-check2-all text-primary me-2"></i><strong class="small">Riwayat Approval</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Level</th><th>Approver</th><th>Status</th><th>Tanggal</th><th>Catatan</th></tr></thead><tbody>' + approvalHtml + '</tbody></table></div></div></div>';
+            } else {
+                html =
+                    '<div class="row g-3 mb-3">' +
+                    '<div class="col-md-6">' + kendaraanHtml + '</div>' +
+                    '<div class="col-md-6">' + pemohonHtml + '</div>' +
+                    '</div>' +
+                    alertDitolak +
+                    '<div class="card border mb-3"><div class="card-header bg-white py-2"><i class="bi bi-images text-primary me-2"></i><strong class="small">Lampiran Dokumen</strong></div><div class="card-body py-3"><div class="row g-2">' + lampiranHtml + '</div></div></div>' +
+                    '<div class="card border mb-3"><div class="card-header bg-white py-2"><i class="bi bi-calendar-event text-primary me-2"></i><strong class="small">Jadwal Uji Kelayakan</strong></div><div class="card-body py-3">' + jadwalHtml + '</div></div>' +
+                    '<div class="card border mb-3"><div class="card-header bg-white py-2"><i class="bi bi-clipboard2-check text-primary me-2"></i><strong class="small">Hasil Uji Kelayakan</strong></div><div class="card-body py-3">' + ujiHtml + '</div></div>' +
+                    '<div class="card border mb-0"><div class="card-header bg-white py-2"><i class="bi bi-check2-all text-primary me-2"></i><strong class="small">Riwayat Approval</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Level</th><th>Approver</th><th>Status</th><th>Tanggal</th><th>Catatan</th></tr></thead><tbody>' + approvalHtml + '</tbody></table></div></div></div>' +
+                    perbaikanSection;
+            }
 
             $('#modalDetailBody').html(html);
         }
@@ -881,13 +937,20 @@
             resubmitId = $(this).data('id');
             var polisi = $(this).data('polisi');
             var status = $(this).data('status');
+            var catatan = $(this).data('catatan') || '';
             var infoText = resubmitInfoMap[status] || 'Jelaskan alasan pengajuan ulang.';
             var alertClass = resubmitAlertClass[status] || 'alert-info';
             $('#resubmitPolisi').text(polisi);
             $('#resubmitAlasan').val('');
             $('#resubmitErr').text('');
             $('#resubmitCharCount').text('0');
-            $('#resubmitInfoBox').removeClass('alert-danger alert-warning alert-info').addClass(alertClass).html('<i class="bi bi-exclamation-triangle-fill me-2"></i>' + infoText);
+
+            var htmlBox = '<div class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>' + infoText + '</div>';
+            if (catatan) {
+                htmlBox += '<div class="mt-2 pt-2 border-top border-secondary border-opacity-25 small"><strong>Catatan Penolakan Verifikator:</strong> <span class="fst-italic text-dark">"' + catatan + '"</span></div>';
+            }
+
+            $('#resubmitInfoBox').removeClass('alert-danger alert-warning alert-info').addClass(alertClass).html(htmlBox);
             modalResubmit.show();
         });
 

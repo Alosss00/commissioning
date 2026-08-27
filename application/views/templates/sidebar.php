@@ -156,6 +156,13 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
             </a>
         </li>
 
+        <li class="nav-item">
+            <a class="nav-link <?= is_active_exact('perbaikan') ?>" href="<?= site_url('perbaikan') ?>">
+                <i class="bi bi-tools text-danger"></i><span>Daftar Perbaikan Unit</span>
+                <?= pending_badge(['tidak_lulus_inspeksi', 'siap_verifikasi']) ?>
+            </a>
+        </li>
+
         <!-- ================= APPROVAL ================= -->
         <?php if ($isAdmin || $isKTT || $isOHSSupt || $isAdminOHS || $isDeptMgr): ?>
 

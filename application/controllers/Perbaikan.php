@@ -22,12 +22,200 @@ class Perbaikan extends CI_Controller
     {
         parent::__construct();
         $this->load->model(['Pengajuan_model' => 'pengajuan_model']);
-        $this->load->library(['session', 'upload']);
+        $this->load->library('upload');
         $this->load->helper(['url', 'form']);
 
         if (!$this->session->userdata('id_user')) {
             redirect('auth/login');
         }
+    }
+
+    /**
+     * Halaman Utama Daftar Pengajuan Perlu Perbaikan Unit.
+     * 
+     * @return void Render view perbaikan/index
+     */
+    public function index()
+    {
+        $roles     = $this->_roles();
+        $user_dept = trim((string) $this->session->userdata('departemen'));
+        $id_user   = (int) $this->session->userdata('id_user');
+
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
+        }
+
+        $is_site_wide = $this->_has([1, 3, 4, 5, 8], $roles);
+
+        $data = [
+            'title'        => 'Daftar Perbaikan Unit',
+            'user'         => $this->session->userdata(),
+            'user_dept'    => $user_dept,
+            'is_site_wide' => $is_site_wide,
+            'roles'        => $roles,
+            'perusahaan'   => $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result(),
+        ];
+
+        $this->load->view('templates/header',  $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('perbaikan/index',   $data);
+        $this->load->view('templates/footer',  $data);
+    }
+
+    /**
+     * Endpoint AJAX DataTables Server-Side untuk Daftar Pengajuan Memerlukan Perbaikan.
+     * 
+     * @return void Output JSON DataTables
+     */
+    public function get_data()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $draw   = $this->input->post('draw');
+        $start  = max(0, (int) $this->input->post('start'));
+        $length = (int) $this->input->post('length');
+        if ($length <= 0) $length = 10;
+        $length = min($length, 500);
+
+        $status     = trim((string) ($this->input->post('filter_status')     ?? $this->input->post('status')     ?? ''));
+        $departemen = trim((string) ($this->input->post('filter_departemen') ?? $this->input->post('departemen') ?? ''));
+        $search_post= $this->input->post('search');
+        $search_val = is_array($search_post) ? ($search_post['value'] ?? '') : ($search_post ?? '');
+
+        $roles     = $this->_roles();
+        $id_user   = (int) $this->session->userdata('id_user');
+        $user_dept = trim((string) $this->session->userdata('departemen'));
+
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
+        }
+
+        $filters = [
+            'status'     => $status,
+            'departemen' => $departemen,
+            'search'     => trim((string) $search_val),
+            'status_in'  => !empty($status) ? [$status] : ['tidak_lulus_inspeksi', 'siap_verifikasi', 'ditolak_verifikasi'],
+        ];
+
+        $is_site_wide = $this->_has([1, 3, 4, 5, 8], $roles);
+        if (!$is_site_wide) {
+            $filters['scope_dept_pemohon'] = [
+                'id_pemohon' => $id_user,
+                'departemen' => $user_dept,
+            ];
+        }
+
+        // Agregasi jumlah count perbaikan untuk ringkasan kartu stat
+        $count_filters = $filters;
+        unset($count_filters['status'], $count_filters['status_in']);
+
+        $cf_tidak_lulus = $count_filters;
+        $cf_tidak_lulus['status'] = 'tidak_lulus_inspeksi';
+        $cnt_tidak_lulus = $this->pengajuan_model->count_all($cf_tidak_lulus);
+
+        $cf_siap = $count_filters;
+        $cf_siap['status'] = 'siap_verifikasi';
+        $cnt_siap = $this->pengajuan_model->count_all($cf_siap);
+
+        $cf_ditolak = $count_filters;
+        $cf_ditolak['status'] = 'ditolak_verifikasi';
+        $cnt_ditolak = $this->pengajuan_model->count_all($cf_ditolak);
+
+        // Fetch data
+        $total_records    = $this->pengajuan_model->count_all($filters);
+        $filtered_records = $this->pengajuan_model->count_filtered($filters);
+        $data_rows        = $this->pengajuan_model->get_datatable($start, $length, $filters);
+
+        $data = [];
+        $no   = $start + 1;
+
+        foreach ($data_rows as $r) {
+            $id = $r->id_pengajuan;
+            $id_display_html = '<span class="badge bg-light text-dark font-monospace border">#PU-' . str_pad($id, 4, '0', STR_PAD_LEFT) . '</span>';
+            $nomor_unit_html = !empty($r->nomor_unit) ? html_escape($r->nomor_unit) : '<span class="text-muted small">—</span>';
+            $tgl_html        = '<span class="text-nowrap">' . date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)) . '</span>';
+
+            $catatan_temuan = '';
+            if ($r->status === 'tidak_lulus_inspeksi') {
+                $uji = $this->db->select('catatan_temuan')->where('id_pengajuan', $id)->order_by('id_uji', 'DESC')->get('uji_kelayakan')->row();
+                if ($uji) $catatan_temuan = $uji->catatan_temuan;
+            }
+            if (empty($catatan_temuan)) {
+                $app = $this->db->select('catatan')
+                    ->where('id_pengajuan', $id)
+                    ->where("catatan IS NOT NULL AND TRIM(catatan) != ''")
+                    ->order_by('id_approval', 'DESC')
+                    ->get('pengajuan_approval')->row();
+                if ($app) $catatan_temuan = $app->catatan;
+            }
+
+            $btn = '<div class="d-flex gap-1 justify-content-center text-nowrap flex-nowrap">';
+            $btn .= '<button class="btn btn-sm btn-outline-primary py-0 btn-detail" data-id="' . $id . '" title="Lihat Detail"><i class="bi bi-eye"></i></button>';
+
+            if ($r->status === 'tidak_lulus_inspeksi' && $this->_has([1, 7], $roles)) {
+                $btn .= '<a href="' . site_url('perbaikan/form/' . $id) . '" class="btn btn-sm btn-danger py-0 fw-semibold text-white" title="Input Data Perbaikan Unit"><i class="bi bi-tools me-1"></i>Input Perbaikan</a>';
+            }
+
+            if ($r->status === 'siap_verifikasi' && $this->_has([1, 4], $roles)) {
+                $btn .= '<a href="' . site_url('perbaikan/verifikasi/' . $id) . '" class="btn btn-sm btn-info py-0 text-white fw-semibold" title="Verifikasi Fisik Perbaikan"><i class="bi bi-patch-check me-1"></i>Verifikasi Fisik</a>';
+            }
+
+            $btn .= '</div>';
+
+            $data[] = [
+                'no'              => $no++,
+                'id_display'      => $id_display_html,
+                'nomor_unit'      => $nomor_unit_html,
+                'no_polisi'       => html_escape($r->no_polisi ?: 'N/A'),
+                'jenis_kendaraan' => html_escape($r->jenis_kendaraan ?: '-'),
+                'merk_tipe'       => html_escape($r->merk) . ' ' . html_escape($r->tipe),
+                'pemohon'         => html_escape($r->nama_pemohon ?: '-'),
+                'perusahaan'      => html_escape($r->perusahaan),
+                'catatan_temuan'  => !empty($catatan_temuan) ? html_escape($catatan_temuan) : '<em class="text-muted small">Tidak ada catatan</em>',
+                'status'          => $this->_badge_status_perbaikan($r->status),
+                'tgl_pengajuan'   => $tgl_html,
+                'aksi'            => $btn,
+            ];
+        }
+
+        echo json_encode([
+            'draw'            => $draw,
+            'recordsTotal'    => $total_records,
+            'recordsFiltered' => $filtered_records,
+            'data'            => $data,
+            'counts'          => [
+                'tidak_lulus'        => $cnt_tidak_lulus,
+                'siap_verifikasi'    => $cnt_siap,
+                'ditolak_verifikasi' => $cnt_ditolak,
+            ],
+            'csrfHash'        => $this->security->get_csrf_hash(),
+        ]);
+    }
+
+    /**
+     * Helper privat penyusun badge status perbaikan.
+     * 
+     * @param string $status Status pengajuan
+     * @return string HTML badge status
+     */
+    private function _badge_status_perbaikan($status)
+    {
+        if ($status === 'tidak_lulus_inspeksi') {
+            return '<span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-tools me-1"></i>Perlu Perbaikan</span>';
+        } elseif ($status === 'siap_verifikasi') {
+            return '<span class="badge bg-info text-white px-2 py-1"><i class="bi bi-patch-check me-1"></i>Siap Verifikasi</span>';
+        } elseif ($status === 'ditolak_verifikasi') {
+            return '<span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i>Ditolak Verifikasi</span>';
+        }
+        return '<span class="badge bg-secondary">' . html_escape($status) . '</span>';
     }
 
     /**
@@ -46,14 +234,28 @@ class Perbaikan extends CI_Controller
             redirect('pengajuan');
         }
 
-        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
-        if (!$pengajuan || $pengajuan->status !== 'tidak_lulus_inspeksi') {
-            $this->session->set_flashdata('error', 'Pengajuan tidak ditemukan atau tidak dalam status yang tepat.');
-            redirect('pengajuan');
+        $user_dept = trim((string) $this->session->userdata('departemen'));
+        $id_user   = (int) $this->session->userdata('id_user');
+
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
         }
 
-        if (!in_array(1, $roles, true) && $pengajuan->id_pemohon != $this->session->userdata('id_user')) {
-            $this->session->set_flashdata('error', 'Anda hanya dapat menginput perbaikan untuk pengajuan milik Anda.');
+        $filters = [];
+        if (!in_array(1, $roles, true)) {
+            $filters['scope_dept_pemohon'] = [
+                'id_pemohon' => $id_user,
+                'departemen' => $user_dept,
+            ];
+        }
+
+        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan, $filters);
+        if (!$pengajuan || $pengajuan->status !== 'tidak_lulus_inspeksi') {
+            $this->session->set_flashdata('error', 'Pengajuan tidak ditemukan atau tidak dalam status yang tepat untuk perbaikan.');
             redirect('pengajuan');
         }
 
@@ -150,9 +352,28 @@ class Perbaikan extends CI_Controller
         $id_uji       = (int) $this->input->post('id_uji');
         $catatan      = trim($this->input->post('catatan_perbaikan') ?? '');
 
-        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan);
+        $user_dept = trim((string) $this->session->userdata('departemen'));
+        $id_user   = (int) $this->session->userdata('id_user');
+
+        if (empty($user_dept) && $id_user > 0) {
+            $u = $this->db->select('departemen')->where('id_user', $id_user)->get('users')->row();
+            if ($u && !empty($u->departemen)) {
+                $user_dept = trim((string) $u->departemen);
+                $this->session->set_userdata('departemen', $user_dept);
+            }
+        }
+
+        $filters = [];
+        if (!in_array(1, $roles, true)) {
+            $filters['scope_dept_pemohon'] = [
+                'id_pemohon' => $id_user,
+                'departemen' => $user_dept,
+            ];
+        }
+
+        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan, $filters);
         if (!$pengajuan || $pengajuan->status !== 'tidak_lulus_inspeksi') {
-            $this->session->set_flashdata('error', 'Status pengajuan tidak valid.');
+            $this->session->set_flashdata('error', 'Status pengajuan tidak valid atau Anda tidak memiliki akses.');
             redirect('pengajuan');
         }
 

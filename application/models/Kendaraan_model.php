@@ -99,6 +99,10 @@ class Kendaraan_model extends CI_Model
             }
         }
 
+        if (!empty($filter['perusahaan'])) {
+            $this->db->where('LOWER(TRIM(k.perusahaan)) =', strtolower(trim((string)$filter['perusahaan'])));
+        }
+
         if (isset($filter['is_unit_baru']) && $filter['is_unit_baru'] !== '') {
             $this->db->where('k.is_unit_baru', (int) $filter['is_unit_baru']);
         }
