@@ -116,4 +116,86 @@ class Auth_model extends CI_Model
 
         return false;
     }
+
+    /**
+     * Membersihkan record percobaan login yang sudah di atas 1 jam.
+     */
+    public function clean_old_login_attempts()
+    {
+        if ($this->db->table_exists('login_attempts')) {
+            $one_hour_ago = date('Y-m-d H:i:s', time() - 3600);
+            $this->db->where('last_attempt_time <', $one_hour_ago)->delete('login_attempts');
+        }
+    }
+
+    /**
+     * Mengambil data percobaan gagal login berdasarkan identity dan ip_address.
+     * 
+     * @param string $identity
+     * @param string $ip_address
+     * @return object|null
+     */
+    public function get_login_attempt($identity, $ip_address)
+    {
+        if (!$this->db->table_exists('login_attempts')) {
+            return null;
+        }
+
+        return $this->db
+            ->where('identity', $identity)
+            ->where('ip_address', $ip_address)
+            ->get('login_attempts')
+            ->row();
+    }
+
+    /**
+     * Mencatat / menambah jumlah percobaan login yang gagal ke database.
+     * 
+     * @param string $identity
+     * @param string $ip_address
+     * @return void
+     */
+    public function record_failed_attempt($identity, $ip_address)
+    {
+        if (!$this->db->table_exists('login_attempts')) {
+            return;
+        }
+
+        $row = $this->get_login_attempt($identity, $ip_address);
+        $now = date('Y-m-d H:i:s');
+
+        if ($row) {
+            $this->db->where('id', $row->id)->update('login_attempts', [
+                'attempt'           => $row->attempt + 1,
+                'last_attempt_time' => $now,
+            ]);
+        } else {
+            $this->db->insert('login_attempts', [
+                'identity'          => $identity,
+                'ip_address'        => $ip_address,
+                'attempt'           => 1,
+                'last_attempt_time' => $now,
+            ]);
+        }
+    }
+
+    /**
+     * Mereset percobaan gagal login ke 0 / menghapus record saat login berhasil.
+     * 
+     * @param string $identity
+     * @param string $ip_address
+     * @return void
+     */
+    public function reset_login_attempts($identity, $ip_address)
+    {
+        if (!$this->db->table_exists('login_attempts')) {
+            return;
+        }
+
+        $this->db
+            ->where('identity', $identity)
+            ->where('ip_address', $ip_address)
+            ->delete('login_attempts');
+    }
 }
+

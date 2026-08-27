@@ -214,7 +214,7 @@
         allowClear: true,
         width: '100%',
         dropdownParent: $('#modalUser'),
-        tags: true
+        tags: false
     });
 
     // ── Load tabel ────────────────────────────────────────────

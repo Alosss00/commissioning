@@ -69,9 +69,17 @@ class Auth extends CI_Controller
             return;
         }
 
-        // Cek proteksi brute-force login
-        $attempt = (int) ($this->session->userdata('login_attempt') ?? 0);
-        $last_attempt_time = $this->session->userdata('last_attempt_time');
+        $identity   = $this->input->post('identity', TRUE);
+        $password   = $this->input->post('password', TRUE);
+        $ip_address = $this->input->ip_address();
+
+        // Cleanup percobaan login berusia > 1 jam
+        $this->Auth_model->clean_old_login_attempts();
+
+        // Cek proteksi brute-force login berbasis DB (identity & ip_address)
+        $attempt_row = $this->Auth_model->get_login_attempt($identity, $ip_address);
+        $attempt = $attempt_row ? (int) $attempt_row->attempt : 0;
+        $last_attempt_time = ($attempt_row && $attempt_row->last_attempt_time) ? strtotime($attempt_row->last_attempt_time) : null;
 
         if ($attempt >= 5 && $last_attempt_time && (time() - $last_attempt_time < 300)) {
             $sisa_detik = 300 - (time() - $last_attempt_time);
@@ -81,12 +89,8 @@ class Auth extends CI_Controller
         } elseif ($attempt >= 5) {
             // Reset batas lockout jika sudah lewat 5 menit
             $attempt = 0;
-            $this->session->unset_userdata('login_attempt');
-            $this->session->unset_userdata('last_attempt_time');
+            $this->Auth_model->reset_login_attempts($identity, $ip_address);
         }
-
-        $identity = $this->input->post('identity', TRUE);
-        $password = $this->input->post('password', TRUE);
 
         // Cari user di database lokal berdasarkan Email atau Username
         $user = filter_var($identity, FILTER_VALIDATE_EMAIL)
@@ -130,8 +134,7 @@ class Auth extends CI_Controller
 
         // Penanganan kegagalan verifikasi
         if (!$user || !$authenticated) {
-            $this->session->set_userdata('login_attempt', $attempt + 1);
-            $this->session->set_userdata('last_attempt_time', time());
+            $this->Auth_model->record_failed_attempt($identity, $ip_address);
             echo json_encode(['status' => 'error', 'message' => 'Username / Password salah!']);
             return;
         }
@@ -167,8 +170,10 @@ class Auth extends CI_Controller
             $primary_role = !empty($roles_ids) ? min($roles_ids) : (int)$user->id_role;
         }
 
-        // Inisialisasi data session login pengguna
+        // Inisialisasi data session login pengguna & reset login_attempts di DB
+        $this->Auth_model->reset_login_attempts($identity, $ip_address);
         $this->session->unset_userdata('login_attempt');
+        $this->session->unset_userdata('last_attempt_time');
         $this->session->set_userdata([
             'id_user'     => (int) $user->id_user,
             'nama'        => $user->nama,

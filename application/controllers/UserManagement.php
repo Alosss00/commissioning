@@ -22,7 +22,7 @@ class UserManagement extends CI_Controller
     {
         parent::__construct();
         $this->load->model('User_model', 'user_model');
-        $this->load->library(['session', 'form_validation', 'upload']);
+        $this->load->library(['session', 'form_validation', 'upload', 'rate_limiter']);
         $this->load->helper(['url', 'form']);
 
         // Proteksi Otorisasi: Pastikan pengguna sudah login
@@ -245,6 +245,16 @@ class UserManagement extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
+        $user_id = (int) $this->session->userdata('id_user');
+        if (!$this->rate_limiter->check('usermanagement_save_' . $user_id, 20, 60)) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Terlalu banyak permintaan. Silakan tunggu beberapa saat.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
         $id         = (int) $this->input->post('id_user');
         $nama       = trim($this->input->post('nama'));
         $username   = trim($this->input->post('username'));
@@ -255,15 +265,24 @@ class UserManagement extends CI_Controller
         $password   = trim($this->input->post('password'));
         $roles      = $this->input->post('roles') ?: [];
 
-        // Validasi parameter wajib diisi
-        if (!$nama || !$username || !$email) {
-            echo json_encode(['status' => 'error', 'message' => 'Nama, username, dan email wajib diisi.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+        // Rules validasi CI3
+        $this->form_validation->set_rules('nama',       'Nama',       'required|max_length[100]|trim');
+        $this->form_validation->set_rules('username',   'Username',   'required|max_length[50]|alpha_dash|trim');
+        $this->form_validation->set_rules('email',      'Email',      'required|valid_email|max_length[100]|trim');
+        $this->form_validation->set_rules('jabatan',    'Jabatan',    'max_length[100]|trim');
+        $this->form_validation->set_rules('no_hp',      'No HP',      'max_length[20]|regex_match[/^[0-9+\-\s]*$/]');
+        $this->form_validation->set_rules('departemen', 'Departemen', 'max_length[150]|trim');
+
+        if ($this->form_validation->run() == FALSE) {
+            $this->form_validation->set_error_delimiters('', ' ');
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => trim(strip_tags(validation_errors())),
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
             return;
         }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(['status' => 'error', 'message' => 'Format email tidak valid.', 'csrf_hash' => $this->security->get_csrf_hash()]);
-            return;
-        }
+
         if (empty($roles)) {
             echo json_encode(['status' => 'error', 'message' => 'Pilih minimal satu role.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
@@ -344,6 +363,16 @@ class UserManagement extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
+        $user_id = (int) $this->session->userdata('id_user');
+        if (!$this->rate_limiter->check('usermanagement_toggle_active_' . $user_id, 20, 60)) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Terlalu banyak permintaan. Silakan tunggu beberapa saat.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
         $id = (int) $this->input->post('id_user');
         if ($id === 1) {
             echo json_encode(['status' => 'error', 'message' => 'User admin utama tidak dapat dinonaktifkan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -380,6 +409,16 @@ class UserManagement extends CI_Controller
     public function delete()
     {
         if (!$this->input->is_ajax_request()) show_404();
+
+        $user_id = (int) $this->session->userdata('id_user');
+        if (!$this->rate_limiter->check('usermanagement_delete_' . $user_id, 20, 60)) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Terlalu banyak permintaan. Silakan tunggu beberapa saat.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
 
         $id = (int) $this->input->post('id_user');
         if ($id === 1) {
