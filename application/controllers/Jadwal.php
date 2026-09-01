@@ -196,16 +196,21 @@ class Jadwal extends CI_Controller
         $is_ajax            = $this->input->is_ajax_request() || isset($_SERVER['HTTP_X_REQUESTED_WITH']);
         $id_pengajuan       = (int) $this->input->post('id_pengajuan');
         $id_jadwal          = (int) $this->input->post('id_jadwal');
-        $tanggal_uji        = trim($this->input->post('tanggal_uji'));
+        $tanggal_uji        = trim((string) $this->input->post('tanggal_uji'));
         $id_inspektor       = (int) $this->input->post('id_inspektor');
         $id_mekanik_master  = (int) $this->input->post('id_mekanik_master');
-        $lokasi             = trim($this->input->post('lokasi'));
-        $catatan            = trim($this->input->post('keterangan') ?: $this->input->post('catatan'));
+        $lokasi             = trim((string) $this->input->post('lokasi'));
+        $raw_catatan        = $this->input->post('keterangan') ?: $this->input->post('catatan');
+        $catatan            = trim((string) $raw_catatan);
         $id_user            = (int) $this->session->userdata('id_user');
 
         if (!$id_pengajuan || !$tanggal_uji || !$id_inspektor) {
             if ($is_ajax) {
-                echo json_encode(['status' => 'error', 'message' => 'Tanggal Uji dan Inspektor wajib diisi.']);
+                echo json_encode([
+                    'status'   => 'error', 
+                    'message'  => 'Tanggal Uji dan Inspektor wajib diisi.',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
                 return;
             }
             $this->session->set_flashdata('error', 'Tanggal Uji dan Inspektor wajib diisi.');
@@ -217,7 +222,11 @@ class Jadwal extends CI_Controller
         $konflik_ins = $this->jadwal_model->cek_konflik_inspektor($tanggal_uji, $id_inspektor, $id_jadwal);
         if ($konflik_ins) {
             if ($is_ajax) {
-                echo json_encode(['status' => 'error', 'message' => 'Inspektor yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.']);
+                echo json_encode([
+                    'status'   => 'error', 
+                    'message'  => 'Inspektor yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
                 return;
             }
             $this->session->set_flashdata('error', 'Inspektor yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.');
@@ -229,7 +238,11 @@ class Jadwal extends CI_Controller
             $konflik_mek = $this->jadwal_model->cek_konflik_mekanik($tanggal_uji, $id_mekanik_master, $id_jadwal);
             if ($konflik_mek) {
                 if ($is_ajax) {
-                    echo json_encode(['status' => 'error', 'message' => 'Mekanik yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.']);
+                    echo json_encode([
+                        'status'   => 'error', 
+                        'message'  => 'Mekanik yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.',
+                        'csrfHash' => $this->security->get_csrf_hash()
+                    ]);
                     return;
                 }
                 $this->session->set_flashdata('error', 'Mekanik yang dipilih memiliki jadwal lain dalam kurun waktu 60 menit.');
@@ -244,10 +257,11 @@ class Jadwal extends CI_Controller
             // Update record jadwal_uji
             $this->jadwal_model->update($id_jadwal, [
                 'tanggal_uji'       => date('Y-m-d H:i:s', strtotime($tanggal_uji)),
+                'id_mekanik'        => $id_inspektor,
                 'id_inspektor'      => $id_inspektor,
                 'id_mekanik_master' => $id_mekanik_master ?: null,
                 'lokasi'            => $lokasi ?: 'Workshop Main',
-                'keterangan'        => $catatan ?: null,
+                'keterangan'        => !empty($catatan) ? $catatan : null,
             ]);
 
             $this->db->insert('audit_log', [
@@ -262,14 +276,18 @@ class Jadwal extends CI_Controller
             $id_jadwal = $this->jadwal_model->insert([
                 'id_pengajuan'      => $id_pengajuan,
                 'tanggal_uji'       => date('Y-m-d H:i:s', strtotime($tanggal_uji)),
+                'id_mekanik'        => $id_inspektor,
                 'id_inspektor'      => $id_inspektor,
                 'id_mekanik_master' => $id_mekanik_master ?: null,
                 'lokasi'            => $lokasi ?: 'Workshop Main',
-                'keterangan'        => $catatan ?: null,
+                'keterangan'        => !empty($catatan) ? $catatan : null,
                 'status'            => 'scheduled',
                 'dibuat_oleh'       => $id_user,
                 'created_at'        => date('Y-m-d H:i:s'),
             ]);
+
+            // Pastikan status pengajuan adalah dijadwalkan
+            $this->db->where('id_pengajuan', $id_pengajuan)->update('pengajuan_uji', ['status' => 'dijadwalkan']);
 
             $this->db->insert('audit_log', [
                 'id_user'    => $id_user,
@@ -287,7 +305,8 @@ class Jadwal extends CI_Controller
                 echo json_encode([
                     'status'   => 'success',
                     'message'  => 'Jadwal inspeksi berhasil disimpan.',
-                    'redirect' => site_url('jadwal')
+                    'redirect' => site_url('jadwal'),
+                    'csrfHash' => $this->security->get_csrf_hash()
                 ]);
                 return;
             }
@@ -295,7 +314,11 @@ class Jadwal extends CI_Controller
             redirect('jadwal');
         } else {
             if ($is_ajax) {
-                echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan jadwal inspeksi.']);
+                echo json_encode([
+                    'status'   => 'error', 
+                    'message'  => 'Gagal menyimpan jadwal inspeksi.',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
                 return;
             }
             $this->session->set_flashdata('error', 'Gagal menyimpan jadwal inspeksi.');
@@ -311,16 +334,16 @@ class Jadwal extends CI_Controller
     public function cek_konflik_inspektor()
     {
         $id_inspektor      = (int) ($this->input->post('id_inspektor') ?: $this->input->get('id_inspektor'));
-        $tanggal_uji       = trim($this->input->post('tanggal_uji') ?: $this->input->get('tanggal_uji'));
+        $tanggal_uji       = trim((string) ($this->input->post('tanggal_uji') ?: $this->input->get('tanggal_uji')));
         $exclude_jadwal_id = (int) ($this->input->post('exclude_jadwal_id') ?: $this->input->get('exclude_jadwal_id'));
 
         if (!$id_inspektor || !$tanggal_uji) {
-            echo json_encode(['status' => 'error', 'konflik' => false]);
+            echo json_encode(['status' => 'error', 'konflik' => false, 'csrfHash' => $this->security->get_csrf_hash()]);
             return;
         }
 
         $konflik = $this->jadwal_model->cek_konflik_inspektor($tanggal_uji, $id_inspektor, $exclude_jadwal_id);
-        echo json_encode(['status' => 'success', 'konflik' => $konflik]);
+        echo json_encode(['status' => 'success', 'konflik' => $konflik, 'csrfHash' => $this->security->get_csrf_hash()]);
     }
 
     /**
@@ -330,9 +353,9 @@ class Jadwal extends CI_Controller
      */
     public function get_by_date()
     {
-        $tanggal = trim($this->input->post('tanggal') ?: $this->input->get('tanggal'));
+        $tanggal = trim((string) ($this->input->post('tanggal') ?: $this->input->get('tanggal')));
         if (!$tanggal) {
-            echo json_encode(['status' => 'error', 'data' => []]);
+            echo json_encode(['status' => 'error', 'data' => [], 'csrfHash' => $this->security->get_csrf_hash()]);
             return;
         }
 

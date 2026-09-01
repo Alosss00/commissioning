@@ -83,7 +83,9 @@ class UserManagement extends CI_Controller
             'SECURITY' => 'Departemen Security',
             'SUSTAINABILITY & EXTERNAL AFFAIRS' => 'Departemen Sustainability & External Affairs',
             'SUPPLY CHAIN' => 'Departemen Supply Chain',
-            'UNDERGROUND' => 'Departemen Underground'
+            'UNDERGROUND' => 'Departemen Underground',
+            'PT. Meares Soputan Mining' => 'PT. Meares Soputan Mining',
+            'PT. Tambang Tondano Nusajaya' => 'PT. Tambang Tondano Nusajaya'
         ];
 
         // Ambil daftar seluruh departemen yang ada di DB dalam 1 kali query

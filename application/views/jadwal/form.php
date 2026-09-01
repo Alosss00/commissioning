@@ -526,6 +526,10 @@
                     $('#btnSimpanJadwal').prop('disabled', false)
                         .html('<i class="bi bi-calendar-check me-1"></i>Simpan Jadwal');
 
+                    if (res && res.csrfHash) {
+                        csrfHash = res.csrfHash;
+                    }
+
                     if (res.status === 'success') {
                         Swal.fire({
                             title: 'Berhasil!',
@@ -538,17 +542,23 @@
                     } else {
                         Swal.fire({
                             title: 'Gagal',
-                            text: res.message,
+                            text: res.message || 'Gagal menyimpan jadwal.',
                             icon: 'error',
                             confirmButtonColor: '#dc3545'
                         });
                     }
                 },
-                error: function() {
+                error: function(xhr) {
                     NProgress.done();
                     $('#btnSimpanJadwal').prop('disabled', false)
                         .html('<i class="bi bi-calendar-check me-1"></i>Simpan Jadwal');
-                    toastr.error('Terjadi kesalahan server.');
+                    var msg = 'Terjadi kesalahan server.';
+                    try {
+                        var res = JSON.parse(xhr.responseText);
+                        if (res && res.message) msg = res.message;
+                        if (res && res.csrfHash) csrfHash = res.csrfHash;
+                    } catch (e) {}
+                    toastr.error(msg);
                 }
             });
         }

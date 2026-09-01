@@ -1516,7 +1516,9 @@ INSERT INTO `perusahaan` (`id_perusahaan`, `nama_perusahaan`, `singkatan`, `is_a
 (37, 'PT. Tumou Tou Manado', NULL, 1),
 (38, 'PT. United Tractor', NULL, 1),
 (39, 'Siloam Hospital', NULL, 1),
-(40, 'Visitor', NULL, 1);
+(40, 'Visitor', NULL, 1),
+(68, 'PT. Meares Soputan Mining', 'MSM', 1),
+(69, 'PT. Tambang Tondano Nusajaya', 'TTN', 1);
 
 -- --------------------------------------------------------
 
@@ -2734,7 +2736,7 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id_user`, `id_role`, `nama`, `username`, `email`, `foto`, `jabatan`, `no_hp`, `departemen`, `password`, `is_active`, `created_at`, `updated_at`) VALUES
 (1, 1, 'Administrator', 'admin', 'admin@gmail.com', 'uploads/foto_user/user_1_1775818862.png', NULL, NULL, NULL, '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-02-23 02:46:54', '2026-04-10 19:01:02'),
 (2, 7, 'User Test', 'user', 'user@gmail.com', NULL, NULL, NULL, NULL, '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-02-25 05:25:34', '2026-03-12 08:39:30'),
-(3, 4, 'Inspektor', 'inspektor', 'inspektor@gmail.com', NULL, NULL, NULL, NULL, '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-02-25 05:25:34', '2026-04-13 16:43:12'),
+(3, 4, 'Inspektor', 'inspektor', 'inspektor@gmail.com', NULL, NULL, NULL, 'Departemen OHS (Occupational Health & Safety)', '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-02-25 05:25:34', '2026-04-13 16:43:12'),
 (4, 1, 'OHS Test', 'ohs', 'ohs@gmail.com', NULL, NULL, NULL, NULL, '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-02-25 05:25:34', '2026-04-13 22:50:08'),
 (5, 2, 'KTT Test', 'ktt', 'ktt@gmail.com', NULL, NULL, NULL, NULL, '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-02-25 05:25:34', '2026-03-12 08:39:30'),
 (6, 3, 'OHS Superintendent', 'ohssupt', 'ohssupt@gmail.com', NULL, NULL, NULL, NULL, '$2y$10$9JmqLtLuImhzuXlJTxvKqeL1VgCZ/WOcGlDRClBv2XJ/8ZsGW9JnO', 1, '2026-03-12 08:39:56', '2026-03-12 08:39:56'),

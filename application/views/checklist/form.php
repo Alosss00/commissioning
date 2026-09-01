@@ -534,6 +534,32 @@
             tags: true
         });
 
+        var mapInspektorDept = <?= json_encode($map_inspektor_dept ?? []) ?>;
+
+        function autoSetPerusahaanInspektor(force) {
+            var nama = ($('#nama_inspektor').val() || '').trim().toLowerCase();
+            if (nama && mapInspektorDept[nama]) {
+                var targetDept = mapInspektorDept[nama];
+                var currentVal = ($('#perusahaan_inspektor').val() || '').trim();
+                if (force || !currentVal) {
+                    if ($('#perusahaan_inspektor option[value="' + targetDept + '"]').length === 0) {
+                        var newOption = new Option(targetDept, targetDept, true, true);
+                        $('#perusahaan_inspektor').append(newOption).trigger('change');
+                    } else {
+                        $('#perusahaan_inspektor').val(targetDept).trigger('change');
+                    }
+                }
+            }
+        }
+
+        $('#nama_inspektor').on('input change blur', function() {
+            autoSetPerusahaanInspektor(false);
+        });
+
+        if (!$('#perusahaan_inspektor').val()) {
+            autoSetPerusahaanInspektor(true);
+        }
+
         var totalItems = <?= array_sum(array_map('count', $grouped)) ?>;
         var criticalIds = [<?= implode(',', array_map(fn($i) => $i->id_item, $grouped['CRITICAL'])) ?>];
 

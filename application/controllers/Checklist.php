@@ -275,6 +275,7 @@ class Checklist extends CI_Controller
             ->select('j.id_jadwal,
                       mm.nama       AS nama_mekanik_jdl,
                       mm.perusahaan AS perus_mekanik_jdl,
+                      ui.id_user    AS id_inspektor_jdl,
                       ui.nama       AS nama_inspektor_jdl,
                       ui.departemen AS perus_inspektor_jdl')
             ->from('jadwal_uji j')
@@ -289,15 +290,38 @@ class Checklist extends CI_Controller
             $existing_inspektor = $jadwal_info->nama_inspektor_jdl ?? '';
         }
 
+        // Ambil master seluruh user inspektor untuk mapping otomatis nama -> departemen terdaftar
+        $inspektors_master = $this->db
+            ->select('u.id_user, u.nama, u.username, u.departemen')
+            ->from('users u')
+            ->join('user_roles ur', 'ur.id_user = u.id_user', 'left')
+            ->group_start()
+            ->where('ur.id_role', 4)
+            ->or_where('u.id_role', 4)
+            ->group_end()
+            ->where('u.is_active', 1)
+            ->group_by('u.id_user')
+            ->get()->result();
+
+        $map_inspektor_dept = [];
+        foreach ($inspektors_master as $im) {
+            if (!empty($im->departemen)) {
+                $map_inspektor_dept[strtolower(trim($im->nama))] = trim($im->departemen);
+                $map_inspektor_dept[strtolower(trim($im->username))] = trim($im->departemen);
+            }
+        }
+
         if (empty($existing_perusahaan)) {
             if ($jadwal_info && !empty($jadwal_info->perus_inspektor_jdl)) {
-                $existing_perusahaan = $jadwal_info->perus_inspektor_jdl;
+                $existing_perusahaan = trim($jadwal_info->perus_inspektor_jdl);
+            } elseif (!empty($existing_inspektor) && isset($map_inspektor_dept[strtolower(trim($existing_inspektor))])) {
+                $existing_perusahaan = $map_inspektor_dept[strtolower(trim($existing_inspektor))];
             } else {
                 // Fallback ke departemen milik user logged in jika role-nya inspektor/admin
                 $id_user_login = $this->session->userdata('id_user');
                 $user_login = $this->db->select('departemen')->where('id_user', $id_user_login)->get('users')->row();
                 if ($user_login && !empty($user_login->departemen)) {
-                    $existing_perusahaan = $user_login->departemen;
+                    $existing_perusahaan = trim($user_login->departemen);
                 }
             }
         }
@@ -347,6 +371,7 @@ class Checklist extends CI_Controller
             'existing_perusahaan'    => $existing_perusahaan,
             'existing_mekanik'       => $existing_mekanik,
             'existing_perus_mekanik' => $existing_perus_mekanik,
+            'map_inspektor_dept'     => $map_inspektor_dept,
             'nama_mekanik'           => $jadwal_info->nama_mekanik_jdl  ?? '',
             'perusahaan_mekanik'     => $jadwal_info->perus_mekanik_jdl ?? '',
             'perbaikan_info'         => $perbaikan_info,
@@ -392,6 +417,17 @@ class Checklist extends CI_Controller
             echo json_encode(['status' => 'error', 'message' => 'Nama inspektor wajib diisi.']);
             return;
         }
+
+        if (empty($perusahaan_inspektor)) {
+            $user_ins = $this->db->select('departemen')
+                ->where('LOWER(nama)', strtolower($nama_inspektor))
+                ->or_where('LOWER(username)', strtolower($nama_inspektor))
+                ->get('users')->row();
+            if ($user_ins && !empty($user_ins->departemen)) {
+                $perusahaan_inspektor = $user_ins->departemen;
+            }
+        }
+
         if (empty($perusahaan_inspektor)) {
             echo json_encode(['status' => 'error', 'message' => 'Perusahaan inspektor wajib diisi.']);
             return;

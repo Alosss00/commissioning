@@ -75,7 +75,9 @@ class Pengajuan extends CI_Controller
             'SECURITY' => 'Departemen Security',
             'SUSTAINABILITY & EXTERNAL AFFAIRS' => 'Departemen Sustainability & External Affairs',
             'SUPPLY CHAIN' => 'Departemen Supply Chain',
-            'UNDERGROUND' => 'Departemen Underground'
+            'UNDERGROUND' => 'Departemen Underground',
+            'PT. Meares Soputan Mining' => 'PT. Meares Soputan Mining',
+            'PT. Tambang Tondano Nusajaya' => 'PT. Tambang Tondano Nusajaya'
         ];
 
         // Ambil data perusahaan existing untuk verifikasi efisien tanpa query dalam loop

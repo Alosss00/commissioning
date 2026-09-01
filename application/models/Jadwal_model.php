@@ -184,7 +184,7 @@ class Jadwal_model extends CI_Model
      */
     public function get_inspektor()
     {
-        $this->db->select('u.id_user, u.nama, u.email, u.jabatan');
+        $this->db->select('u.id_user, u.nama, u.email, u.jabatan, u.departemen');
         $this->db->from('users u');
         $this->db->join('user_roles ur', 'ur.id_user = u.id_user', 'left');
         $this->db->group_start()

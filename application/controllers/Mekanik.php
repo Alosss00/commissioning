@@ -77,7 +77,9 @@ class Mekanik extends CI_Controller
             'SECURITY' => 'Departemen Security',
             'SUSTAINABILITY & EXTERNAL AFFAIRS' => 'Departemen Sustainability & External Affairs',
             'SUPPLY CHAIN' => 'Departemen Supply Chain',
-            'UNDERGROUND' => 'Departemen Underground'
+            'UNDERGROUND' => 'Departemen Underground',
+            'PT. Meares Soputan Mining' => 'PT. Meares Soputan Mining',
+            'PT. Tambang Tondano Nusajaya' => 'PT. Tambang Tondano Nusajaya'
         ];
 
         $existing = $this->db->select('LOWER(nama_perusahaan) as nama_lower')->get('perusahaan')->result_array();

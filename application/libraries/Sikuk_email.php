@@ -1017,4 +1017,37 @@ class Sikuk_email
             'wordwrap'         => false
         ];
     }
+
+    /**
+     * Eksekusi pengiriman email melalui CI Email Library
+     *
+     * @param string|array $to
+     * @param string $subject
+     * @param string $html_body
+     * @param string|null $reply_to
+     * @return bool
+     */
+    private function _send($to, $subject, $html_body, $reply_to = null)
+    {
+        if (empty($to)) return false;
+
+        $this->_init_smtp();
+
+        $from_email = $this->CI->config->item('sikuk_smtp_user') ?: 'alosjo123@gmail.com';
+        $from_name  = $this->CI->config->item('sikuk_email_sender_name') ?: 'Sistem Uji Kelayakan Unit';
+
+        $this->CI->email->from($from_email, $from_name);
+        $this->CI->email->to($to);
+        if (!empty($reply_to)) {
+            $this->CI->email->reply_to($reply_to);
+        }
+        $this->CI->email->subject($subject);
+        $this->CI->email->message($html_body);
+
+        $sent = @$this->CI->email->send();
+        if (!$sent) {
+            log_message('error', '[Sikuk_email] Gagal kirim email ke: ' . (is_array($to) ? implode(',', $to) : $to) . ' | Subjek: ' . $subject);
+        }
+        return $sent;
+    }
 }
