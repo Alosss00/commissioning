@@ -188,7 +188,7 @@ class Restore extends CI_Controller
                         'id'          => $r->id_mekanik,
                         'kode'        => 'MEK-' . $r->id_mekanik,
                         'identitas'   => '<strong>' . html_escape($r->nama) . '</strong>',
-                        'keterangan'  => 'Perusahaan: ' . html_escape($r->perusahaan ?: '—') . '<br><small class="text-muted">Kontak: ' . html_escape($r->no_hp ?: '—') . '</small>',
+                        'keterangan'  => 'Perusahaan: ' . html_escape($r->perusahaan ?: '—') . '<br><small class="text-muted">Kontak: ' . html_escape($r->kontak ?: '—') . '</small>',
                         'status'      => '<span class="badge bg-danger">Nonaktif</span>',
                         'deleted_at'  => date('d/m/Y H:i', strtotime($r->deleted_at)),
                         'deleted_by'  => html_escape($r->deleted_by_nama ?: 'System / Admin'),
@@ -223,7 +223,7 @@ class Restore extends CI_Controller
 
             case 'checklist_item':
                 $rows = $this->db
-                    ->select('ci.*, ct.nama_template, u_del.nama AS deleted_by_nama')
+                    ->select('ci.*, ct.nama AS nama_template, u_del.nama AS deleted_by_nama')
                     ->from('checklist_item ci')
                     ->join('checklist_template ct', 'ct.id_template = ci.id_template', 'left')
                     ->join('users u_del', 'u_del.id_user = ci.deleted_by', 'left')

@@ -81,12 +81,9 @@ class Kendaraan extends CI_Controller
 
         $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
 
-        $search_post = $this->input->post('search');
-        $search_val  = is_array($search_post) ? ($search_post['value'] ?? '') : ($search_post ?? '');
-
         $filters = [
-            'search'          => trim((string) $search_val),
-            'jenis_kendaraan' => trim((string) $this->input->post('filter_jenis')),
+            'search'          => $this->input->post('search')['value'],
+            'jenis_kendaraan' => $this->input->post('filter_jenis'),
             'is_unit_baru'    => $this->input->post('filter_unit'),
         ];
 
@@ -118,7 +115,6 @@ class Kendaraan extends CI_Controller
                         return $stiker && $sisa >= 0 && $sisa <= 30;
                     case 'aktif':
                         return $stiker && $sisa > 30;
-                    case 'belum':
                     case 'tanpa_stiker':
                         return !$stiker;
                     default:
@@ -131,7 +127,6 @@ class Kendaraan extends CI_Controller
 
         // Susun baris response tabel
         $data = [];
-        $no   = $start + 1;
         $roles = $this->_user_roles();
         $can_delete = $this->_has_role([1, 5], $roles);
 
@@ -188,7 +183,7 @@ class Kendaraan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $id        = (int) ($this->input->post('id_kendaraan') ?: $this->input->post('id'));
+        $id        = (int) $this->input->post('id_kendaraan');
         $kendaraan = $this->kendaraan_model->get_by_id($id);
 
         if (!$kendaraan) {
@@ -253,24 +248,12 @@ class Kendaraan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $roles_sess = $this->session->userdata('roles');
-        $role_int   = (int) $this->session->userdata('role');
-        $roles      = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
-        $user_dept  = trim((string) $this->session->userdata('departemen'));
-        $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
-
-        $filter = [];
-        if (!$is_site_wide && !empty($user_dept)) {
-            $filter['perusahaan'] = $user_dept;
-        }
-
-        $rows       = $this->kendaraan_model->get_datatable_lulus(0, 99999, $filter);
+        $rows       = $this->kendaraan_model->get_datatable_lulus(0, 99999);
         $stiker_map = $this->kendaraan_model->get_stiker_info_batch(
             array_column($rows, 'id_kendaraan')
         );
 
         $total        = count($rows);
-        $unit_baru    = 0;
         $stiker_aktif = 0;
         $stiker_hampir= 0;
         $stiker_exp   = 0;
@@ -279,10 +262,6 @@ class Kendaraan extends CI_Controller
         $per_jenis    = [];
 
         foreach ($rows as $r) {
-            if (!empty($r->is_unit_baru)) {
-                $unit_baru++;
-            }
-
             $stiker = $stiker_map[$r->id_kendaraan] ?? null;
             $jenis  = $r->jenis_kendaraan ?? 'Lainnya';
 
@@ -320,16 +299,13 @@ class Kendaraan extends CI_Controller
         echo json_encode([
             'status' => 'success',
             'data'   => [
-                'total'          => $total,
-                'unit_baru'      => $unit_baru,
-                'stiker_aktif'   => $stiker_aktif,
-                'aktif'          => $stiker_aktif,
-                'hampir_exp'     => $stiker_hampir,
-                'stiker_expired' => $stiker_exp,
-                'expired'        => $stiker_exp,
-                'tanpa_stiker'   => $tanpa_stiker,
-                'akan_expired'   => $akan_exp_list,
-                'per_jenis'      => $per_jenis,
+                'total'         => $total,
+                'aktif'         => $stiker_aktif,
+                'hampir_exp'    => $stiker_hampir,
+                'expired'       => $stiker_exp,
+                'tanpa_stiker'  => $tanpa_stiker,
+                'akan_expired'  => $akan_exp_list,
+                'per_jenis'     => $per_jenis,
             ],
             'csrf_hash' => $this->security->get_csrf_hash(),
         ]);
@@ -344,17 +320,6 @@ class Kendaraan extends CI_Controller
     public function get_all_for_export()
     {
         if (!$this->input->is_ajax_request()) show_404();
-
-        $roles_sess = $this->session->userdata('roles');
-        $role_int   = (int) $this->session->userdata('role');
-        $roles      = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
-        $user_dept  = trim((string) $this->session->userdata('departemen'));
-        $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
-
-        $where_dept = "";
-        if (!$is_site_wide && !empty($user_dept)) {
-            $where_dept = " AND LOWER(TRIM(k.perusahaan)) = " . $this->db->escape(strtolower($user_dept));
-        }
 
         $rows = $this->db->query("
             SELECT
@@ -383,7 +348,7 @@ class Kendaraan extends CI_Controller
                 pu.tipe_akses                                 AS access_type,
                 t.nama_tipe                                   AS unit_type,
                 k.merk                                        AS unit_brand,
-                COALESCE(k.model_unit, k.tipe, '-')           AS unit_model,
+                k.model_unit                                  AS unit_model,
                 k.perusahaan                                  AS department_user,
                 k.perusahaan                                  AS company_owner,
                 DATE_FORMAT(sr.tgl_expired, '%d/%m/%Y')       AS date_expired
@@ -391,7 +356,6 @@ class Kendaraan extends CI_Controller
             INNER JOIN tipe_kendaraan t ON t.id_tipe_kendaraan = k.id_tipe_kendaraan
             INNER JOIN pengajuan_uji pu ON pu.id_kendaraan = k.id_kendaraan
                 AND pu.status IN ('stiker_keluar','acc_ktt')
-                AND pu.deleted_at IS NULL
             LEFT JOIN (
                 SELECT id_pengajuan, MAX(id_sticker) AS max_id
                 FROM sticker_release GROUP BY id_pengajuan
@@ -432,11 +396,14 @@ class Kendaraan extends CI_Controller
                 FROM pengajuan_approval GROUP BY id_pengajuan
             ) pal_last ON pal_last.id_pengajuan = pu.id_pengajuan
             LEFT JOIN pengajuan_approval pa_last ON pa_last.id_approval = pal_last.max_id
-            WHERE k.deleted_at IS NULL {$where_dept}
             ORDER BY k.nomor_unit ASC, pu.id_pengajuan DESC
         ")->result();
 
-        echo json_encode(['status' => 'success', 'data' => $rows, 'csrf_hash' => $this->security->get_csrf_hash()]);
+        echo json_encode([
+            'status'    => 'success',
+            'data'      => $rows,
+            'csrf_hash' => $this->security->get_csrf_hash(),
+        ]);
     }
 
     /**
@@ -456,10 +423,9 @@ class Kendaraan extends CI_Controller
 
         $id = (int) ($this->input->post('id_kendaraan') ?: $this->input->post('id'));
 
-        // Memeriksa apakah kendaraan dapat dihapus
-        $check = $this->kendaraan_model->check_can_delete($id);
-        if (!$check['can_delete']) {
-            echo json_encode(['status' => 'error', 'message' => $check['message'], 'csrf_hash' => $this->security->get_csrf_hash()]);
+        // Memeriksa keterikatan data pengajuan aktif
+        if ($this->kendaraan_model->has_pengajuan($id)) {
+            echo json_encode(['status' => 'error', 'message' => 'Kendaraan memiliki riwayat pengajuan uji aktif, tidak dapat dihapus.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
@@ -559,4 +525,5 @@ class Kendaraan extends CI_Controller
         }
         return '<span class="badge bg-success" title="Expired pada ' . $exp . '"><i class="bi bi-check-circle me-1"></i>Aktif (' . $no . ')</span>';
     }
+}
 }

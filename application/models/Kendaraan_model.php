@@ -116,25 +116,25 @@ class Kendaraan_model extends CI_Model
     public function count_all($filter = [])
     {
         $this->_base_query($filter);
-        return $this->db->get()->num_rows();
+        return $this->db->count_all_results();
     }
 
     public function count_filtered($filter = [])
     {
         $this->_base_query($filter);
-        return $this->db->get()->num_rows();
+        return $this->db->count_all_results();
     }
 
     public function count_all_lulus($filter = [])
     {
         $this->_base_query_lulus($filter);
-        return $this->db->get()->num_rows();
+        return $this->db->count_all_results();
     }
 
     public function count_filtered_lulus($filter = [])
     {
         $this->_base_query_lulus($filter);
-        return $this->db->get()->num_rows();
+        return $this->db->count_all_results();
     }
 
     public function get_datatable($start, $length, $filter = [])
@@ -240,67 +240,11 @@ class Kendaraan_model extends CI_Model
         ]);
     }
 
-    /**
-     * Memeriksa apakah kendaraan dapat dihapus (soft delete).
-     * Diblokir jika:
-     * 1. Ada proses pengajuan yang sedang berjalan (draft, jadwal, inspeksi, approval).
-     * 2. Stiker kelayakan masih aktif (belum expired).
-     * 
-     * @param int $id ID Kendaraan
-     * @return array Status kelayakan hapus beserta pesan alasannya
-     */
-    public function check_can_delete($id)
-    {
-        $id = (int) $id;
-
-        // 1. Cek pengajuan yang sedang berjalan dalam pipeline aktif
-        $ongoing_statuses = [
-            'draft', 'pengajuan_baru', 'pengajuan_ulang', 'diterima_manager',
-            'dijadwalkan', 'tidak_lulus_inspeksi', 'selesai_inspeksi',
-            'diterima_admin_ohs', 'diterima_ohs_supt', 'inspeksi_ulang', 'siap_verifikasi'
-        ];
-
-        $ongoing = $this->db
-            ->where('id_kendaraan', $id)
-            ->where('deleted_at IS NULL')
-            ->where_in('status', $ongoing_statuses)
-            ->get('pengajuan_uji')->row();
-
-        if ($ongoing) {
-            $st_clean = ucwords(str_replace('_', ' ', $ongoing->status));
-            return [
-                'can_delete' => false,
-                'message'    => "Kendaraan sedang dalam proses pengajuan aktif (#PU-" . str_pad($ongoing->id_pengajuan, 4, '0', STR_PAD_LEFT) . " - {$st_clean}). Harap selesaikan atau batalkan pengajuan tersebut terlebih dahulu.",
-            ];
-        }
-
-        // 2. Cek apakah stiker komisioning masih aktif (belum expired)
-        $active_sticker = $this->db->query("
-            SELECT sr.nomor_sticker, sr.tgl_expired, DATEDIFF(sr.tgl_expired, NOW()) AS sisa_hari
-            FROM sticker_release sr
-            INNER JOIN pengajuan_uji pu ON pu.id_pengajuan = sr.id_pengajuan
-            WHERE pu.id_kendaraan = {$id}
-              AND pu.deleted_at IS NULL
-              AND sr.tgl_expired >= NOW()
-            ORDER BY sr.id_sticker DESC
-            LIMIT 1
-        ")->row();
-
-        if ($active_sticker) {
-            $tgl_exp = date('d/m/Y', strtotime($active_sticker->tgl_expired));
-            return [
-                'can_delete' => false,
-                'message'    => "Kendaraan masih memiliki stiker kelayakan aktif ({$active_sticker->nomor_sticker}) yang berlaku hingga {$tgl_exp}.",
-            ];
-        }
-
-        return ['can_delete' => true];
-    }
-
     public function has_pengajuan($id)
     {
-        $res = $this->check_can_delete($id);
-        return !$res['can_delete'];
+        return $this->db->where('id_kendaraan', (int) $id)
+            ->where('deleted_at IS NULL')
+            ->count_all_results('pengajuan_uji') > 0;
     }
 
     /**
@@ -340,6 +284,62 @@ class Kendaraan_model extends CI_Model
                 ) latest ON sr2.id_sticker = latest.max_id AND pu2.id_kendaraan = latest.id_kendaraan
             ) sr ON sr.id_kendaraan = k.id_kendaraan
             WHERE sr.tgl_expired IS NULL OR DATEDIFF(sr.tgl_expired, NOW()) < 0
+            ORDER BY k.no_polisi ASC
+        ")->result();
+    }
+
+    /**
+     * Mengambil informasi stiker untuk batch ID kendaraan dalam 1 kali query (Bebas N+1).
+     * 
+     * @param array $id_list Array ID Kendaraan
+     * @return array Map [id_kendaraan => object stiker info]
+     */
+    public function get_stiker_info_batch(array $id_list)
+    {
+        if (empty($id_list)) return [];
+
+        $ids = implode(',', array_map('intval', $id_list));
+
+        $rows = $this->db->query("
+            SELECT
+                pu.id_kendaraan,
+                sr.nomor_sticker,
+                sr.tanggal_release,
+                sr.tgl_expired,
+                sr.is_expired,
+                DATEDIFF(sr.tgl_expired, NOW()) AS sisa_hari
+            FROM sticker_release sr
+            INNER JOIN pengajuan_uji pu ON pu.id_pengajuan = sr.id_pengajuan
+            INNER JOIN (
+                SELECT pu2.id_kendaraan, MAX(sr2.id_sticker) AS max_id
+                FROM sticker_release sr2
+                INNER JOIN pengajuan_uji pu2 ON pu2.id_pengajuan = sr2.id_pengajuan
+                WHERE pu2.id_kendaraan IN ({$ids})
+                GROUP BY pu2.id_kendaraan
+            ) latest ON sr.id_sticker = latest.max_id AND pu.id_kendaraan = latest.id_kendaraan
+            WHERE pu.id_kendaraan IN ({$ids})
+        ")->result();
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$r->id_kendaraan] = $r;
+        }
+        return $map;
+    }
+
+    public function get_jenis_list()
+    {
+        return $this->db
+            ->select('t.id_tipe_kendaraan, t.nama_tipe AS jenis_kendaraan')
+            ->from('tipe_kendaraan t')
+            ->join('kendaraan k',      'k.id_tipe_kendaraan = t.id_tipe_kendaraan', 'inner')
+            ->join('pengajuan_uji pu', 'pu.id_kendaraan = k.id_kendaraan',          'inner')
+            ->where_in('pu.status', ['stiker_keluar', 'acc_ktt'])
+            ->group_by('t.id_tipe_kendaraan')
+            ->order_by('t.nama_tipe', 'ASC')
+            ->get()->result();
+    }
+}
             ORDER BY k.no_polisi ASC
         ")->result();
     }
