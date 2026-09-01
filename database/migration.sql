@@ -69,4 +69,35 @@ ENUM(
 'maintenance_record','bukti_perbaikan'
 ) NOT NULL;
 
+-- ── 7. Soft Delete Columns & Indexes ─────────────────────────────────
+ALTER TABLE `pengajuan_uji`
+ADD COLUMN `deleted_at` DATETIME NULL DEFAULT NULL,
+ADD COLUMN `deleted_by` INT UNSIGNED NULL DEFAULT NULL,
+ADD INDEX `idx_pengajuan_uji_deleted_at` (`deleted_at`);
+
+ALTER TABLE `users`
+ADD COLUMN `deleted_at` DATETIME NULL DEFAULT NULL,
+ADD COLUMN `deleted_by` INT UNSIGNED NULL DEFAULT NULL,
+ADD INDEX `idx_users_deleted_at` (`deleted_at`);
+
+ALTER TABLE `kendaraan`
+ADD COLUMN `deleted_at` DATETIME NULL DEFAULT NULL,
+ADD COLUMN `deleted_by` INT UNSIGNED NULL DEFAULT NULL,
+ADD INDEX `idx_kendaraan_deleted_at` (`deleted_at`);
+
+ALTER TABLE `mekanik_master`
+ADD COLUMN `deleted_at` DATETIME NULL DEFAULT NULL,
+ADD COLUMN `deleted_by` INT UNSIGNED NULL DEFAULT NULL,
+ADD INDEX `idx_mekanik_master_deleted_at` (`deleted_at`);
+
+ALTER TABLE `tipe_kendaraan`
+ADD COLUMN `deleted_at` DATETIME NULL DEFAULT NULL,
+ADD COLUMN `deleted_by` INT UNSIGNED NULL DEFAULT NULL,
+ADD INDEX `idx_tipe_kendaraan_deleted_at` (`deleted_at`);
+
+ALTER TABLE `checklist_item`
+ADD COLUMN `deleted_at` DATETIME NULL DEFAULT NULL,
+ADD COLUMN `deleted_by` INT UNSIGNED NULL DEFAULT NULL,
+ADD INDEX `idx_checklist_item_deleted_at` (`deleted_at`);
+
 SET FOREIGN_KEY_CHECKS = 1;

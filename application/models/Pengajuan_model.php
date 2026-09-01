@@ -81,6 +81,13 @@ class Pengajuan_model extends CI_Model
             $this->db->where('pu.id_pemohon', (int) $filters['id_pemohon']);
         }
         
+        // Filter soft delete: jika filter status adalah 'trash' / 'deleted', ambil data terhapus saja
+        if (!empty($filters['only_deleted']) || ($filters['status'] ?? '') === 'trash' || ($filters['status'] ?? '') === 'deleted') {
+            $this->db->where('pu.deleted_at IS NOT NULL');
+        } elseif (empty($filters['include_deleted'])) {
+            $this->db->where('pu.deleted_at IS NULL');
+        }
+
         // Filter kata kunci pencarian global
         if (!empty($filters['search'])) {
             $kw = $filters['search'];
@@ -104,7 +111,7 @@ class Pengajuan_model extends CI_Model
      */
     public function count_all($filters = [])
     {
-        $scope_keys = ['id_pemohon', 'departemen', 'scope_dept_pemohon', 'status', 'status_in'];
+        $scope_keys = ['id_pemohon', 'departemen', 'scope_dept_pemohon', 'status', 'status_in', 'include_deleted'];
         $scope_only = array_intersect_key($filters, array_flip($scope_keys));
         $this->_base_query($scope_only);
         return $this->db->count_all_results();
@@ -161,6 +168,10 @@ class Pengajuan_model extends CI_Model
         $this->db->join('users u',          'u.id_user = pu.id_pemohon',                 'left');
         $this->db->where('pu.id_pengajuan', (int) $id);
 
+        if (empty($filters['include_deleted'])) {
+            $this->db->where('pu.deleted_at IS NULL');
+        }
+
         if (!empty($filters['scope_dept_pemohon'])) {
             $id_pem = (int) ($filters['scope_dept_pemohon']['id_pemohon'] ?? 0);
             $dept   = trim((string)($filters['scope_dept_pemohon']['departemen'] ?? ''));
@@ -201,14 +212,33 @@ class Pengajuan_model extends CI_Model
     }
 
     /**
-     * Menghapus record pengajuan uji berdasarkan ID.
+     * Melakukan soft delete record pengajuan uji berdasarkan ID.
      * 
      * @param int $id ID Pengajuan
-     * @return bool Status keberhasilan penghapusan
+     * @param int|null $id_user User yang menghapus
+     * @return bool Status keberhasilan soft delete
      */
-    public function delete_pengajuan($id)
+    public function delete_pengajuan($id, $id_user = null)
     {
-        return $this->db->where('id_pengajuan', (int) $id)->delete('pengajuan_uji');
+        $id_user = $id_user ?: (int) $this->session->userdata('id_user');
+        return $this->db->where('id_pengajuan', (int) $id)->update('pengajuan_uji', [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => $id_user ?: null,
+        ]);
+    }
+
+    /**
+     * Memulihkan (restore) record pengajuan uji yang sebelumnya di-soft delete.
+     * 
+     * @param int $id ID Pengajuan
+     * @return bool Status keberhasilan pemulihan
+     */
+    public function restore_pengajuan($id)
+    {
+        return $this->db->where('id_pengajuan', (int) $id)->update('pengajuan_uji', [
+            'deleted_at' => null,
+            'deleted_by' => null,
+        ]);
     }
 
     /**
@@ -460,8 +490,12 @@ class Pengajuan_model extends CI_Model
 
         // Langkah 3: Ambil seluruh lampiran sekaligus dalam 1 query batch (Eager loading N+1 fix)
         $lampiran_rows = $this->db
-            ->where_in('id_perbaikan', $ids)
-            ->get('perbaikan_lampiran')
+            ->select('pl.*, ci.kriteria AS nama_item, ci.kategori AS kategori_item, ci.no_urut AS no_urut_item')
+            ->from('perbaikan_lampiran pl')
+            ->join('checklist_item ci', 'ci.id_item = pl.id_item', 'left')
+            ->where_in('pl.id_perbaikan', $ids)
+            ->order_by('pl.id_lampiran', 'ASC')
+            ->get()
             ->result();
 
         // Langkah 4: Grouping lampiran berdasarkan id_perbaikan

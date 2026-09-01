@@ -40,6 +40,10 @@ class Mekanik_model extends CI_Model
             ->join('mekanik_tipe_kendaraan mt', 'mt.id_mekanik = m.id_mekanik', 'left')
             ->join('tipe_kendaraan t',           't.id_tipe_kendaraan = mt.id_tipe_kendaraan', 'left');
 
+        if (empty($filter['include_deleted'])) {
+            $this->db->where('m.deleted_at IS NULL');
+        }
+
         if (!empty($filter['search'])) {
             $this->db->group_start()
                 ->like('m.nama',       $filter['search'])
@@ -57,9 +61,13 @@ class Mekanik_model extends CI_Model
     // ─────────────────────────────────────────────────────────────────────────
     // Get by ID
     // ─────────────────────────────────────────────────────────────────────────
-    public function get_by_id($id)
+    public function get_by_id($id, $include_deleted = false)
     {
-        return $this->db->where('id_mekanik', $id)->get('mekanik_master')->row();
+        $this->db->where('id_mekanik', $id);
+        if (!$include_deleted) {
+            $this->db->where('deleted_at IS NULL');
+        }
+        return $this->db->get('mekanik_master')->row();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -87,7 +95,8 @@ class Mekanik_model extends CI_Model
             ->from('mekanik_master m')
             ->join('mekanik_tipe_kendaraan mt', 'mt.id_mekanik = m.id_mekanik')
             ->join('tipe_kendaraan t',           't.id_tipe_kendaraan = mt.id_tipe_kendaraan')
-            ->where('t.nama_tipe', $nama_tipe);
+            ->where('t.nama_tipe', $nama_tipe)
+            ->where('m.deleted_at IS NULL');
         if ($only_active) $this->db->where('m.is_active', 1);
         $this->db->order_by('m.nama', 'ASC');
         return $this->db->get()->result();
@@ -103,7 +112,8 @@ class Mekanik_model extends CI_Model
             ->select('m.*')
             ->from('mekanik_master m')
             ->join('mekanik_tipe_kendaraan mt', 'mt.id_mekanik = m.id_mekanik')
-            ->where('mt.id_tipe_kendaraan', (int) $id_tipe_kendaraan);
+            ->where('mt.id_tipe_kendaraan', (int) $id_tipe_kendaraan)
+            ->where('m.deleted_at IS NULL');
         if ($only_active) $this->db->where('m.is_active', 1);
         $this->db->order_by('m.nama', 'ASC');
         return $this->db->get()->result();
@@ -158,9 +168,23 @@ class Mekanik_model extends CI_Model
             ->update('mekanik_master', ['is_active' => $row->is_active ? 0 : 1]);
     }
 
-    public function delete($id)
+    public function delete($id, $id_user = null)
     {
-        return $this->db->where('id_mekanik', $id)->delete('mekanik_master');
+        $id_user = $id_user ?: (int) $this->session->userdata('id_user');
+        return $this->db->where('id_mekanik', $id)->update('mekanik_master', [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => $id_user ?: null,
+            'is_active'  => 0,
+        ]);
+    }
+
+    public function restore($id)
+    {
+        return $this->db->where('id_mekanik', $id)->update('mekanik_master', [
+            'deleted_at' => null,
+            'deleted_by' => null,
+            'is_active'  => 1,
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

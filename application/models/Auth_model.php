@@ -26,6 +26,7 @@ class Auth_model extends CI_Model
             ->select($select)
             ->where('email', $email)
             ->where('is_active', 1)
+            ->where('deleted_at IS NULL')
             ->get('users')
             ->row();
 
@@ -54,6 +55,7 @@ class Auth_model extends CI_Model
             ->select($select)
             ->where('username', $username)
             ->where('is_active', 1)
+            ->where('deleted_at IS NULL')
             ->get('users')
             ->row();
 

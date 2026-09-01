@@ -80,6 +80,11 @@ class Kendaraan_model extends CI_Model
      */
     private function _apply_filter($filter = [])
     {
+        // Filter soft delete: jangan tampilkan yang sudah dihapus kecuali diminta
+        if (empty($filter['include_deleted'])) {
+            $this->db->where('k.deleted_at IS NULL');
+        }
+
         if (!empty($filter['search'])) {
             $kw = $filter['search'];
             $this->db->group_start()
@@ -111,25 +116,25 @@ class Kendaraan_model extends CI_Model
     public function count_all($filter = [])
     {
         $this->_base_query($filter);
-        return $this->db->count_all_results();
+        return $this->db->get()->num_rows();
     }
 
     public function count_filtered($filter = [])
     {
         $this->_base_query($filter);
-        return $this->db->count_all_results();
+        return $this->db->get()->num_rows();
     }
 
     public function count_all_lulus($filter = [])
     {
         $this->_base_query_lulus($filter);
-        return $this->db->count_all_results();
+        return $this->db->get()->num_rows();
     }
 
     public function count_filtered_lulus($filter = [])
     {
         $this->_base_query_lulus($filter);
-        return $this->db->count_all_results();
+        return $this->db->get()->num_rows();
     }
 
     public function get_datatable($start, $length, $filter = [])
@@ -146,30 +151,40 @@ class Kendaraan_model extends CI_Model
         return $this->db->get()->result();
     }
 
-    public function get_all()
+    public function get_all($filter = [])
     {
-        return $this->db
+        $this->db
             ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe')
             ->from('kendaraan k')
-            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
-            ->order_by('k.no_polisi', 'ASC')
-            ->get()->result();
+            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
+        
+        if (empty($filter['include_deleted'])) {
+            $this->db->where('k.deleted_at IS NULL');
+        }
+
+        return $this->db->order_by('k.no_polisi', 'ASC')->get()->result();
     }
 
-    public function get_by_id($id)
+    public function get_by_id($id, $include_deleted = false)
     {
-        return $this->db
+        $this->db
             ->select('k.*, t.nama_tipe AS jenis_kendaraan, t.kode_tipe, t.id_tipe_kendaraan,
                       (SELECT pu_sub.tipe_akses FROM pengajuan_uji pu_sub WHERE pu_sub.id_kendaraan = k.id_kendaraan ORDER BY pu_sub.id_pengajuan DESC LIMIT 1) AS tipe_akses')
             ->from('kendaraan k')
             ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
-            ->where('k.id_kendaraan', (int) $id)
-            ->get()->row();
+            ->where('k.id_kendaraan', (int) $id);
+
+        if (!$include_deleted) {
+            $this->db->where('k.deleted_at IS NULL');
+        }
+
+        return $this->db->get()->row();
     }
 
     public function is_no_polisi_exists($no_polisi, $exclude_id = null)
     {
         $this->db->where('no_polisi', $no_polisi);
+        $this->db->where('deleted_at IS NULL');
         if (!empty($exclude_id)) {
             $this->db->where('id_kendaraan !=', (int) $exclude_id);
         }
@@ -179,6 +194,7 @@ class Kendaraan_model extends CI_Model
     public function is_nomor_unit_exists($nomor_unit, $exclude_id = null)
     {
         $this->db->where('nomor_unit', $nomor_unit);
+        $this->db->where('deleted_at IS NULL');
         if (!empty($exclude_id)) {
             $this->db->where('id_kendaraan !=', (int) $exclude_id);
         }
@@ -207,15 +223,84 @@ class Kendaraan_model extends CI_Model
         return $this->db->where('id_kendaraan', (int) $id)->update('kendaraan', $data);
     }
 
-    public function delete($id)
+    public function delete($id, $id_user = null)
     {
-        return $this->db->where('id_kendaraan', (int) $id)->delete('kendaraan');
+        $id_user = $id_user ?: (int) $this->session->userdata('id_user');
+        return $this->db->where('id_kendaraan', (int) $id)->update('kendaraan', [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => $id_user ?: null,
+        ]);
+    }
+
+    public function restore($id)
+    {
+        return $this->db->where('id_kendaraan', (int) $id)->update('kendaraan', [
+            'deleted_at' => null,
+            'deleted_by' => null,
+        ]);
+    }
+
+    /**
+     * Memeriksa apakah kendaraan dapat dihapus (soft delete).
+     * Diblokir jika:
+     * 1. Ada proses pengajuan yang sedang berjalan (draft, jadwal, inspeksi, approval).
+     * 2. Stiker kelayakan masih aktif (belum expired).
+     * 
+     * @param int $id ID Kendaraan
+     * @return array Status kelayakan hapus beserta pesan alasannya
+     */
+    public function check_can_delete($id)
+    {
+        $id = (int) $id;
+
+        // 1. Cek pengajuan yang sedang berjalan dalam pipeline aktif
+        $ongoing_statuses = [
+            'draft', 'pengajuan_baru', 'pengajuan_ulang', 'diterima_manager',
+            'dijadwalkan', 'tidak_lulus_inspeksi', 'selesai_inspeksi',
+            'diterima_admin_ohs', 'diterima_ohs_supt', 'inspeksi_ulang', 'siap_verifikasi'
+        ];
+
+        $ongoing = $this->db
+            ->where('id_kendaraan', $id)
+            ->where('deleted_at IS NULL')
+            ->where_in('status', $ongoing_statuses)
+            ->get('pengajuan_uji')->row();
+
+        if ($ongoing) {
+            $st_clean = ucwords(str_replace('_', ' ', $ongoing->status));
+            return [
+                'can_delete' => false,
+                'message'    => "Kendaraan sedang dalam proses pengajuan aktif (#PU-" . str_pad($ongoing->id_pengajuan, 4, '0', STR_PAD_LEFT) . " - {$st_clean}). Harap selesaikan atau batalkan pengajuan tersebut terlebih dahulu.",
+            ];
+        }
+
+        // 2. Cek apakah stiker komisioning masih aktif (belum expired)
+        $active_sticker = $this->db->query("
+            SELECT sr.nomor_sticker, sr.tgl_expired, DATEDIFF(sr.tgl_expired, NOW()) AS sisa_hari
+            FROM sticker_release sr
+            INNER JOIN pengajuan_uji pu ON pu.id_pengajuan = sr.id_pengajuan
+            WHERE pu.id_kendaraan = {$id}
+              AND pu.deleted_at IS NULL
+              AND sr.tgl_expired >= NOW()
+            ORDER BY sr.id_sticker DESC
+            LIMIT 1
+        ")->row();
+
+        if ($active_sticker) {
+            $tgl_exp = date('d/m/Y', strtotime($active_sticker->tgl_expired));
+            return [
+                'can_delete' => false,
+                'message'    => "Kendaraan masih memiliki stiker kelayakan aktif ({$active_sticker->nomor_sticker}) yang berlaku hingga {$tgl_exp}.",
+            ];
+        }
+
+        return ['can_delete' => true];
     }
 
     public function has_pengajuan($id)
     {
-        return $this->db->where('id_kendaraan', (int) $id)
-            ->count_all_results('pengajuan_uji') > 0;
+        $res = $this->check_can_delete($id);
+        return !$res['can_delete'];
     }
 
     /**

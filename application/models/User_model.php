@@ -51,6 +51,11 @@ class User_model extends CI_Model
             $this->db->where('u.is_active', $filters['is_active']);
         }
 
+        // Filter soft delete: jangan tampilkan user yang telah dihapus kecuali diminta
+        if (empty($filters['include_deleted'])) {
+            $this->db->where('u.deleted_at IS NULL');
+        }
+
         $this->db->order_by('u.created_at', 'DESC');
         return $this->db->get()->result();
     }
@@ -59,9 +64,10 @@ class User_model extends CI_Model
      * Mengambil data detail satu pengguna berdasarkan ID.
      * 
      * @param int $id ID User
+     * @param bool $include_deleted Apakah menyertakan user yang sudah di-soft-delete
      * @return object|null Object data user atau null jika tidak ditemukan
      */
-    public function get_by_id($id)
+    public function get_by_id($id, $include_deleted = false)
     {
         // Menggunakan JOIN + GROUP_CONCAT agar role langsung ter-load dalam 1 kali query (eager loading)
         $this->db->select('u.*, 
@@ -71,6 +77,9 @@ class User_model extends CI_Model
         $this->db->join('user_roles ur', 'ur.id_user = u.id_user', 'left');
         $this->db->join('roles r',       'r.id_role  = ur.id_role', 'left');
         $this->db->where('u.id_user', (int) $id);
+        if (!$include_deleted) {
+            $this->db->where('u.deleted_at IS NULL');
+        }
         $this->db->group_by('u.id_user');
         return $this->db->get()->row();
     }
@@ -107,6 +116,7 @@ class User_model extends CI_Model
     public function is_username_exists($username, $exclude_id = null)
     {
         $this->db->where('username', $username);
+        $this->db->where('deleted_at IS NULL');
         if (!empty($exclude_id)) {
             $this->db->where('id_user !=', (int) $exclude_id);
         }
@@ -123,6 +133,7 @@ class User_model extends CI_Model
     public function is_email_exists($email, $exclude_id = null)
     {
         $this->db->where('email', $email);
+        $this->db->where('deleted_at IS NULL');
         if (!empty($exclude_id)) {
             $this->db->where('id_user !=', (int) $exclude_id);
         }
@@ -163,10 +174,6 @@ class User_model extends CI_Model
             if (!empty($role_batch)) {
                 $this->db->insert_batch('user_roles', $role_batch);
             }
-
-            // Sync kolom id_role di tabel users dengan ID role pertama sebagai role utama
-            $this->db->where('id_user', $id_user)
-                ->update('users', ['id_role' => (int) $roles[0]]);
         }
 
         $this->db->trans_complete(); // Selesaikan transaksi
@@ -174,7 +181,7 @@ class User_model extends CI_Model
     }
 
     /**
-     * Memperbarui data pengguna beserta pembaruan relasi role (optimasi insert_batch).
+     * Memperbarui data pengguna beserta pembaruan relasi role-nya.
      * 
      * @param int $id ID User
      * @param array $data Data pengguna yang diperbarui
@@ -207,12 +214,6 @@ class User_model extends CI_Model
             if (!empty($role_batch)) {
                 $this->db->insert_batch('user_roles', $role_batch);
             }
-
-            // Sync id_role utama di tabel users
-            if (!empty($roles)) {
-                $this->db->where('id_user', (int) $id)
-                    ->update('users', ['id_role' => (int) $roles[0]]);
-            }
         }
 
         $this->db->trans_complete(); // Selesaikan transaksi
@@ -238,19 +239,35 @@ class User_model extends CI_Model
     }
 
     /**
-     * Menghapus data pengguna beserta relasi role yang dimilikinya.
+     * Melakukan soft delete akun pengguna dan menonaktifkannya.
+     * Riwayat log audit dan foreign key relasi historis tetap terjaga.
      * 
      * @param int $id ID User
-     * @return bool Status keberhasilan penghapusan data
+     * @param int|null $id_deleter ID User yang melakukan penghapusan
+     * @return bool Status keberhasilan soft delete
      */
-    public function delete($id)
+    public function delete($id, $id_deleter = null)
     {
-        $this->db->trans_start();
-        // Hapus relasi di user_roles terlebih dahulu untuk menjamin referential integrity
-        $this->db->where('id_user', (int) $id)->delete('user_roles');
-        // Hapus data pengguna utama
-        $this->db->where('id_user', (int) $id)->delete('users');
-        $this->db->trans_complete();
-        return $this->db->trans_status();
+        $id_deleter = $id_deleter ?: (int) $this->session->userdata('id_user');
+        return $this->db->where('id_user', (int) $id)->update('users', [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => $id_deleter ?: null,
+            'is_active'  => 0,
+        ]);
+    }
+
+    /**
+     * Memulihkan (restore) akun pengguna yang sebelumnya di-soft delete.
+     * 
+     * @param int $id ID User
+     * @return bool Status keberhasilan pemulihan akun
+     */
+    public function restore($id)
+    {
+        return $this->db->where('id_user', (int) $id)->update('users', [
+            'deleted_at' => null,
+            'deleted_by' => null,
+            'is_active'  => 1,
+        ]);
     }
 }

@@ -862,8 +862,21 @@ class Checklist extends CI_Controller
             return;
         }
         $id = (int) $this->input->post('id_item');
-        $this->checklist_model->delete_item($id);
-        echo json_encode(['status' => 'success', 'message' => 'Item berhasil dihapus.']);
+        $this->checklist_model->delete_item($id, $this->session->userdata('id_user'));
+        echo json_encode(['status' => 'success', 'message' => 'Item berhasil dihapus (soft delete).', 'csrf_hash' => $this->security->get_csrf_hash()]);
+    }
+
+    public function restore_item()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak.']);
+            return;
+        }
+        $id = (int) $this->input->post('id_item');
+        $this->checklist_model->restore_item($id);
+        echo json_encode(['status' => 'success', 'message' => 'Item berhasil dipulihkan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
     // =========================================================

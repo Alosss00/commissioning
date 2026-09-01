@@ -260,8 +260,22 @@ class Mekanik extends CI_Controller
             return;
         }
 
-        $this->mekanik_model->delete($id);
-        echo json_encode(['status' => 'success', 'message' => 'Mekanik berhasil dihapus.']);
+        $this->mekanik_model->delete($id, $this->session->userdata('id_user'));
+        echo json_encode(['status' => 'success', 'message' => 'Mekanik berhasil dihapus (soft delete).', 'csrf_hash' => $this->security->get_csrf_hash()]);
+    }
+
+    /**
+     * Endpoint AJAX Pemulihan (Restore) Mekanik.
+     * 
+     * @return void JSON Response status restore
+     */
+    public function restore()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+        $id = (int) $this->input->post('id');
+
+        $this->mekanik_model->restore($id);
+        echo json_encode(['status' => 'success', 'message' => 'Mekanik berhasil dipulihkan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
     /**

@@ -242,7 +242,7 @@
                     </div>
                 <?php endif; ?>
 
-                <!-- ═══ FORM PERBAIKAN ═══ -->
+                <!-- ═══ FORM PERBAIKAN PER TEMUAN ═══ -->
                 <form method="POST" action="<?= site_url('perbaikan/store') ?>"
                     enctype="multipart/form-data" id="formPerbaikan">
                     <?= form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()) ?>
@@ -252,90 +252,153 @@
                         <input type="hidden" name="id_uji" value="<?= $uji->id_uji ?>">
                     <?php endif; ?>
 
-                    <div class="card">
-                        <div class="card-header bg-primary text-white py-2">
-                            <h6 class="mb-0 fw-bold text-white">
-                                <i class="bi bi-clipboard-check me-2"></i>Data Perbaikan Unit
-                            </h6>
+                    <div class="card mb-3 border-0 shadow-sm rounded-3">
+                        <div class="card-header bg-primary text-white py-3 px-3 d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-clipboard-check fs-5"></i>
+                                <h5 class="mb-0 fw-bold text-white">Input Tindakan &amp; Bukti Perbaikan per Temuan</h5>
+                            </div>
+                            <span class="badge bg-white text-primary fw-bold">
+                                <?= !empty($checklist_no) ? count($checklist_no) . ' Temuan' : '0 Temuan' ?>
+                            </span>
                         </div>
-                        <div class="card-body pt-4">
-                            <div class="row g-3">
+                        <div class="card-body p-3 p-md-4">
+                            <div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-25 py-2 px-3 mb-4 small">
+                                <i class="bi bi-info-circle-fill me-1 text-primary"></i>
+                                <strong>Petunjuk:</strong> Untuk setiap temuan di bawah ini, mohon jelaskan tindakan perbaikan yang telah dilakukan dan lampirkan foto/dokumen bukti fisik perbaikannya.
+                            </div>
 
-                                <!-- Catatan Perbaikan -->
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">Catatan Perbaikan</label>
-                                    <textarea class="form-control"
-                                        name="catatan_perbaikan"
-                                        rows="4"
-                                        maxlength="1000"
-                                        placeholder="Deskripsikan perbaikan yang telah dilakukan pada setiap item temuan di atas. Misalnya: lampu rem diganti, ban kanan depan diganti, dll."></textarea>
-                                    <small class="text-muted">Jelaskan tindakan perbaikan yang sudah dilakukan untuk setiap temuan di atas.</small>
-                                </div>
+                            <?php if (!empty($checklist_no)): ?>
+                                <div class="vstack gap-3 mb-4">
+                                    <?php foreach ($checklist_no as $idx => $item): ?>
+                                        <div class="card border rounded-3 temuan-card shadow-sm" data-item-id="<?= $item->id_item ?>">
+                                            <div class="card-header bg-light py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge bg-<?= $item->kategori === 'CRITICAL' ? 'danger' : 'warning text-dark' ?> fw-bold">
+                                                        <?= html_escape($item->kategori) ?>
+                                                    </span>
+                                                    <span class="badge bg-dark text-white" style="font-size:11px;">#<?= $idx + 1 ?></span>
+                                                    <strong class="text-dark fs-6">
+                                                        <?= html_escape($item->kriteria) ?>
+                                                    </strong>
+                                                    <?php if (!empty($item->no_urut)): ?>
+                                                        <small class="text-muted">(Item No. <?= html_escape($item->no_urut) ?>)</small>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                                                    <i class="bi bi-x-circle me-1"></i>Tidak Memenuhi Syarat
+                                                </span>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                <?php if (!empty($item->keterangan)): ?>
+                                                    <div class="alert alert-warning py-2 px-3 mb-3 small d-flex align-items-start gap-2">
+                                                        <i class="bi bi-chat-left-dots-fill text-warning fs-6 mt-1 flex-shrink-0"></i>
+                                                        <div>
+                                                            <strong class="text-dark">Catatan Temuan Inspektor:</strong>
+                                                            <div class="text-muted mt-1"><?= nl2br(html_escape($item->keterangan)) ?></div>
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
 
-                                <!-- Upload Bukti Perbaikan (multiple, maks 10) -->
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">
-                                        Bukti Perbaikan
-                                        <span class="badge bg-warning text-dark ms-1">Disarankan · Maks 10 file</span>
-                                    </label>
+                                                <div class="row g-3">
+                                                    <!-- 1. Tindakan Perbaikan Item -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold small mb-1">
+                                                            <i class="bi bi-wrench-adjustable me-1 text-primary"></i>Tindakan / Hasil Perbaikan <span class="text-danger">*</span>
+                                                        </label>
+                                                        <textarea class="form-control form-control-sm tindakan-item-input"
+                                                            name="tindakan_item[<?= $item->id_item ?>]"
+                                                            id="tindakan_<?= $item->id_item ?>"
+                                                            rows="3"
+                                                            placeholder="Contoh: Lampu rem diganti bohlam baru, soket dibersihkan, dan telah diuji menyala normal."
+                                                            required></textarea>
+                                                        <div class="text-danger small mt-1 d-none" id="err_tindakan_<?= $item->id_item ?>">
+                                                            Tindakan perbaikan wajib diisi.
+                                                        </div>
+                                                    </div>
 
-                                    <div class="border rounded p-3 border-warning" id="buktiDropZone">
-                                        <div class="d-flex align-items-center gap-3 mb-2">
-                                            <i class="bi bi-camera-fill text-warning flex-shrink-0" style="font-size:2rem;"></i>
-                                            <div class="flex-grow-1">
-                                                <input type="file"
-                                                    class="form-control"
-                                                    name="bukti_perbaikan[]"
-                                                    id="bukti_perbaikan"
-                                                    accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                                                    multiple>
-                                                <small class="text-muted">
-                                                    Pilih 1–10 file sekaligus. Format: JPG, PNG, PDF, Word. Maks 10MB per file.<br>
-                                                    Contoh: foto unit setelah diperbaiki, work order bengkel, laporan mekanik.
-                                                </small>
+                                                    <!-- 2. Upload Bukti Perbaikan Item -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold small mb-1">
+                                                            <i class="bi bi-camera me-1 text-success"></i>Upload Bukti Foto / Dokumen Perbaikan <span class="text-danger">*</span>
+                                                        </label>
+                                                        <input type="file"
+                                                            class="form-control form-control-sm bukti-item-file"
+                                                            name="bukti_item_<?= $item->id_item ?>[]"
+                                                            id="bukti_item_<?= $item->id_item ?>"
+                                                            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                                                            multiple
+                                                            required
+                                                            data-item-id="<?= $item->id_item ?>">
+                                                        <small class="text-muted d-block mt-1" style="font-size:11px;">
+                                                            Pilih 1 atau lebih file (JPG, PNG, PDF). Maks 10MB per file.
+                                                        </small>
+                                                        <div class="text-danger small mt-1 d-none" id="err_bukti_<?= $item->id_item ?>">
+                                                            Foto/dokumen bukti perbaikan wajib diunggah.
+                                                        </div>
+
+                                                        <!-- Preview Container per Item -->
+                                                        <div class="row g-2 mt-2 item-preview-grid" id="preview_grid_<?= $item->id_item ?>"></div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-secondary text-center py-4 mb-4">
+                                    <i class="bi bi-info-circle fs-3 text-muted d-block mb-2"></i>
+                                    Tidak ada item temuan checklist spesifik yang tercatat. Silakan gunakan form catatan umum di bawah.
+                                </div>
+                            <?php endif; ?>
 
-                                        <!-- Counter file -->
-                                        <div class="d-flex align-items-center gap-2 mb-2" id="buktiCounter" style="display:none!important;">
-                                            <span class="badge bg-primary" id="buktiCountBadge">0 file dipilih</span>
-                                            <button type="button" class="btn btn-sm btn-outline-danger py-0" id="btnHapusSemua">
-                                                <i class="bi bi-trash me-1"></i>Hapus Semua
-                                            </button>
+                            <!-- Catatan Tambahan & Dokumen Pendukung Opsional -->
+                            <div class="card border rounded-3 bg-light mb-3">
+                                <div class="card-header bg-white py-2 px-3">
+                                    <h6 class="mb-0 fw-bold text-secondary">
+                                        <i class="bi bi-paperclip me-1 text-primary"></i>Catatan Tambahan &amp; Lampiran Umum (Opsional)
+                                    </h6>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold small mb-1">Catatan Tambahan</label>
+                                            <textarea class="form-control form-control-sm"
+                                                name="catatan_perbaikan"
+                                                rows="3"
+                                                placeholder="Catatan umum atau informasi tambahan perbaikan unit..."></textarea>
                                         </div>
-
-                                        <!-- Preview grid -->
-                                        <div id="buktiPreviewWrap" class="d-none">
-                                            <div class="small fw-semibold text-muted mb-2">File dipilih:</div>
-                                            <div class="row g-2" id="buktiPreviewGrid"></div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold small mb-1">Lampiran Umum Tambahan (Work Order / SPK / dsb.)</label>
+                                            <input type="file"
+                                                class="form-control form-control-sm"
+                                                name="bukti_perbaikan[]"
+                                                id="bukti_perbaikan_umum"
+                                                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                                                multiple>
+                                            <small class="text-muted d-block mt-1" style="font-size:11px;">
+                                                Opsional. Bisa memilih file PDF/dokumen SPK bengkel.
+                                            </small>
+                                            <div class="row g-2 mt-2" id="preview_grid_umum"></div>
                                         </div>
-                                    </div>
-
-                                    <!-- Warning maks -->
-                                    <div class="text-danger small mt-1 d-none" id="warnMaks">
-                                        <i class="bi bi-exclamation-triangle me-1"></i>Maksimal 10 file. File ke-11 dan seterusnya tidak akan diupload.
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- Info alur -->
-                                <div class="col-12">
-                                    <div class="alert alert-success py-2 mb-0 small">
-                                        <i class="bi bi-arrow-right-circle-fill me-2"></i>
-                                        Setelah disimpan, inspektor
-                                        <strong><?= isset($verifikator) && $verifikator ? html_escape($verifikator->nama) : 'yang ditugaskan' ?></strong>
-                                        akan langsung dapat memverifikasi perbaikan — <strong>tanpa perlu membuat jadwal ulang</strong>.
-                                        Jika lulus verifikasi → langsung diteruskan ke OHS Superintendent.
-                                    </div>
-                                </div>
-
-                            </div><!-- end row -->
+                            <!-- Info alur -->
+                            <div class="alert alert-success py-2 px-3 mb-0 small">
+                                <i class="bi bi-arrow-right-circle-fill me-2"></i>
+                                Setelah disimpan, inspektor
+                                <strong><?= isset($verifikator) && $verifikator ? html_escape($verifikator->nama) : 'yang ditugaskan' ?></strong>
+                                akan langsung dapat memverifikasi perbaikan ini secara fisik — <strong>tanpa perlu membuat jadwal baru</strong>.
+                            </div>
 
                             <!-- Tombol aksi -->
                             <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                                 <a href="<?= site_url('pengajuan') ?>" class="btn btn-outline-secondary">
                                     <i class="bi bi-arrow-left me-1"></i>Batal
                                 </a>
-                                <button type="submit" class="btn btn-primary text-white" id="btnSimpanPerbaikan">
+                                <button type="submit" class="btn btn-primary text-white fw-semibold px-4" id="btnSimpanPerbaikan">
                                     <i class="bi bi-send me-1"></i>Simpan &amp; Teruskan ke Inspektor
                                 </button>
                             </div>
@@ -352,6 +415,11 @@
 
 
 <style>
+    .temuan-card {
+        border-color: #f1aeb5 !important;
+        background-color: #fff;
+    }
+
     .bukti-thumb {
         position: relative;
         border: 1px solid #dee2e6;
@@ -359,8 +427,7 @@
         overflow: hidden;
         background: #f8f9fa;
         text-align: center;
-        padding: 8px;
-        min-height: 110px;
+        padding: 6px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -369,7 +436,7 @@
 
     .bukti-thumb img {
         width: 100%;
-        height: 80px;
+        height: 75px;
         object-fit: cover;
         border-radius: 4px;
         margin-bottom: 4px;
@@ -380,20 +447,6 @@
         color: #6c757d;
         word-break: break-all;
         line-height: 1.2;
-    }
-
-    .bukti-thumb .btn-remove-bukti {
-        position: absolute;
-        top: 4px;
-        right: 4px;
-        width: 20px;
-        height: 20px;
-        font-size: 10px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
     }
 
     .foto-temuan-card {
@@ -410,97 +463,22 @@
     $(function() {
 
         // ════════════════════════════════════════════════════════
-        // Bukti Perbaikan — multiple file, maks 10
-        // Menggunakan DataTransfer API untuk track file array
+        // Live Preview per Item Bukti Upload
         // ════════════════════════════════════════════════════════
-        var selectedFiles = []; // array of File objects
+        $(document).on('change', '.bukti-item-file', function() {
+            var itemId = $(this).data('item-id');
+            var $grid  = $('#preview_grid_' + itemId).empty();
+            var files  = Array.from(this.files || []);
 
-        $('#bukti_perbaikan').on('change', function() {
-            var newFiles = Array.from(this.files);
-            var added = 0;
+            if (files.length === 0) return;
 
-            newFiles.forEach(function(file) {
-                if (selectedFiles.length >= 10) {
-                    $('#warnMaks').removeClass('d-none');
-                    return;
-                }
-                // Cek duplikat nama + size
-                var isDup = selectedFiles.some(function(f) {
-                    return f.name === file.name && f.size === file.size;
-                });
-                if (!isDup) {
-                    selectedFiles.push(file);
-                    added++;
-                }
-            });
-
-            if (selectedFiles.length <= 10) $('#warnMaks').addClass('d-none');
-
-            renderBuktiPreview();
-
-            // Reset input supaya bisa pilih file yang sama lagi
-            var el = document.getElementById('bukti_perbaikan');
-            var neu = el.cloneNode(true);
-            el.parentNode.replaceChild(neu, el);
-            // Re-bind event ke input baru
-            document.getElementById('bukti_perbaikan').addEventListener('change', function() {
-                $('#bukti_perbaikan').trigger('change');
-            });
-            rebindFileInput();
-        });
-
-        function rebindFileInput() {
-            $('#bukti_perbaikan').off('change').on('change', function() {
-                var newFiles = Array.from(this.files);
-                newFiles.forEach(function(file) {
-                    if (selectedFiles.length >= 10) {
-                        $('#warnMaks').removeClass('d-none');
-                        return;
-                    }
-                    var isDup = selectedFiles.some(function(f) {
-                        return f.name === file.name && f.size === file.size;
-                    });
-                    if (!isDup) selectedFiles.push(file);
-                });
-                if (selectedFiles.length <= 10) $('#warnMaks').addClass('d-none');
-                renderBuktiPreview();
-                // Reset input
-                var el = document.getElementById('bukti_perbaikan');
-                var neu = el.cloneNode(true);
-                el.parentNode.replaceChild(neu, el);
-                rebindFileInput();
-            });
-        }
-        rebindFileInput();
-
-        function renderBuktiPreview() {
-            var $grid = $('#buktiPreviewGrid').empty();
-            var $wrap = $('#buktiPreviewWrap');
-            var $cnt = $('#buktiCountBadge');
-            var $ctr = $('#buktiCounter');
-
-            if (selectedFiles.length === 0) {
-                $wrap.addClass('d-none');
-                $ctr.hide();
-                return;
-            }
-
-            $wrap.removeClass('d-none');
-            $ctr.show().css('display', 'flex');
-            $cnt.text(selectedFiles.length + ' file dipilih');
+            $('#err_bukti_' + itemId).addClass('d-none');
 
             var imgTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-            selectedFiles.forEach(function(file, idx) {
-                var $col = $('<div class="col-6 col-sm-4 col-md-3 col-lg-2"></div>');
-                var $box = $('<div class="bukti-thumb"></div>');
-
-                // Tombol hapus per file
-                $box.append(
-                    '<button type="button" class="btn btn-sm btn-outline-danger btn-remove-bukti"' +
-                    ' data-idx="' + idx + '" title="Hapus file ini">' +
-                    '<i class="bi bi-x"></i></button>'
-                );
+            files.forEach(function(file) {
+                var $col = $('<div class="col-6 col-md-4 col-lg-3"></div>');
+                var $box = $('<div class="bukti-thumb shadow-sm"></div>');
 
                 if (imgTypes.indexOf(file.type) >= 0) {
                     var reader = new FileReader();
@@ -514,98 +492,105 @@
                     var iconCls = file.type === 'application/pdf' ?
                         'bi-file-earmark-pdf text-danger' :
                         (file.type.indexOf('word') >= 0 ? 'bi-file-earmark-word text-primary' : 'bi-file-earmark text-secondary');
-                    $box.append('<i class="bi ' + iconCls + ' d-block mb-1" style="font-size:2rem;"></i>');
+                    $box.append('<i class="bi ' + iconCls + ' d-block mb-1" style="font-size:1.8rem;"></i>');
                 }
 
-                var fname = file.name.length > 18 ? file.name.substring(0, 16) + '…' : file.name;
+                var fname = file.name.length > 14 ? file.name.substring(0, 12) + '…' : file.name;
                 var fsize = file.size < 1024 * 1024 ?
                     Math.round(file.size / 1024) + ' KB' :
                     (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-                $box.append('<div class="bukti-name">' + fname + '<br><span class="text-primary">' + fsize + '</span></div>');
+                $box.append('<div class="bukti-name">' + fname + '<br><span class="text-primary fw-bold">' + fsize + '</span></div>');
 
                 $col.append($box);
                 $grid.append($col);
             });
-
-            // Sync file input dengan DataTransfer (untuk form submit)
-            syncFileInput();
-        }
-
-        // Hapus file per item
-        $(document).on('click', '.btn-remove-bukti', function() {
-            var idx = parseInt($(this).data('idx'));
-            selectedFiles.splice(idx, 1);
-            if (selectedFiles.length <= 10) $('#warnMaks').addClass('d-none');
-            renderBuktiPreview();
         });
 
-        // Hapus semua
-        $('#btnHapusSemua').on('click', function() {
-            selectedFiles = [];
-            renderBuktiPreview();
-            $('#warnMaks').addClass('d-none');
-        });
+        // Preview untuk Bukti Umum
+        $('#bukti_perbaikan_umum').on('change', function() {
+            var $grid = $('#preview_grid_umum').empty();
+            var files = Array.from(this.files || []);
+            if (files.length === 0) return;
 
-        // Sync selectedFiles ke actual file input via DataTransfer
-        // Diperlukan agar form POST mengirim file yang benar
-        function syncFileInput() {
-            try {
-                var dt = new DataTransfer();
-                selectedFiles.forEach(function(f) {
-                    dt.items.add(f);
-                });
-                var el = document.getElementById('bukti_perbaikan');
-                if (!el) return;
-                el.files = dt.files;
-            } catch (e) {
-                // DataTransfer tidak didukung di browser lama — fallback: biarkan input biasa
-            }
-        }
+            var imgTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            files.forEach(function(file) {
+                var $col = $('<div class="col-6 col-md-4 col-lg-3"></div>');
+                var $box = $('<div class="bukti-thumb shadow-sm"></div>');
 
-        // ════════════════════════════════════════════════════════
-        // Drag & Drop zone
-        // ════════════════════════════════════════════════════════
-        var $zone = $('#buktiDropZone');
-        $zone.on('dragover dragenter', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            $zone.addClass('border-primary bg-primary bg-opacity-10');
-        }).on('dragleave drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            $zone.removeClass('border-primary bg-primary bg-opacity-10');
-            if (e.type === 'drop') {
-                var files = Array.from(e.originalEvent.dataTransfer.files);
-                files.forEach(function(file) {
-                    if (selectedFiles.length >= 10) {
-                        $('#warnMaks').removeClass('d-none');
-                        return;
-                    }
-                    var isDup = selectedFiles.some(function(f) {
-                        return f.name === file.name && f.size === file.size;
-                    });
-                    if (!isDup) selectedFiles.push(file);
-                });
-                renderBuktiPreview();
-            }
+                if (imgTypes.indexOf(file.type) >= 0) {
+                    var reader = new FileReader();
+                    (function(b, f) {
+                        reader.onload = function(e) {
+                            b.prepend('<img src="' + e.target.result + '" alt="Bukti">');
+                        };
+                        reader.readAsDataURL(f);
+                    })($box, file);
+                } else {
+                    var iconCls = file.type === 'application/pdf' ?
+                        'bi-file-earmark-pdf text-danger' :
+                        (file.type.indexOf('word') >= 0 ? 'bi-file-earmark-word text-primary' : 'bi-file-earmark text-secondary');
+                    $box.append('<i class="bi ' + iconCls + ' d-block mb-1" style="font-size:1.8rem;"></i>');
+                }
+
+                var fname = file.name.length > 14 ? file.name.substring(0, 12) + '…' : file.name;
+                $box.append('<div class="bukti-name">' + fname + '</div>');
+                $col.append($box);
+                $grid.append($col);
+            });
         });
 
         // ════════════════════════════════════════════════════════
-        // Form Submit — konfirmasi
+        // Validasi dan Konfirmasi Submit
         // ════════════════════════════════════════════════════════
         $('#formPerbaikan').on('submit', function(e) {
             e.preventDefault();
 
-            // Sync file sebelum submit
-            syncFileInput();
+            var isValid = true;
+            var missingCount = 0;
+
+            // Periksa setiap item temuan
+            $('.temuan-card').each(function() {
+                var itemId = $(this).data('item-id');
+                var tindakanVal = ($('#tindakan_' + itemId).val() || '').trim();
+                var fileInput   = document.getElementById('bukti_item_' + itemId);
+                var hasFile     = fileInput && fileInput.files && fileInput.files.length > 0;
+
+                if (!tindakanVal) {
+                    $('#err_tindakan_' + itemId).removeClass('d-none');
+                    $('#tindakan_' + itemId).addClass('is-invalid');
+                    isValid = false;
+                    missingCount++;
+                } else {
+                    $('#err_tindakan_' + itemId).addClass('d-none');
+                    $('#tindakan_' + itemId).removeClass('is-invalid');
+                }
+
+                if (!hasFile) {
+                    $('#err_bukti_' + itemId).removeClass('d-none');
+                    $('#bukti_item_' + itemId).addClass('is-invalid');
+                    isValid = false;
+                    missingCount++;
+                } else {
+                    $('#err_bukti_' + itemId).addClass('d-none');
+                    $('#bukti_item_' + itemId).removeClass('is-invalid');
+                }
+            });
+
+            if (!isValid) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Data Belum Lengkap',
+                    text: 'Mohon isi deskripsi tindakan dan unggah foto/dokumen bukti perbaikan untuk setiap item temuan.',
+                });
+                return;
+            }
+
+            var totalItems = $('.temuan-card').length;
 
             Swal.fire({
                 title: 'Simpan Data Perbaikan?',
-                html: 'Setelah disimpan, inspektor akan langsung dapat memverifikasi perbaikan ini ' +
-                    '— <strong>tanpa jadwal ulang</strong>.<br>' +
-                    (selectedFiles.length > 0 ?
-                        '<small class="text-muted">' + selectedFiles.length + ' file bukti akan diupload.</small>' :
-                        '<small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Belum ada bukti perbaikan yang diupload.</small>'),
+                html: 'Tindakan dan bukti perbaikan untuk <strong>' + totalItems + ' item temuan</strong> akan disimpan.<br>' +
+                    'Pengajuan akan langsung diteruskan ke Inspektor untuk <strong>verifikasi fisik</strong>.',
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#4154f1',
@@ -620,8 +605,6 @@
                 $btn.prop('disabled', true)
                     .html('<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...');
 
-                // Sync sekali lagi lalu submit
-                syncFileInput();
                 document.getElementById('formPerbaikan').submit();
             });
         });

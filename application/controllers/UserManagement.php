@@ -438,10 +438,33 @@ class UserManagement extends CI_Controller
             return;
         }
 
-        $ok = $this->user_model->delete($id);
+        $ok = $this->user_model->delete($id, $user_id);
         echo json_encode([
             'status'    => $ok ? 'success' : 'error',
-            'message'   => $ok ? 'User berhasil dihapus.' : 'Gagal menghapus user.',
+            'message'   => $ok ? 'User berhasil dihapus (soft delete).' : 'Gagal menghapus user.',
+            'csrf_hash' => $this->security->get_csrf_hash()
+        ]);
+    }
+
+    /**
+     * Endpoint AJAX Pemulihan (Restore) Pengguna yang di-soft delete.
+     * 
+     * @return void Response JSON status pemulihan
+     */
+    public function restore()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $id = (int) $this->input->post('id_user');
+        if ($id <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'ID user tidak valid.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        $ok = $this->user_model->restore($id);
+        echo json_encode([
+            'status'    => $ok ? 'success' : 'error',
+            'message'   => $ok ? 'User berhasil dipulihkan.' : 'Gagal memulihkan user.',
             'csrf_hash' => $this->security->get_csrf_hash()
         ]);
     }

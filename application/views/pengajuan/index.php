@@ -62,6 +62,7 @@
                                     <option value="ditolak_ktt">Ditolak KTT</option>
                                     <option value="stiker_keluar">Stiker Sudah Keluar</option>
                                     <option value="rejected">Ditolak</option>
+                                    <option value="trash" class="text-danger fw-bold">🗑 Data Terhapus (Sampah / Soft Delete)</option>
                                 </select>
                             </div>
                             <div class="col-sm-6 col-md-3">
@@ -665,6 +666,87 @@
                 }
             });
         }
+        // ── Soft Delete Pengajuan ─────────────────────────────────────────
+        $(document).on('click', '.btn-delete-pengajuan', function() {
+            var id = $(this).data('id');
+            Swal.fire({
+                title: 'Konfirmasi Hapus',
+                text: 'Hapus pengajuan #PU-' + String(id).padStart(4, '0') + '? Data akan dipindahkan ke Sampah (Soft Delete).',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="bi bi-trash me-1"></i>Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then(function(r) {
+                if (r.isConfirmed) {
+                    NProgress.start();
+                    $.ajax({
+                        url: '<?= site_url('pengajuan/delete') ?>',
+                        type: 'POST',
+                        data: $.extend(csrfField(), { id_pengajuan: id }),
+                        dataType: 'json',
+                        success: function(res) {
+                            NProgress.done();
+                            if (res.status === 'success') {
+                                toastr.success(res.message || 'Pengajuan berhasil dihapus.');
+                                table.ajax.reload(null, false);
+                            } else {
+                                Swal.fire({ title: 'Gagal', html: res.message, icon: 'error' });
+                            }
+                        },
+                        error: function() {
+                            NProgress.done();
+                            toastr.error('Terjadi kesalahan server saat menghapus pengajuan.');
+                        }
+                    });
+                }
+            });
+        });
+
+        // ── Restore Pengajuan ──────────────────────────────────────────────
+        $(document).on('click', '.btn-restore-pengajuan', function() {
+            var id = $(this).data('id');
+            Swal.fire({
+                title: 'Konfirmasi Pemulihan',
+                text: 'Pulihkan kembali pengajuan #PU-' + String(id).padStart(4, '0') + ' ke daftar aktif?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="bi bi-arrow-counterclockwise me-1"></i>Ya, Pulihkan',
+                cancelButtonText: 'Batal'
+            }).then(function(r) {
+                if (r.isConfirmed) {
+                    NProgress.start();
+                    $.ajax({
+                        url: '<?= site_url('pengajuan/restore') ?>',
+                        type: 'POST',
+                        data: $.extend(csrfField(), { id_pengajuan: id }),
+                        dataType: 'json',
+                        success: function(res) {
+                            NProgress.done();
+                            if (res.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Berhasil Dipulihkan!',
+                                    text: res.message || 'Pengajuan telah kembali aktif.',
+                                    timer: 1800,
+                                    showConfirmButton: false
+                                });
+                                table.ajax.reload(null, false);
+                            } else {
+                                Swal.fire({ title: 'Gagal', html: res.message, icon: 'error' });
+                            }
+                        },
+                        error: function() {
+                            NProgress.done();
+                            toastr.error('Terjadi kesalahan server saat memulihkan pengajuan.');
+                        }
+                    });
+                }
+            });
+        });
 
         // ── Render Detail Modal ───────────────────────────────────────────
         function renderDetail(data) {
@@ -1044,14 +1126,35 @@
                 $.each(pb.lampiran, function(j, l) {
                     var ext = l.file_path.split('.').pop().toLowerCase();
                     var imgExts = ['jpg', 'jpeg', 'png', 'webp'];
+                    var itemLabel = l.nama_item ? ('#' + (l.no_urut_item || '') + ' ' + l.nama_item) : (l.keterangan || 'Bukti #' + (j + 1));
+                    if (itemLabel.length > 25) itemLabel = itemLabel.substring(0, 23) + '…';
+
                     if (imgExts.indexOf(ext) >= 0) {
-                        thumbs += '<div class="col-4 col-md-2"><a href="' + baseUrl + l.file_path + '" target="_blank"><img src="' + baseUrl + l.file_path + '" class="img-fluid rounded w-100" style="height:70px;object-fit:cover;" onerror="this.src=\'' + baseUrl + 'assets/img/img-error.png\'"></a></div>';
+                        thumbs += '<div class="col-6 col-md-3">' +
+                                  '  <div class="border rounded overflow-hidden shadow-sm bg-white">' +
+                                  '    <a href="' + baseUrl + l.file_path + '" target="_blank">' +
+                                  '      <img src="' + baseUrl + l.file_path + '" class="img-fluid w-100" style="height:80px;object-fit:cover;" onerror="this.src=\'' + baseUrl + 'assets/img/img-error.png\'">' +
+                                  '    </a>' +
+                                  '    <div class="p-1 bg-light text-truncate small" style="font-size:10px;" title="' + (l.nama_item || l.keterangan || '') + '">' +
+                                  '      <i class="bi bi-tag-fill me-1 text-primary"></i>' + itemLabel +
+                                  '    </div>' +
+                                  '  </div>' +
+                                  '</div>';
                     } else {
                         var icon = ext === 'pdf' ? 'bi-file-earmark-pdf text-danger' : (ext === 'doc' || ext === 'docx' ? 'bi-file-earmark-word text-primary' : 'bi-file-earmark text-secondary');
-                        thumbs += '<div class="col-4 col-md-2"><a href="' + baseUrl + l.file_path + '" target="_blank" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light text-muted text-decoration-none" style="height:70px;"><i class="bi ' + icon + ' fs-3"></i><span style="font-size:9px;">File</span></a></div>';
+                        thumbs += '<div class="col-6 col-md-3">' +
+                                  '  <div class="border rounded overflow-hidden shadow-sm bg-white">' +
+                                  '    <a href="' + baseUrl + l.file_path + '" target="_blank" class="d-flex flex-column align-items-center justify-content-center bg-light text-muted text-decoration-none" style="height:80px;">' +
+                                  '      <i class="bi ' + icon + ' fs-3"></i>' +
+                                  '    </a>' +
+                                  '    <div class="p-1 bg-light text-truncate small" style="font-size:10px;" title="' + (l.nama_item || l.keterangan || '') + '">' +
+                                  '      <i class="bi bi-tag-fill me-1 text-primary"></i>' + itemLabel +
+                                  '    </div>' +
+                                  '  </div>' +
+                                  '</div>';
                     }
                 });
-                lampiranHtml = '<div class="mt-2 small fw-semibold text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Bukti Perbaikan (' + pb.lampiran.length + ' file):</div><div class="row g-1">' + thumbs + '</div>';
+                lampiranHtml = '<div class="mt-2 small fw-semibold text-muted mb-2"><i class="bi bi-camera-fill me-1 text-primary"></i>Bukti Foto/Dokumen Perbaikan (' + pb.lampiran.length + ' file):</div><div class="row g-2">' + thumbs + '</div>';
             } else {
                 lampiranHtml = '<div class="small text-muted fst-italic mt-1"><i class="bi bi-images me-1"></i>Tidak ada bukti perbaikan.</div>';
             }
@@ -1070,6 +1173,9 @@
                 });
             };
 
+            var catatanDeskripsi = pb.catatan_perbaikan || pb.tindakan || pb.keterangan || '';
+            var formattedCatatan = catatanDeskripsi ? catatanDeskripsi.replace(/\n/g, '<br>') : '';
+
             rows += '<div class="p-3 ' + (i > 0 ? 'border-top' : '') + '">' +
                 '<div class="d-flex align-items-start justify-content-between gap-2 mb-2 flex-wrap">' +
                 '<div class="d-flex align-items-center gap-2">' +
@@ -1080,8 +1186,8 @@
                 (tgl_maks ? '<div><i class="bi bi-calendar-x text-danger me-1"></i>Deadline: <strong>' + fmtDate(tgl_maks) + '</strong></div>' : '') +
                 (tgl_sel ? '<div><i class="bi bi-calendar-check text-success me-1"></i>Selesai: <strong>' + fmtDate(tgl_sel) + '</strong></div>' : '') +
                 '</div></div>' +
-                (pb.catatan_perbaikan ?
-                    '<div class="alert alert-light border py-2 mb-2 small"><i class="bi bi-chat-left-text me-1 text-warning"></i><strong>Catatan:</strong> ' + pb.catatan_perbaikan + '</div>' :
+                (formattedCatatan ?
+                    '<div class="alert alert-light border py-2 mb-2 small"><i class="bi bi-chat-left-text me-1 text-warning"></i><strong>Catatan & Tindakan:</strong><br><div class="mt-1">' + formattedCatatan + '</div></div>' :
                     '<p class="text-muted small mb-2 fst-italic"><i class="bi bi-dash me-1"></i>Tidak ada catatan perbaikan.</p>') +
                 verif + lampiranHtml + '</div>';
         });

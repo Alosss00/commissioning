@@ -1414,7 +1414,9 @@ INSERT INTO `pengajuan_uji` (`id_pengajuan`, `id_kendaraan`, `id_pemohon`, `emai
 CREATE TABLE `perbaikan_lampiran` (
   `id_lampiran` int UNSIGNED NOT NULL,
   `id_perbaikan` int UNSIGNED NOT NULL,
+  `id_item` int UNSIGNED DEFAULT NULL,
   `file_path` varchar(300) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `keterangan` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `jenis` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'bukti_perbaikan',
   `uploaded_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

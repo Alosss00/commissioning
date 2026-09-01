@@ -83,12 +83,13 @@ class TipeKendaraan extends CI_Controller
         $rows = $this->db
             ->select('t.*,
                 (SELECT COUNT(*) FROM kendaraan k
-                    WHERE k.id_tipe_kendaraan = t.id_tipe_kendaraan) AS total_kendaraan,
+                    WHERE k.id_tipe_kendaraan = t.id_tipe_kendaraan AND k.deleted_at IS NULL) AS total_kendaraan,
                 (SELECT COUNT(*) FROM checklist_template ct
                     WHERE ct.id_tipe_kendaraan = t.id_tipe_kendaraan) AS total_template,
                 (SELECT COUNT(*) FROM mekanik_tipe_kendaraan mtk
                     WHERE mtk.id_tipe_kendaraan = t.id_tipe_kendaraan) AS total_mekanik')
             ->from('tipe_kendaraan t')
+            ->where('t.deleted_at IS NULL')
             ->order_by('t.id_tipe_kendaraan', 'ASC')
             ->get()->result();
 
@@ -253,16 +254,38 @@ class TipeKendaraan extends CI_Controller
         if (!$this->input->is_ajax_request()) show_404();
 
         $id   = (int) $this->input->post('id');
-        $cek1 = $this->db->where('id_tipe_kendaraan', $id)->count_all_results('kendaraan');
+        $cek1 = $this->db->where('id_tipe_kendaraan', $id)->where('deleted_at IS NULL')->count_all_results('kendaraan');
         $cek2 = $this->db->where('id_tipe_kendaraan', $id)->count_all_results('checklist_template');
 
         if ($cek1 > 0 || $cek2 > 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Tipe kendaraan masih terikat dengan data kendaraan atau template checklist.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            echo json_encode(['status' => 'error', 'message' => 'Tipe kendaraan masih terikat dengan data kendaraan aktif atau template checklist.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
-        $this->db->where('id_tipe_kendaraan', $id)->delete('tipe_kendaraan');
-        echo json_encode(['status' => 'success', 'message' => 'Tipe kendaraan berhasil dihapus.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+        $this->db->where('id_tipe_kendaraan', $id)->update('tipe_kendaraan', [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => (int) $this->session->userdata('id_user'),
+            'is_active'  => 0,
+        ]);
+        echo json_encode(['status' => 'success', 'message' => 'Tipe kendaraan berhasil dihapus (soft delete).', 'csrf_hash' => $this->security->get_csrf_hash()]);
+    }
+
+    /**
+     * Endpoint AJAX Pemulihan (Restore) Tipe Kendaraan.
+     * 
+     * @return void Response JSON status restore
+     */
+    public function restore()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $id = (int) $this->input->post('id');
+        $this->db->where('id_tipe_kendaraan', $id)->update('tipe_kendaraan', [
+            'deleted_at' => null,
+            'deleted_by' => null,
+            'is_active'  => 1,
+        ]);
+        echo json_encode(['status' => 'success', 'message' => 'Tipe kendaraan berhasil dipulihkan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
     /**

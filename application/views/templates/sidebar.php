@@ -337,6 +337,14 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                 </a>
             </li>
 
+            <?php if ($isAdmin || $isAdminOHS || $isAdminDept): ?>
+            <li class="nav-item">
+                <a class="nav-link <?= is_active('restore') ?>" href="<?= site_url('restore') ?>">
+                    <i class="bi bi-arrow-counterclockwise"></i><span>Pusat Pemulihan Data</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
         <?php endif; ?>
 
     </ul>

@@ -998,6 +998,18 @@ class Pengajuan extends CI_Controller
         $roles = $this->_user_roles();
         $uid   = (int) $this->session->userdata('id_user');
 
+        // Jika data dalam status terhapus (soft delete)
+        if (!empty($row->deleted_at)) {
+            $btn  = '<div class="d-flex gap-1 justify-content-center text-nowrap flex-nowrap">';
+            $btn .= '<button class="btn btn-sm btn-outline-primary py-0 btn-detail" data-id="' . $id . '" title="Lihat Detail"><i class="bi bi-eye"></i></button>';
+            if ($this->_has_role([1, 5], $roles)) {
+                $btn .= '<button class="btn btn-sm btn-success py-0 btn-restore-pengajuan fw-semibold" data-id="' . $id . '" title="Pulihkan Pengajuan">'
+                    . '<i class="bi bi-arrow-counterclockwise me-1"></i>Pulihkan</button>';
+            }
+            $btn .= '</div>';
+            return $btn;
+        }
+
         $btn  = '<div class="d-flex gap-1 justify-content-center text-nowrap flex-nowrap">';
         $btn .= '<button class="btn btn-sm btn-outline-primary py-0 btn-detail" data-id="' . $id . '" title="Lihat Detail"><i class="bi bi-eye"></i></button>';
 
@@ -1075,6 +1087,14 @@ class Pengajuan extends CI_Controller
                 . '<i class="bi bi-arrow-repeat me-1"></i>Ajukan Ulang</button>';
         }
 
+        // Tombol Soft Delete / Batalkan untuk pengajuan (khusus Admin Departemen & Super Admin)
+        if (
+            $this->_has_role([1, 7], $roles)
+            && in_array($row->status, ['draft', 'pengajuan_baru', 'pengajuan_ulang', 'ditolak_manager', 'rejected', 'ditolak_admin_ohs', 'ditolak_ohs_supt', 'ditolak_ktt'])
+        ) {
+            $btn .= '<button class="btn btn-sm btn-outline-danger py-0 btn-delete-pengajuan" data-id="' . $id . '" title="Hapus / Batalkan Pengajuan"><i class="bi bi-trash"></i></button>';
+        }
+
         $btn .= '</div>';
         return $btn;
     }
@@ -1089,29 +1109,15 @@ class Pengajuan extends CI_Controller
      */
     private function _upload_replace_lampiran($id_pengajuan, $jenis, $field_name)
     {
-        $path = FCPATH . 'uploads/lampiran/' . $id_pengajuan . '/';
-        if (!is_dir($path)) mkdir($path, 0755, true);
-
-        $doc_types = 'jpg|jpeg|png|pdf|doc|docx|xls|xlsx';
-        $img_types = 'jpg|jpeg|png';
-        $allowed   = ($jenis === 'stnk' || $jenis === 'maintenance_record') ? $doc_types : $img_types;
-
-        $unique_name = $jenis . '_' . time() . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 6);
-
-        $this->upload->initialize([
-            'upload_path'   => $path,
-            'allowed_types' => $allowed,
-            'max_size'      => ($jenis === 'maintenance_record') ? 10240 : 5120,
-            'file_name'     => $unique_name,
-            'overwrite'     => false,
-        ]);
-
-        if (!$this->upload->do_upload($field_name)) {
-            return $this->upload->display_errors('', '');
+        $file_name = $_FILES[$field_name]['name'] ?? '';
+        if (empty($file_name)) {
+            return null;
         }
 
-        $info     = $this->upload->data();
-        $new_path = 'uploads/lampiran/' . $id_pengajuan . '/' . $info['file_name'];
+        $new_path = $this->_do_upload($field_name, $id_pengajuan);
+        if (!$new_path) {
+            return $this->upload->display_errors('', '');
+        }
 
         $existing = $this->db
             ->where('id_pengajuan', $id_pengajuan)
@@ -1139,9 +1145,83 @@ class Pengajuan extends CI_Controller
     }
 
     /**
-     * Helper privat mengambil daftar ID role pengguna yang sedang login.
+     * Endpoint AJAX Hapus / Batalkan Pengajuan (Soft Delete).
      * 
-     * @return array Array integer ID role
+     * @return void Response JSON status hapus
+     */
+    public function delete()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $roles        = $this->_user_roles();
+        $id_pengajuan = (int) $this->input->post('id_pengajuan');
+        $id_user      = (int) $this->session->userdata('id_user');
+
+        if (!$this->_has_role([1, 7], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Hanya Admin Departemen dan Administrator yang dapat menghapus/membatalkan pengajuan.', 'csrfHash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        $filters = [];
+        $this->_apply_user_scoping($filters);
+        $pengajuan = $this->pengajuan_model->get_detail($id_pengajuan, $filters);
+
+        if (!$pengajuan) {
+            echo json_encode(['status' => 'error', 'message' => 'Pengajuan tidak ditemukan atau Anda tidak memiliki akses.', 'csrfHash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        // Admin Dept hanya boleh membatalkan/menghapus pengajuan sebelum disetujui penuh atau yang ditolak
+        if (!$this->_has_role([1], $roles) && in_array($pengajuan->status, ['stiker_keluar', 'acc_ktt'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Pengajuan yang sudah disetujui/terbit stiker tidak dapat dihapus/dibatalkan.', 'csrfHash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        $this->db->trans_start();
+        $this->pengajuan_model->delete_pengajuan($id_pengajuan, $id_user);
+        $this->_audit('Hapus Pengajuan (Soft Delete)', 'pengajuan_uji', $id_pengajuan);
+        $this->db->trans_complete();
+
+        echo json_encode([
+            'status'   => $this->db->trans_status() ? 'success' : 'error',
+            'message'  => $this->db->trans_status() ? 'Pengajuan berhasil dihapus (soft delete).' : 'Gagal menghapus pengajuan.',
+            'csrfHash' => $this->security->get_csrf_hash(),
+        ]);
+    }
+
+    /**
+     * Endpoint AJAX Pemulihan (Restore) Pengajuan yang di-soft delete.
+     * 
+     * @return void Response JSON status restore
+     */
+    public function restore()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $roles        = $this->_user_roles();
+        $id_pengajuan = (int) $this->input->post('id_pengajuan');
+
+        if (!$this->_has_role([1, 5], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Hanya Administrator yang dapat memulihkan pengajuan.', 'csrfHash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        $this->db->trans_start();
+        $this->pengajuan_model->restore_pengajuan($id_pengajuan);
+        $this->_audit('Restore Pengajuan', 'pengajuan_uji', $id_pengajuan);
+        $this->db->trans_complete();
+
+        echo json_encode([
+            'status'   => $this->db->trans_status() ? 'success' : 'error',
+            'message'  => $this->db->trans_status() ? 'Pengajuan berhasil dipulihkan.' : 'Gagal memulihkan pengajuan.',
+            'csrfHash' => $this->security->get_csrf_hash(),
+        ]);
+    }
+
+    /**
+     * Helper privat mengambil seluruh role ID yang dimiliki pengguna dari sesi login.
+     * 
+     * @return array List ID role
      */
     private function _user_roles()
     {

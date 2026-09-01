@@ -158,6 +158,7 @@ endif; ?>
                             foreach ($rows_versi as $r) {
                                 $gh[$r->kategori][] = $r;
                             }
+                            $is_ver_lulus = ($ver->hasil_uji === 'lulus' || (int)$ver->total_no === 0);
                             ?>
 
                             <?php if (empty($rows_versi)): ?>
@@ -165,63 +166,82 @@ endif; ?>
                                     <i class="bi bi-info-circle me-1"></i>Data detail tidak tersedia.
                                 </p>
                             <?php else: ?>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-bordered table-hover align-middle mb-0"
-                                        style="font-size:0.8rem;">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th width="70" class="text-center">Kat.</th>
-                                                <th width="40" class="text-center">No.</th>
-                                                <th>Kriteria</th>
-                                                <th width="60" class="text-center">Hasil</th>
-                                                <th>Keterangan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach (['CRITICAL', 'GENERAL'] as $kat): ?>
-                                                <?php if (empty($gh[$kat])) continue; ?>
-                                                <tr class="<?= $kat === 'CRITICAL' ? 'table-danger' : 'table-warning' ?>
-                                                        bg-opacity-25">
-                                                    <td colspan="5" class="fw-bold py-1 text-center"
-                                                        style="font-size:0.72rem;letter-spacing:.05em;">
-                                                        <?= $kat === 'CRITICAL'
-                                                            ? '★ CRITICAL ITEMS'
-                                                            : 'GENERAL REQUIREMENTS' ?>
-                                                    </td>
+                                <?php if (!$is_ver_lulus): ?>
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 p-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-2">
+                                        <div>
+                                            <span class="small text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Hasil Inspeksi Snapshot: Tidak Lulus</span>
+                                            <span class="badge bg-danger ms-1"><?= $ver->total_no ?> Temuan</span>
+                                            <div class="small text-muted" style="font-size:11px;">Klik tombol untuk membuka rincian form checklist hasil inspeksi.</div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-danger py-1 px-3 fw-semibold"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#collapseHistVer_<?= $ver->versi ?>"
+                                            aria-expanded="false">
+                                            <i class="bi bi-card-checklist me-1"></i>Lihat Form Hasil Inspeksi (<?= count($rows_versi) ?> Item)
+                                        </button>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="collapse <?= $is_ver_lulus ? 'show' : '' ?>" id="collapseHistVer_<?= $ver->versi ?>">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered table-hover align-middle mb-0"
+                                            style="font-size:0.8rem;">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th width="70" class="text-center">Kat.</th>
+                                                    <th width="40" class="text-center">No.</th>
+                                                    <th>Kriteria</th>
+                                                    <th width="60" class="text-center">Hasil</th>
+                                                    <th>Keterangan</th>
                                                 </tr>
-                                                <?php foreach ($gh[$kat] as $item): ?>
-                                                    <tr class="<?= $item->hasil === 'no'
-                                                                    ? 'table-danger'
-                                                                    : ($item->hasil === 'na' ? 'table-light text-muted' : '') ?>">
-                                                        <td class="text-center">
-                                                            <span class="badge bg-<?= $kat === 'CRITICAL'
-                                                                                        ? 'danger'
-                                                                                        : 'warning text-dark' ?>"
-                                                                style="font-size:8px;">
-                                                                <?= $kat ?>
-                                                            </span>
-                                                        </td>
-                                                        <td class="text-center fw-bold">
-                                                            <?= html_escape($item->no_urut) ?>
-                                                        </td>
-                                                        <td><?= html_escape($item->kriteria) ?></td>
-                                                        <td class="text-center">
-                                                            <?php if ($item->hasil === 'yes'): ?>
-                                                                <span class="badge bg-success px-2">YES</span>
-                                                            <?php elseif ($item->hasil === 'no'): ?>
-                                                                <span class="badge bg-danger px-2">NO</span>
-                                                            <?php else: ?>
-                                                                <span class="badge bg-secondary px-2">N/A</span>
-                                                            <?php endif; ?>
-                                                        </td>
-                                                        <td class="text-muted" style="font-size:0.75rem;">
-                                                            <?= html_escape($item->keterangan ?: '—') ?>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach (['CRITICAL', 'GENERAL'] as $kat): ?>
+                                                    <?php if (empty($gh[$kat])) continue; ?>
+                                                    <tr class="<?= $kat === 'CRITICAL' ? 'table-danger' : 'table-warning' ?>
+                                                            bg-opacity-25">
+                                                        <td colspan="5" class="fw-bold py-1 text-center"
+                                                            style="font-size:0.72rem;letter-spacing:.05em;">
+                                                            <?= $kat === 'CRITICAL'
+                                                                ? '★ CRITICAL ITEMS'
+                                                                : 'GENERAL REQUIREMENTS' ?>
                                                         </td>
                                                     </tr>
+                                                    <?php foreach ($gh[$kat] as $item): ?>
+                                                        <tr class="<?= $item->hasil === 'no'
+                                                                        ? 'table-danger'
+                                                                        : ($item->hasil === 'na' ? 'table-light text-muted' : '') ?>">
+                                                            <td class="text-center">
+                                                                <span class="badge bg-<?= $kat === 'CRITICAL'
+                                                                                            ? 'danger'
+                                                                                            : 'warning text-dark' ?>"
+                                                                    style="font-size:8px;">
+                                                                    <?= $kat ?>
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-center fw-bold">
+                                                                <?= html_escape($item->no_urut) ?>
+                                                            </td>
+                                                            <td><?= html_escape($item->kriteria) ?></td>
+                                                            <td class="text-center">
+                                                                <?php if ($item->hasil === 'yes'): ?>
+                                                                    <span class="badge bg-success px-2">YES</span>
+                                                                <?php elseif ($item->hasil === 'no'): ?>
+                                                                    <span class="badge bg-danger px-2">NO</span>
+                                                                <?php else: ?>
+                                                                    <span class="badge bg-secondary px-2">N/A</span>
+                                                                <?php endif; ?>
+                                                            </td>
+                                                            <td class="text-muted" style="font-size:0.75rem;">
+                                                                <?= html_escape($item->keterangan ?: '—') ?>
+                                                            </td>
+                                                        </tr>
+                                                    <?php endforeach; ?>
                                                 <?php endforeach; ?>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             <?php endif; ?>
 

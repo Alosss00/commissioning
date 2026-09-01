@@ -138,72 +138,93 @@
                     </div>
                 <?php endif; ?>
 
-                <!-- CHECKLIST PER KATEGORI -->
-                <?php
-                $kategori_order = ['CRITICAL', 'GENERAL'];
-                $kategori_style = [
-                    'CRITICAL' => ['bg-danger',  'text-danger',  'danger'],
-                    'GENERAL'  => ['bg-primary', 'text-primary', 'primary'],
-                ];
-                foreach ($kategori_order as $kat):
-                    if (empty($grouped[$kat])) continue;
-                    $items_kat = $grouped[$kat];
-                    $col       = $kategori_style[$kat] ?? ['bg-secondary', 'text-secondary', 'secondary'];
-                    $cnt_no    = count(array_filter($items_kat, fn($i) => $i->hasil === 'no'));
-                ?>
-                    <div class="card mb-3">
-                        <div class="card-header d-flex justify-content-between align-items-center py-2
-                        <?= $col[0] ?> bg-opacity-15 border-<?= $col[2] ?>">
-                            <span class="fw-bold <?= $col[1] ?>">
-                                <i class="bi bi-tag-fill me-1"></i><?= $kat ?>
-                            </span>
-                            <div class="d-flex gap-2 align-items-center">
-                                <?php if ($cnt_no > 0): ?>
-                                    <span class="badge bg-danger text-white"><?= $cnt_no ?> Tidak OK</span>
-                                <?php endif; ?>
-                                <span class="badge bg-secondary text-white"><?= count($items_kat) ?> item</span>
-                            </div>
+                <!-- TOMBOL TOGGLE JIKA TIDAK LULUS -->
+                <?php if (!$summary['lulus']): ?>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 p-3 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3">
+                        <div>
+                            <span class="fw-bold text-danger"><i class="bi bi-x-circle-fill me-1"></i>Hasil Inspeksi: Tidak Lulus</span>
+                            <span class="badge bg-danger ms-2"><?= $summary['no'] ?> Item Temuan</span>
+                            <div class="small text-muted mt-1">Klik tombol di samping untuk membuka rincian form checklist hasil inspeksi.</div>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width:50px;" class="text-center">No.</th>
-                                            <th>Kriteria Pemeriksaan</th>
-                                            <th style="width:100px;" class="text-center">Hasil</th>
-                                            <th>Catatan</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($items_kat as $item): ?>
-                                            <tr class="<?= $item->hasil === 'no' ? 'table-danger' : ($item->hasil === 'na' ? 'table-secondary' : '') ?>">
-                                                <td class="text-center text-muted small"><?= html_escape($item->no_urut) ?></td>
-                                                <td><?= html_escape($item->kriteria) ?></td>
-                                                <td class="text-center">
-                                                    <?php if ($item->hasil === 'yes'): ?>
-                                                        <span class="badge bg-success text-white px-2">
-                                                            <i class="bi bi-check-lg me-1"></i>YES
-                                                        </span>
-                                                    <?php elseif ($item->hasil === 'no'): ?>
-                                                        <span class="badge bg-danger text-white px-2">
-                                                            <i class="bi bi-x-lg me-1"></i>NO
-                                                        </span>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-secondary text-white px-2">N/A</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <small class="text-muted"><?= html_escape($item->keterangan ?? '') ?></small>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <button class="btn btn-danger text-white btn-sm px-3 fw-semibold"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#collapseChecklistFormAktif"
+                            aria-expanded="false"
+                            aria-controls="collapseChecklistFormAktif">
+                            <i class="bi bi-card-checklist me-1"></i>Lihat Form Hasil Inspeksi (<?= $summary['total'] ?> Item)
+                        </button>
                     </div>
-                <?php endforeach; ?>
+                <?php endif; ?>
+
+                <div class="collapse <?= $summary['lulus'] ? 'show' : '' ?>" id="collapseChecklistFormAktif">
+                    <!-- CHECKLIST PER KATEGORI -->
+                    <?php
+                    $kategori_order = ['CRITICAL', 'GENERAL'];
+                    $kategori_style = [
+                        'CRITICAL' => ['bg-danger',  'text-danger',  'danger'],
+                        'GENERAL'  => ['bg-primary', 'text-primary', 'primary'],
+                    ];
+                    foreach ($kategori_order as $kat):
+                        if (empty($grouped[$kat])) continue;
+                        $items_kat = $grouped[$kat];
+                        $col       = $kategori_style[$kat] ?? ['bg-secondary', 'text-secondary', 'secondary'];
+                        $cnt_no    = count(array_filter($items_kat, fn($i) => $i->hasil === 'no'));
+                    ?>
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center py-2
+                            <?= $col[0] ?> bg-opacity-15 border-<?= $col[2] ?>">
+                                <span class="fw-bold <?= $col[1] ?>">
+                                    <i class="bi bi-tag-fill me-1"></i><?= $kat ?>
+                                </span>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <?php if ($cnt_no > 0): ?>
+                                        <span class="badge bg-danger text-white"><?= $cnt_no ?> Tidak OK</span>
+                                    <?php endif; ?>
+                                    <span class="badge bg-secondary text-white"><?= count($items_kat) ?> item</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width:50px;" class="text-center">No.</th>
+                                                <th>Kriteria Pemeriksaan</th>
+                                                <th style="width:100px;" class="text-center">Hasil</th>
+                                                <th>Catatan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($items_kat as $item): ?>
+                                                <tr class="<?= $item->hasil === 'no' ? 'table-danger' : ($item->hasil === 'na' ? 'table-secondary' : '') ?>">
+                                                    <td class="text-center text-muted small"><?= html_escape($item->no_urut) ?></td>
+                                                    <td><?= html_escape($item->kriteria) ?></td>
+                                                    <td class="text-center">
+                                                        <?php if ($item->hasil === 'yes'): ?>
+                                                            <span class="badge bg-success text-white px-2">
+                                                                <i class="bi bi-check-lg me-1"></i>YES
+                                                            </span>
+                                                        <?php elseif ($item->hasil === 'no'): ?>
+                                                            <span class="badge bg-danger text-white px-2">
+                                                                <i class="bi bi-x-lg me-1"></i>NO
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-secondary text-white px-2">N/A</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <small class="text-muted"><?= html_escape($item->keterangan ?? '') ?></small>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
 
                 <!-- DOKUMENTASI FOTO INSPEKSI & LAMPIRAN -->
                 <div class="card mb-3">

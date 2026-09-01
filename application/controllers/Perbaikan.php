@@ -313,7 +313,7 @@ class Perbaikan extends CI_Controller
         $checklist_no = [];
         if ($uji) {
             $checklist_no = $this->db
-                ->select('uc.hasil, uc.keterangan, ci.kriteria, ci.kategori, ci.no_urut')
+                ->select('uc.id_item, uc.hasil, uc.keterangan, ci.kriteria, ci.kategori, ci.no_urut')
                 ->from('uji_checklist uc')
                 ->join('checklist_item ci', 'ci.id_item = uc.id_item')
                 ->where('uc.id_uji', $uji->id_uji)
@@ -377,7 +377,7 @@ class Perbaikan extends CI_Controller
 
     /**
      * Endpoint Simpan (Store) Perbaikan Unit oleh Admin Departemen.
-     * Mengunggah file bukti perbaikan dan mengubah status pengajuan ke 'siap_verifikasi'.
+     * Mengunggah file bukti perbaikan per-temuan dan mengubah status pengajuan ke 'siap_verifikasi'.
      * 
      * @return void Redirect ke halaman pengajuan
      */
@@ -389,9 +389,10 @@ class Perbaikan extends CI_Controller
             redirect('pengajuan');
         }
 
-        $id_pengajuan = (int) $this->input->post('id_pengajuan');
-        $id_uji       = (int) $this->input->post('id_uji');
-        $catatan      = trim($this->input->post('catatan_perbaikan') ?? '');
+        $id_pengajuan   = (int) $this->input->post('id_pengajuan');
+        $id_uji         = (int) $this->input->post('id_uji');
+        $catatan_umum   = trim((string)($this->input->post('catatan_perbaikan') ?? ''));
+        $tindakan_items = $this->input->post('tindakan_item'); // array [id_item => text]
 
         $user_dept = trim((string) $this->session->userdata('departemen'));
         $id_user   = (int) $this->session->userdata('id_user');
@@ -423,6 +424,30 @@ class Perbaikan extends CI_Controller
             redirect('perbaikan/form/' . $id_pengajuan);
         }
 
+        // Susun catatan perbaikan dari rincian per-item
+        $formatted_notes = [];
+        if (is_array($tindakan_items)) {
+            foreach ($tindakan_items as $item_id => $tindakan_txt) {
+                $item_id = (int) $item_id;
+                $tindakan_txt = trim((string)$tindakan_txt);
+                if (!empty($tindakan_txt)) {
+                    $item_db = $this->db->select('kriteria, no_urut')->where('id_item', $item_id)->get('checklist_item')->row();
+                    $label = $item_db ? ($item_db->no_urut ? '#' . $item_db->no_urut . ' ' : '') . $item_db->kriteria : 'Item #' . $item_id;
+                    $formatted_notes[] = "• {$label}: {$tindakan_txt}";
+                }
+            }
+        }
+
+        $catatan_final = '';
+        if (!empty($formatted_notes)) {
+            $catatan_final = implode("\n", $formatted_notes);
+            if (!empty($catatan_umum)) {
+                $catatan_final .= "\n\nCatatan Tambahan: " . $catatan_umum;
+            }
+        } else {
+            $catatan_final = $catatan_umum;
+        }
+
         $perbaikan_existing = $this->db
             ->where('id_pengajuan', $id_pengajuan)
             ->where('id_uji', $id_uji)
@@ -434,7 +459,7 @@ class Perbaikan extends CI_Controller
         if ($perbaikan_existing) {
             $id_perbaikan = $perbaikan_existing->id_perbaikan;
             $this->db->where('id_perbaikan', $id_perbaikan)->update('perbaikan_unit', [
-                'catatan_perbaikan' => $catatan ?: null,
+                'catatan_perbaikan' => $catatan_final ?: null,
                 'status'            => 'menunggu_verifikasi',
                 'tgl_selesai'       => date('Y-m-d'),
                 'updated_at'        => date('Y-m-d H:i:s'),
@@ -446,19 +471,65 @@ class Perbaikan extends CI_Controller
                 'tgl_max_perbaikan' => date('Y-m-d', strtotime('+7 days')),
                 'tgl_selesai'       => date('Y-m-d'),
                 'id_verifikator'    => null,
-                'catatan_perbaikan' => $catatan ?: null,
+                'catatan_perbaikan' => $catatan_final ?: null,
                 'status'            => 'menunggu_verifikasi',
                 'created_at'        => date('Y-m-d H:i:s'),
             ]);
             $id_perbaikan = $this->db->insert_id();
         }
 
-        // Upload berkas bukti perbaikan
-        $upload_errors = [];
-        if (!empty($_FILES['bukti_perbaikan']['name'][0])) {
-            $path = FCPATH . 'uploads/perbaikan/' . $id_pengajuan . '/';
-            if (!is_dir($path)) mkdir($path, 0755, true);
+        // Siapkan direktori upload
+        $path = FCPATH . 'uploads/perbaikan/' . $id_pengajuan . '/';
+        if (!is_dir($path)) mkdir($path, 0755, true);
 
+        $upload_errors = [];
+
+        // 1. Upload berkas bukti per-temuan (bukti_item_{id_item})
+        if (is_array($tindakan_items)) {
+            foreach ($tindakan_items as $item_id => $tindakan_txt) {
+                $item_id = (int) $item_id;
+                $input_key = 'bukti_item_' . $item_id;
+
+                if (!empty($_FILES[$input_key]['name'])) {
+                    $file_names = is_array($_FILES[$input_key]['name']) ? $_FILES[$input_key]['name'] : [$_FILES[$input_key]['name']];
+                    foreach ($file_names as $fidx => $fname) {
+                        if (empty($fname)) continue;
+
+                        $_FILES['upload_tmp'] = [
+                            'name'     => is_array($_FILES[$input_key]['name']) ? $_FILES[$input_key]['name'][$fidx] : $_FILES[$input_key]['name'],
+                            'type'     => is_array($_FILES[$input_key]['type']) ? $_FILES[$input_key]['type'][$fidx] : $_FILES[$input_key]['type'],
+                            'tmp_name' => is_array($_FILES[$input_key]['tmp_name']) ? $_FILES[$input_key]['tmp_name'][$fidx] : $_FILES[$input_key]['tmp_name'],
+                            'error'    => is_array($_FILES[$input_key]['error']) ? $_FILES[$input_key]['error'][$fidx] : $_FILES[$input_key]['error'],
+                            'size'     => is_array($_FILES[$input_key]['size']) ? $_FILES[$input_key]['size'][$fidx] : $_FILES[$input_key]['size'],
+                        ];
+
+                        $this->upload->initialize([
+                            'upload_path'   => $path,
+                            'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx',
+                            'max_size'      => 10240,
+                            'file_name'     => 'bukti_item_' . $item_id . '_' . $fidx . '_' . time(),
+                        ]);
+
+                        if ($this->upload->do_upload('upload_tmp')) {
+                            $info = $this->upload->data();
+                            $this->db->insert('perbaikan_lampiran', [
+                                'id_perbaikan' => $id_perbaikan,
+                                'id_item'      => $item_id,
+                                'file_path'    => 'uploads/perbaikan/' . $id_pengajuan . '/' . $info['file_name'],
+                                'keterangan'   => trim((string)$tindakan_txt) ?: null,
+                                'jenis'        => 'bukti_perbaikan',
+                                'uploaded_at'  => date('Y-m-d H:i:s'),
+                            ]);
+                        } else {
+                            $upload_errors[] = $this->upload->display_errors('', '');
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Upload berkas bukti umum tambahan jika ada
+        if (!empty($_FILES['bukti_perbaikan']['name'][0])) {
             $count = 0;
             foreach ($_FILES['bukti_perbaikan']['name'] as $idx => $fname) {
                 if ($count >= 10 || empty($fname)) continue;
@@ -475,14 +546,16 @@ class Perbaikan extends CI_Controller
                     'upload_path'   => $path,
                     'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx',
                     'max_size'      => 10240,
-                    'file_name'     => 'bukti_' . $idx . '_' . time(),
+                    'file_name'     => 'bukti_umum_' . $idx . '_' . time(),
                 ]);
 
                 if ($this->upload->do_upload('upload_tmp')) {
                     $info = $this->upload->data();
                     $this->db->insert('perbaikan_lampiran', [
                         'id_perbaikan' => $id_perbaikan,
+                        'id_item'      => null,
                         'file_path'    => 'uploads/perbaikan/' . $id_pengajuan . '/' . $info['file_name'],
+                        'keterangan'   => 'Lampiran Umum',
                         'jenis'        => 'bukti_perbaikan',
                         'uploaded_at'  => date('Y-m-d H:i:s'),
                     ]);
@@ -504,7 +577,7 @@ class Perbaikan extends CI_Controller
             'level_approval' => 'perbaikan_unit',
             'status'         => 'approved',
             'catatan'        => 'Perbaikan selesai dilakukan. Menunggu verifikasi fisik oleh inspektor.'
-                . ($catatan ? ' Catatan: ' . $catatan : ''),
+                . ($catatan_final ? "\n\n" . $catatan_final : ''),
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
@@ -590,8 +663,11 @@ class Perbaikan extends CI_Controller
         $lampiran_perbaikan = [];
         if ($perbaikan) {
             $lampiran_perbaikan = $this->db
-                ->where('id_perbaikan', $perbaikan->id_perbaikan)
-                ->get('perbaikan_lampiran')->result();
+                ->select('pl.*, ci.kriteria AS nama_item, ci.kategori AS kategori_item, ci.no_urut AS no_urut_item')
+                ->from('perbaikan_lampiran pl')
+                ->join('checklist_item ci', 'ci.id_item = pl.id_item', 'left')
+                ->where('pl.id_perbaikan', $perbaikan->id_perbaikan)
+                ->get()->result();
         }
 
         $data = [

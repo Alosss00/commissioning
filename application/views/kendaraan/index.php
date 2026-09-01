@@ -218,10 +218,18 @@
                 url: '<?= site_url('kendaraan/get_data') ?>',
                 type: 'POST',
                 data: function(d) {
-                    d.filter_jenis = $('#filterJenis').val();
-                    d.filter_unit = $('#filterUnit').val();
+                    d.filter_jenis  = $('#filterJenis').val();
+                    d.filter_unit   = $('#filterUnit').val();
                     d.filter_stiker = $('#filterStiker').val();
-                    d['<?= $this->security->get_csrf_token_name() ?>'] = window.csrfTokenHash;
+                    if (window.csrfTokenName && window.csrfTokenHash) {
+                        d[window.csrfTokenName] = window.csrfTokenHash;
+                    }
+                },
+                dataSrc: function(json) {
+                    if (json && json.csrf_hash) {
+                        window.updateCsrfToken(json.csrf_hash);
+                    }
+                    return json.data || [];
                 },
                 error: function() {
                     toastr.error('Gagal memuat data kendaraan.');
@@ -280,7 +288,14 @@
             pageLength: 25,
             lengthMenu: [10, 25, 50, 100, 200],
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                emptyTable: '<div class="py-4 text-center text-muted"><i class="bi bi-truck fs-2 d-block mb-1 opacity-75"></i>Tidak ada data kendaraan lulus komisioning.</div>',
+                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ kendaraan",
+                infoEmpty: "Tidak ada data",
+                infoFiltered: "(difilter dari _MAX_ total data)",
+                search: "Cari kendaraan:",
+                lengthMenu: "Tampilkan _MENU_ data",
+                paginate: { first: "«", last: "»", next: "›", previous: "‹" },
+                processing: '<div class="spinner-border spinner-border-sm text-primary me-2"></div>Memuat data...'
             }
         });
 

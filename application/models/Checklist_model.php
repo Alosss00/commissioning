@@ -131,10 +131,13 @@ class Checklist_model extends CI_Model
      * @param int $id_template ID Template Checklist
      * @return array List object item kriteria
      */
-    public function get_items($id_template)
+    public function get_items($id_template, $include_deleted = false)
     {
+        $this->db->where('id_template', (int) $id_template);
+        if (!$include_deleted) {
+            $this->db->where('deleted_at IS NULL');
+        }
         return $this->db
-            ->where('id_template', (int) $id_template)
             ->order_by('kategori DESC')
             ->order_by('CAST(no_urut AS UNSIGNED)', 'ASC', false)
             ->get('checklist_item')
@@ -404,14 +407,30 @@ class Checklist_model extends CI_Model
         return $this->db->where('id_item', (int) $id)->update('checklist_item', $data);
     }
 
-    public function delete_item($id)
+    public function delete_item($id, $id_user = null)
     {
-        return $this->db->where('id_item', (int) $id)->delete('checklist_item');
+        $id_user = $id_user ?: (int) $this->session->userdata('id_user');
+        return $this->db->where('id_item', (int) $id)->update('checklist_item', [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'deleted_by' => $id_user ?: null,
+        ]);
     }
 
-    public function get_item($id)
+    public function restore_item($id)
     {
-        return $this->db->where('id_item', (int) $id)->get('checklist_item')->row();
+        return $this->db->where('id_item', (int) $id)->update('checklist_item', [
+            'deleted_at' => null,
+            'deleted_by' => null,
+        ]);
+    }
+
+    public function get_item($id, $include_deleted = false)
+    {
+        $this->db->where('id_item', (int) $id);
+        if (!$include_deleted) {
+            $this->db->where('deleted_at IS NULL');
+        }
+        return $this->db->get('checklist_item')->row();
     }
 
     /** @deprecated Gunakan get_template_by_tipe_id() */

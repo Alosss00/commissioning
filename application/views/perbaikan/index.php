@@ -482,15 +482,39 @@
                     $.each(pb.lampiran, function(j, l) {
                         var ext = l.file_path.split('.').pop().toLowerCase();
                         var imgExts = ['jpg', 'jpeg', 'png', 'webp'];
+                        var itemLabel = l.nama_item ? ('#' + (l.no_urut_item || '') + ' ' + l.nama_item) : (l.keterangan || 'Bukti #' + (j + 1));
+                        if (itemLabel.length > 25) itemLabel = itemLabel.substring(0, 23) + '…';
+
                         if (imgExts.indexOf(ext) >= 0) {
-                            thumbs += '<div class="col-4 col-md-2"><a href="' + baseUrl + l.file_path + '" target="_blank"><img src="' + baseUrl + l.file_path + '" class="img-fluid rounded border w-100 shadow-sm" style="height:70px;object-fit:cover;"></a></div>';
+                            thumbs += '<div class="col-6 col-md-3">' +
+                                      '  <div class="border rounded overflow-hidden shadow-sm bg-white">' +
+                                      '    <a href="' + baseUrl + l.file_path + '" target="_blank">' +
+                                      '      <img src="' + baseUrl + l.file_path + '" class="img-fluid w-100" style="height:85px;object-fit:cover;">' +
+                                      '    </a>' +
+                                      '    <div class="p-1 bg-light text-truncate small" style="font-size:10px;" title="' + (l.nama_item || l.keterangan || '') + '">' +
+                                      '      <i class="bi bi-tag-fill me-1 text-primary"></i>' + itemLabel +
+                                      '    </div>' +
+                                      '  </div>' +
+                                      '</div>';
                         } else {
                             var icon = ext === 'pdf' ? 'bi-file-earmark-pdf text-danger' : (ext === 'doc' || ext === 'docx' ? 'bi-file-earmark-word text-primary' : 'bi-file-earmark text-secondary');
-                            thumbs += '<div class="col-4 col-md-2"><a href="' + baseUrl + l.file_path + '" target="_blank" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light text-muted text-decoration-none shadow-sm" style="height:70px;"><i class="bi ' + icon + ' fs-3"></i><span style="font-size:9px;">Dokumen</span></a></div>';
+                            thumbs += '<div class="col-6 col-md-3">' +
+                                      '  <div class="border rounded overflow-hidden shadow-sm bg-white">' +
+                                      '    <a href="' + baseUrl + l.file_path + '" target="_blank" class="d-flex flex-column align-items-center justify-content-center bg-light text-muted text-decoration-none" style="height:85px;">' +
+                                      '      <i class="bi ' + icon + ' fs-3"></i>' +
+                                      '    </a>' +
+                                      '    <div class="p-1 bg-light text-truncate small" style="font-size:10px;" title="' + (l.nama_item || l.keterangan || '') + '">' +
+                                      '      <i class="bi bi-tag-fill me-1 text-primary"></i>' + itemLabel +
+                                      '    </div>' +
+                                      '  </div>' +
+                                      '</div>';
                         }
                     });
-                    lampiranHtml = '<div class="mt-2 small fw-semibold text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Bukti Foto Perbaikan (' + pb.lampiran.length + ' file):</div><div class="row g-2">' + thumbs + '</div>';
+                    lampiranHtml = '<div class="mt-3 small fw-semibold text-muted mb-2"><i class="bi bi-camera-fill me-1 text-primary"></i>Bukti Foto/Dokumen Perbaikan (' + pb.lampiran.length + ' file):</div><div class="row g-2">' + thumbs + '</div>';
                 }
+
+                var catatanDeskripsi = pb.catatan_perbaikan || pb.tindakan || pb.keterangan || '—';
+                var formattedCatatan = catatanDeskripsi.replace(/\n/g, '<br>');
 
                 rows +=
                     '<div class="card border mb-2 shadow-sm rounded-3">' +
@@ -499,7 +523,7 @@
                     '    <span class="badge ' + sc[0] + '">' + sc[1] + '</span>' +
                     '  </div>' +
                     '  <div class="card-body py-2">' +
-                    '    <div class="small mb-1"><strong>Deskripsi:</strong> ' + (pb.tindakan || pb.keterangan || '—') + '</div>' +
+                    '    <div class="small mb-2"><strong>Rincian Tindakan:</strong><br><div class="mt-1 p-2 bg-light rounded border">' + formattedCatatan + '</div></div>' +
                     '    <div class="small text-muted mb-2"><i class="bi bi-clock me-1"></i>Tanggal Input: ' + (pb.created_at || '—') + '</div>' +
                     '    ' + lampiranHtml +
                     '  </div>' +

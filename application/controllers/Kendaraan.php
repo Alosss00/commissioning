@@ -81,9 +81,12 @@ class Kendaraan extends CI_Controller
 
         $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
 
+        $search_post = $this->input->post('search');
+        $search_val  = is_array($search_post) ? ($search_post['value'] ?? '') : ($search_post ?? '');
+
         $filters = [
-            'search'          => $this->input->post('search')['value'],
-            'jenis_kendaraan' => $this->input->post('filter_jenis'),
+            'search'          => trim((string) $search_val),
+            'jenis_kendaraan' => trim((string) $this->input->post('filter_jenis')),
             'is_unit_baru'    => $this->input->post('filter_unit'),
         ];
 
@@ -115,6 +118,7 @@ class Kendaraan extends CI_Controller
                         return $stiker && $sisa >= 0 && $sisa <= 30;
                     case 'aktif':
                         return $stiker && $sisa > 30;
+                    case 'belum':
                     case 'tanpa_stiker':
                         return !$stiker;
                     default:
@@ -128,6 +132,8 @@ class Kendaraan extends CI_Controller
         // Susun baris response tabel
         $data = [];
         $no   = $start + 1;
+        $roles = $this->_user_roles();
+        $can_delete = $this->_has_role([1, 5], $roles);
 
         foreach ($rows as $r) {
             $stiker = $stiker_map[$r->id_kendaraan] ?? null;
@@ -140,9 +146,9 @@ class Kendaraan extends CI_Controller
             $tipe_akses_badge = badge_tipe_akses($r->tipe_akses ?? '');
 
             $aksi = '
-              <div class="d-flex gap-1">
+              <div class="d-flex gap-1 justify-content-center">
                 <button class="btn btn-sm btn-outline-info py-0 btn-detail" data-id="' . $r->id_kendaraan . '" title="Detail"><i class="bi bi-eye"></i></button>
-                ' . ($this->session->userdata('role') == 1 ? '<button class="btn btn-sm btn-outline-danger py-0 btn-delete" data-id="' . $r->id_kendaraan . '" data-nopol="' . html_escape($r->no_polisi) . '" title="Hapus"><i class="bi bi-trash"></i></button>' : '') . '
+                ' . ($can_delete ? '<button class="btn btn-sm btn-outline-danger py-0 btn-delete" data-id="' . $r->id_kendaraan . '" data-nopol="' . html_escape($r->no_polisi) . '" title="Hapus Kendaraan"><i class="bi bi-trash"></i></button>' : '') . '
               </div>';
 
             $data[] = [
@@ -182,7 +188,7 @@ class Kendaraan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $id        = (int) $this->input->post('id_kendaraan');
+        $id        = (int) ($this->input->post('id_kendaraan') ?: $this->input->post('id'));
         $kendaraan = $this->kendaraan_model->get_by_id($id);
 
         if (!$kendaraan) {
@@ -247,12 +253,24 @@ class Kendaraan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $rows       = $this->kendaraan_model->get_datatable_lulus(0, 99999);
+        $roles_sess = $this->session->userdata('roles');
+        $role_int   = (int) $this->session->userdata('role');
+        $roles      = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
+        $user_dept  = trim((string) $this->session->userdata('departemen'));
+        $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
+
+        $filter = [];
+        if (!$is_site_wide && !empty($user_dept)) {
+            $filter['perusahaan'] = $user_dept;
+        }
+
+        $rows       = $this->kendaraan_model->get_datatable_lulus(0, 99999, $filter);
         $stiker_map = $this->kendaraan_model->get_stiker_info_batch(
             array_column($rows, 'id_kendaraan')
         );
 
         $total        = count($rows);
+        $unit_baru    = 0;
         $stiker_aktif = 0;
         $stiker_hampir= 0;
         $stiker_exp   = 0;
@@ -261,6 +279,10 @@ class Kendaraan extends CI_Controller
         $per_jenis    = [];
 
         foreach ($rows as $r) {
+            if (!empty($r->is_unit_baru)) {
+                $unit_baru++;
+            }
+
             $stiker = $stiker_map[$r->id_kendaraan] ?? null;
             $jenis  = $r->jenis_kendaraan ?? 'Lainnya';
 
@@ -298,13 +320,16 @@ class Kendaraan extends CI_Controller
         echo json_encode([
             'status' => 'success',
             'data'   => [
-                'total'         => $total,
-                'aktif'         => $stiker_aktif,
-                'hampir_exp'    => $stiker_hampir,
-                'expired'       => $stiker_exp,
-                'tanpa_stiker'  => $tanpa_stiker,
-                'akan_expired'  => $akan_exp_list,
-                'per_jenis'     => $per_jenis,
+                'total'          => $total,
+                'unit_baru'      => $unit_baru,
+                'stiker_aktif'   => $stiker_aktif,
+                'aktif'          => $stiker_aktif,
+                'hampir_exp'     => $stiker_hampir,
+                'stiker_expired' => $stiker_exp,
+                'expired'        => $stiker_exp,
+                'tanpa_stiker'   => $tanpa_stiker,
+                'akan_expired'   => $akan_exp_list,
+                'per_jenis'      => $per_jenis,
             ],
             'csrf_hash' => $this->security->get_csrf_hash(),
         ]);
@@ -319,6 +344,17 @@ class Kendaraan extends CI_Controller
     public function get_all_for_export()
     {
         if (!$this->input->is_ajax_request()) show_404();
+
+        $roles_sess = $this->session->userdata('roles');
+        $role_int   = (int) $this->session->userdata('role');
+        $roles      = is_array($roles_sess) ? array_map('intval', $roles_sess) : ($role_int > 0 ? [$role_int] : []);
+        $user_dept  = trim((string) $this->session->userdata('departemen'));
+        $is_site_wide = !empty(array_intersect([1, 3, 4, 5, 8], $roles));
+
+        $where_dept = "";
+        if (!$is_site_wide && !empty($user_dept)) {
+            $where_dept = " AND LOWER(TRIM(k.perusahaan)) = " . $this->db->escape(strtolower($user_dept));
+        }
 
         $rows = $this->db->query("
             SELECT
@@ -347,7 +383,7 @@ class Kendaraan extends CI_Controller
                 pu.tipe_akses                                 AS access_type,
                 t.nama_tipe                                   AS unit_type,
                 k.merk                                        AS unit_brand,
-                k.model_unit                                  AS unit_model,
+                COALESCE(k.model_unit, k.tipe, '-')           AS unit_model,
                 k.perusahaan                                  AS department_user,
                 k.perusahaan                                  AS company_owner,
                 DATE_FORMAT(sr.tgl_expired, '%d/%m/%Y')       AS date_expired
@@ -355,6 +391,7 @@ class Kendaraan extends CI_Controller
             INNER JOIN tipe_kendaraan t ON t.id_tipe_kendaraan = k.id_tipe_kendaraan
             INNER JOIN pengajuan_uji pu ON pu.id_kendaraan = k.id_kendaraan
                 AND pu.status IN ('stiker_keluar','acc_ktt')
+                AND pu.deleted_at IS NULL
             LEFT JOIN (
                 SELECT id_pengajuan, MAX(id_sticker) AS max_id
                 FROM sticker_release GROUP BY id_pengajuan
@@ -395,14 +432,11 @@ class Kendaraan extends CI_Controller
                 FROM pengajuan_approval GROUP BY id_pengajuan
             ) pal_last ON pal_last.id_pengajuan = pu.id_pengajuan
             LEFT JOIN pengajuan_approval pa_last ON pa_last.id_approval = pal_last.max_id
+            WHERE k.deleted_at IS NULL {$where_dept}
             ORDER BY k.nomor_unit ASC, pu.id_pengajuan DESC
         ")->result();
 
-        echo json_encode([
-            'status'    => 'success',
-            'data'      => $rows,
-            'csrf_hash' => $this->security->get_csrf_hash(),
-        ]);
+        echo json_encode(['status' => 'success', 'data' => $rows, 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
     /**
@@ -414,25 +448,27 @@ class Kendaraan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        if ($this->session->userdata('role') != 1) {
-            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Hanya Administrator yang dapat menghapus kendaraan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Hanya Admin OHS dan Administrator yang dapat menghapus kendaraan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
-        $id = (int) $this->input->post('id_kendaraan');
+        $id = (int) ($this->input->post('id_kendaraan') ?: $this->input->post('id'));
 
-        // Memeriksa keterikatan data pengajuan aktif
-        if ($this->kendaraan_model->has_pengajuan($id)) {
-            echo json_encode(['status' => 'error', 'message' => 'Kendaraan memiliki riwayat pengajuan uji, tidak dapat dihapus.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+        // Memeriksa apakah kendaraan dapat dihapus
+        $check = $this->kendaraan_model->check_can_delete($id);
+        if (!$check['can_delete']) {
+            echo json_encode(['status' => 'error', 'message' => $check['message'], 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
         $this->db->trans_start();
-        $this->kendaraan_model->delete($id);
+        $this->kendaraan_model->delete($id, $this->session->userdata('id_user'));
 
         $this->db->insert('audit_log', [
             'id_user'    => $this->session->userdata('id_user'),
-            'aksi'       => 'Hapus Kendaraan',
+            'aksi'       => 'Hapus Kendaraan (Soft Delete)',
             'tabel'      => 'kendaraan',
             'id_ref'     => $id,
             'created_at' => date('Y-m-d H:i:s'),
@@ -442,9 +478,62 @@ class Kendaraan extends CI_Controller
 
         echo json_encode([
             'status'    => $this->db->trans_status() ? 'success' : 'error',
-            'message'   => $this->db->trans_status() ? 'Kendaraan berhasil dihapus.' : 'Gagal menghapus kendaraan.',
+            'message'   => $this->db->trans_status() ? 'Kendaraan berhasil dihapus (soft delete).' : 'Gagal menghapus kendaraan.',
             'csrf_hash' => $this->security->get_csrf_hash(),
         ]);
+    }
+
+    /**
+     * Endpoint AJAX Pemulihan (Restore) Kendaraan.
+     * 
+     * @return void Response JSON status restore
+     */
+    public function restore()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5], $roles)) {
+            echo json_encode(['status' => 'error', 'message' => 'Akses ditolak. Hanya Admin OHS dan Administrator yang dapat memulihkan kendaraan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+
+        $id = (int) ($this->input->post('id_kendaraan') ?: $this->input->post('id'));
+
+        $this->db->trans_start();
+        $this->kendaraan_model->restore($id);
+
+        $this->db->insert('audit_log', [
+            'id_user'    => $this->session->userdata('id_user'),
+            'aksi'       => 'Restore Kendaraan',
+            'tabel'      => 'kendaraan',
+            'id_ref'     => $id,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->db->trans_complete();
+
+        echo json_encode([
+            'status'    => $this->db->trans_status() ? 'success' : 'error',
+            'message'   => $this->db->trans_status() ? 'Kendaraan berhasil dipulihkan.' : 'Gagal memulihkan kendaraan.',
+            'csrf_hash' => $this->security->get_csrf_hash(),
+        ]);
+    }
+
+    private function _user_roles()
+    {
+        $raw = $this->session->userdata('roles');
+        if (is_array($raw) && !empty($raw)) return array_map('intval', $raw);
+        $r = (int) $this->session->userdata('role');
+        return $r > 0 ? [$r] : [];
+    }
+
+    private function _has_role(array $required, array $user_roles)
+    {
+        foreach ($required as $r) {
+            if (in_array((int)$r, $user_roles, true)) return true;
+        }
+        return false;
     }
 
     /**
