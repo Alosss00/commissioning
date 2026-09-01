@@ -143,11 +143,51 @@ class Perbaikan extends CI_Controller
             $nomor_unit_html = !empty($r->nomor_unit) ? html_escape($r->nomor_unit) : '<span class="text-muted small">—</span>';
             $tgl_html        = '<span class="text-nowrap">' . date('d/m/Y H:i', strtotime($r->tanggal_pengajuan)) . '</span>';
 
+            // Ambil data hasil inspeksi uji_kelayakan
+            $uji = $this->db
+                ->select('uk.*, u.nama AS nama_mekanik_user')
+                ->from('uji_kelayakan uk')
+                ->join('users u', 'u.id_user = uk.id_mekanik', 'left')
+                ->where('uk.id_pengajuan', $id)
+                ->order_by('uk.id_uji', 'DESC')
+                ->get()->row();
+
             $catatan_temuan = '';
-            if ($r->status === 'tidak_lulus_inspeksi') {
-                $uji = $this->db->select('catatan_temuan')->where('id_pengajuan', $id)->order_by('id_uji', 'DESC')->get('uji_kelayakan')->row();
-                if ($uji) $catatan_temuan = $uji->catatan_temuan;
+            $hasil_inspeksi_badge = '<span class="badge bg-light text-muted border">Belum Diuji</span>';
+            $hasil_inspeksi_detail = '';
+
+            if ($uji) {
+                if ($uji->hasil === 'lulus') {
+                    $hasil_inspeksi_badge = '<span class="badge bg-success text-white px-2 py-1"><i class="bi bi-check-circle me-1"></i>LULUS</span>';
+                } elseif ($uji->hasil === 'tidak_lulus') {
+                    $hasil_inspeksi_badge = '<span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-x-circle me-1"></i>TIDAK LULUS</span>';
+                } else {
+                    $hasil_inspeksi_badge = '<span class="badge bg-secondary text-white px-2 py-1">' . html_escape(strtoupper($uji->hasil)) . '</span>';
+                }
+
+                $nama_inspektor = $uji->nama_inspektor ?: ($uji->nama_mekanik_user ?: '-');
+                $tgl_uji = $uji->tanggal_uji ?: $uji->created_at;
+
+                $count_no = (int) $this->db
+                    ->where('id_uji', $uji->id_uji)
+                    ->where('hasil', 'no')
+                    ->count_all_results('uji_checklist');
+
+                $hasil_inspeksi_detail = '<div>' . $hasil_inspeksi_badge . '</div>';
+                $hasil_inspeksi_detail .= '<div class="small text-muted mt-1 text-nowrap"><i class="bi bi-person-badge me-1"></i>' . html_escape($nama_inspektor) . '</div>';
+                if ($tgl_uji) {
+                    $hasil_inspeksi_detail .= '<div class="small text-muted text-nowrap" style="font-size:11px;"><i class="bi bi-calendar3 me-1"></i>' . date('d/m/Y', strtotime($tgl_uji)) . '</div>';
+                }
+                if ($count_no > 0) {
+                    $hasil_inspeksi_detail .= '<div class="mt-1"><span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle" style="font-size:11px;"><i class="bi bi-exclamation-triangle me-1"></i>' . $count_no . ' Item Temuan NO</span></div>';
+                }
+                $hasil_inspeksi_detail .= '<div class="mt-1"><a href="' . site_url('checklist/detail/' . $uji->id_uji) . '" target="_blank" class="btn btn-xs btn-outline-info py-0 px-2" style="font-size:11px;" title="Lihat Lembar Checklist"><i class="bi bi-clipboard2-check me-1"></i>Checklist</a></div>';
+
+                $catatan_temuan = $uji->catatan_temuan ?: $uji->catatan_umum;
+            } else {
+                $hasil_inspeksi_detail = $hasil_inspeksi_badge;
             }
+
             if (empty($catatan_temuan)) {
                 $app = $this->db->select('catatan')
                     ->where('id_pengajuan', $id)
@@ -179,6 +219,7 @@ class Perbaikan extends CI_Controller
                 'merk_tipe'       => html_escape($r->merk) . ' ' . html_escape($r->tipe),
                 'pemohon'         => html_escape($r->nama_pemohon ?: '-'),
                 'perusahaan'      => html_escape($r->perusahaan),
+                'hasil_inspeksi'  => $hasil_inspeksi_detail,
                 'catatan_temuan'  => !empty($catatan_temuan) ? html_escape($catatan_temuan) : '<em class="text-muted small">Tidak ada catatan</em>',
                 'status'          => $this->_badge_status_perbaikan($r->status),
                 'tgl_pengajuan'   => $tgl_html,

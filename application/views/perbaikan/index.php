@@ -116,9 +116,10 @@
                                         <th>Nomor Unit & Polisi</th>
                                         <th>Jenis / Tipe Unit</th>
                                         <th>Pemohon & Perusahaan</th>
+                                        <th style="min-width:130px;">Hasil Inspeksi</th>
                                         <th>Temuan / Catatan Inspektor</th>
-                                        <th style="width:140px;">Status Perbaikan</th>
-                                        <th style="width:130px;">Tanggal</th>
+                                        <th style="width:130px;">Status Perbaikan</th>
+                                        <th style="width:120px;">Tanggal</th>
                                         <th style="width:120px;" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
@@ -173,6 +174,8 @@
                 return '<span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-tools me-1"></i>Perlu Perbaikan</span>';
             } else if (status === 'siap_verifikasi') {
                 return '<span class="badge bg-info text-white px-2 py-1"><i class="bi bi-patch-check me-1"></i>Siap Verifikasi</span>';
+            } else if (status === 'ditolak_verifikasi') {
+                return '<span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i>Ditolak Verifikasi</span>';
             }
             return '<span class="badge bg-secondary">' + status + '</span>';
         }
@@ -232,6 +235,7 @@
                                '<small class="text-muted">' + (d.perusahaan || '-') + '</small>';
                     }
                 },
+                { data: 'hasil_inspeksi' },
                 {
                     data: 'catatan_temuan',
                     render: function(val) {
@@ -280,42 +284,133 @@
         function renderDetail(data) {
             var baseUrl = '<?= base_url() ?>';
             var siteUrl = '<?= site_url() ?>';
-            var p            = (data && data.pengajuan) ? data.pengajuan : (data || {});
-            var approvalList  = (data && data.approval)  ? data.approval  : [];
-            var ujiData       = (data && data.uji)       ? data.uji       : null;
+            var p             = (data && data.pengajuan) ? data.pengajuan : (data || {});
+            var approvalList   = (data && data.approval)  ? data.approval  : [];
+            var ujiData        = (data && data.uji)       ? data.uji       : null;
+            var perbaikanList  = (data && data.perbaikan) ? data.perbaikan : [];
 
             function valOrDash(v) {
                 return (v && String(v).trim() && String(v).trim() !== 'null') ? v : '—';
             }
 
-            var kendaraanHtml =
-                '<div class="card border-0 bg-light h-100"><div class="card-body">' +
-                '<h6 class="fw-bold text-primary mb-3"><i class="bi bi-truck me-2"></i>Informasi Kendaraan</h6>' +
-                '<div class="row g-2">' +
-                '<div class="col-6"><small class="text-muted d-block">No. Polisi</small><span class="badge bg-dark font-monospace fs-6">' + valOrDash(p.no_polisi) + '</span></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Nomor Unit</small><strong class="small">' + valOrDash(p.nomor_unit) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Jenis Kendaraan</small><strong class="small">' + valOrDash(p.jenis_kendaraan) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Merk / Tipe</small><strong class="small">' + valOrDash(p.merk) + ' ' + valOrDash(p.tipe || p.model_unit) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Perusahaan</small><strong class="small">' + valOrDash(p.perusahaan) + '</strong></div>' +
-                '<div class="col-6"><small class="text-muted d-block">Tipe Akses</small>' + badgeTipeAkses(p.tipe_akses) + '</div>' +
-                '</div></div></div>';
+            // ── Banner Status Pengajuan ──────────────────────────────────
+            var statusBadge = badgeStatusPerbaikan(p.status);
+            var statusBanner =
+                '<div class="alert alert-danger d-flex align-items-center justify-content-between p-3 mb-3 border-danger shadow-sm rounded-3">' +
+                '  <div class="d-flex align-items-center gap-3">' +
+                '    <div class="rounded-circle bg-danger bg-opacity-10 p-2 text-danger flex-shrink-0">' +
+                '      <i class="bi bi-tools fs-4"></i>' +
+                '    </div>' +
+                '    <div>' +
+                '      <div class="fw-bold text-danger fs-6 mb-0">Pengajuan Memerlukan Tindakan Perbaikan Unit</div>' +
+                '      <small class="text-muted">Unit kendaraan tidak lulus inspeksi kelayakan dan harus diperbaiki sebelum dilakukan pengujian ulang.</small>' +
+                '    </div>' +
+                '  </div>' +
+                '  <div class="ms-2 flex-shrink-0">' + statusBadge + '</div>' +
+                '</div>';
 
-            var lastRejectNote = '';
-            if (ujiData && (ujiData.catatan_temuan || ujiData.catatan_umum)) {
-                lastRejectNote = ujiData.catatan_temuan || ujiData.catatan_umum;
+            // ── Informasi Kendaraan & Pengaju ─────────────────────────────
+            var kendaraanHtml =
+                '<div class="card border mb-3 shadow-sm rounded-3">' +
+                '  <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">' +
+                '    <span class="fw-bold text-primary small"><i class="bi bi-truck me-2"></i>Informasi Kendaraan & Pengaju</span>' +
+                '    <span class="badge bg-dark font-monospace fs-6 px-2 py-1">' + valOrDash(p.no_polisi) + '</span>' +
+                '  </div>' +
+                '  <div class="card-body py-3">' +
+                '    <div class="row g-3">' +
+                '      <div class="col-md-3 col-6"><small class="text-muted d-block">Nomor Unit</small><strong class="small text-dark">' + valOrDash(p.nomor_unit) + '</strong></div>' +
+                '      <div class="col-md-3 col-6"><small class="text-muted d-block">Jenis Kendaraan</small><strong class="small text-dark">' + valOrDash(p.jenis_kendaraan) + '</strong></div>' +
+                '      <div class="col-md-3 col-6"><small class="text-muted d-block">Merk / Tipe</small><strong class="small text-dark">' + valOrDash(p.merk) + ' ' + valOrDash(p.tipe || p.model_unit) + '</strong></div>' +
+                '      <div class="col-md-3 col-6"><small class="text-muted d-block">Tahun</small><strong class="small text-dark">' + valOrDash(p.tahun) + '</strong></div>' +
+                '      <div class="col-md-4 col-6"><small class="text-muted d-block">Perusahaan / Dept</small><strong class="small text-dark">' + valOrDash(p.perusahaan) + '</strong></div>' +
+                '      <div class="col-md-4 col-6"><small class="text-muted d-block">Pemohon</small><strong class="small text-dark">' + valOrDash(p.nama_pemohon) + '</strong></div>' +
+                '      <div class="col-md-4 col-12"><small class="text-muted d-block">Tipe Akses</small>' + badgeTipeAkses(p.tipe_akses) + '</div>' +
+                '    </div>' +
+                '  </div>' +
+                '</div>';
+
+            // ── Hasil Uji Kelayakan / Inspeksi ──────────────────────────────
+            var ujiHtml = '';
+            if (ujiData) {
+                var hasilOk = (ujiData.hasil === 'lulus');
+                var tglUjiFormatted = (ujiData.tanggal_uji || ujiData.updated_at || ujiData.created_at || '—');
+                if (tglUjiFormatted && tglUjiFormatted !== '—') {
+                    var dt = new Date(tglUjiFormatted.replace(/-/g, '/'));
+                    if (!isNaN(dt.getTime())) {
+                        var dd = ('0' + dt.getDate()).slice(-2);
+                        var mm = ('0' + (dt.getMonth() + 1)).slice(-2);
+                        var yyyy = dt.getFullYear();
+                        var hh = ('0' + dt.getHours()).slice(-2);
+                        var ii = ('0' + dt.getMinutes()).slice(-2);
+                        tglUjiFormatted = dd + '/' + mm + '/' + yyyy + ' ' + hh + ':' + ii;
+                    }
+                }
+
+                var actionBtns = '<div class="d-flex flex-wrap gap-2 justify-content-md-end">';
+                actionBtns += '<a href="' + siteUrl + '/checklist/detail/' + ujiData.id_uji + '" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm"><i class="bi bi-clipboard2-check me-1"></i>Buka Lembar Checklist</a>';
+                if (perbaikanList && perbaikanList.length > 0) {
+                    actionBtns += '<a href="' + siteUrl + '/checklist/detail/' + ujiData.id_uji + '#sectionHistoryInspeksi" target="_blank" class="btn btn-sm btn-outline-secondary shadow-sm"><i class="bi bi-clock-history me-1"></i>Riwayat <span class="badge bg-warning text-dark ms-1">' + perbaikanList.length + '</span></a>';
+                }
+                actionBtns += '</div>';
+
+                var catatanRaw = valOrDash(ujiData.catatan_temuan || ujiData.catatan_umum);
+                var catatanBox = '';
+                if (catatanRaw && catatanRaw !== '—') {
+                    catatanBox =
+                        '<div class="col-12 mt-3">' +
+                        '  <div class="p-3 rounded-3 border border-danger-subtle bg-danger bg-opacity-10">' +
+                        '    <div class="d-flex align-items-center text-danger fw-bold mb-2 small">' +
+                        '      <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>Catatan Temuan Inspektor (Item Temuan Perlu Perbaikan):' +
+                        '    </div>' +
+                        '    <div class="p-2 px-3 bg-white rounded border border-danger-subtle text-dark fw-semibold small shadow-sm">' +
+                        '      ' + catatanRaw +
+                        '    </div>' +
+                        '  </div>' +
+                        '</div>';
+                }
+
+                ujiHtml =
+                    '<div class="card border mb-3 shadow-sm rounded-3">' +
+                    '  <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">' +
+                    '    <span class="fw-bold text-danger small"><i class="bi bi-clipboard2-check text-danger me-2"></i>Hasil Uji Kelayakan / Inspeksi</span>' +
+                    '  </div>' +
+                    '  <div class="card-body py-3">' +
+                    '    <div class="row g-3 align-items-center">' +
+                    '      <div class="col-md-3 col-6">' +
+                    '        <small class="text-muted d-block"><i class="bi bi-person-badge text-primary me-1"></i>Inspektor</small>' +
+                    '        <strong class="text-dark small">' + valOrDash(ujiData.nama_inspektor || ujiData.nama_mekanik) + '</strong>' +
+                    '        ' + (ujiData.perusahaan_inspektor ? '<div class="text-muted" style="font-size:11px;">' + ujiData.perusahaan_inspektor + '</div>' : '') +
+                    '      </div>' +
+                    '      <div class="col-md-3 col-6">' +
+                    '        <small class="text-muted d-block"><i class="bi bi-calendar-event text-muted me-1"></i>Tanggal Inspeksi</small>' +
+                    '        <strong class="text-dark small">' + tglUjiFormatted + '</strong>' +
+                    '      </div>' +
+                    '      <div class="col-md-2 col-6">' +
+                    '        <small class="text-muted d-block mb-1">Hasil Uji</small>' +
+                    '        <span class="badge bg-' + (hasilOk ? 'success' : 'danger') + ' text-white px-3 py-2 fw-bold fs-6">' +
+                    '          <i class="bi bi-' + (hasilOk ? 'check-circle' : 'x-circle') + ' me-1"></i>' + (hasilOk ? 'LULUS' : 'TIDAK LULUS') +
+                    '        </span>' +
+                    '      </div>' +
+                    '      <div class="col-md-4 col-12">' +
+                    '        ' + actionBtns +
+                    '      </div>' +
+                    '      ' + catatanBox +
+                    '    </div>' +
+                    '  </div>' +
+                    '</div>';
+            } else {
+                ujiHtml =
+                    '<div class="card border mb-3 shadow-sm rounded-3">' +
+                    '  <div class="card-header bg-white py-2">' +
+                    '    <span class="fw-bold text-muted small"><i class="bi bi-clipboard2-check me-2"></i>Hasil Uji Kelayakan / Inspeksi</span>' +
+                    '  </div>' +
+                    '  <div class="card-body py-4 text-center text-muted">' +
+                    '    <i class="bi bi-clipboard-x fs-3 d-block mb-1 opacity-50"></i><small>Belum ada data hasil inspeksi.</small>' +
+                    '  </div>' +
+                    '</div>';
             }
 
-            var alertDitolak =
-                '<div class="card border-danger bg-danger-subtle mb-3 shadow-sm">' +
-                '<div class="card-body p-3">' +
-                '<div class="d-flex align-items-center mb-1 text-danger fw-bold fs-6">' +
-                '<i class="bi bi-exclamation-triangle-fill fs-4 me-2"></i>Pengajuan Perlu Perbaikan' +
-                '</div>' +
-                '<div class="mt-2 pt-2 border-top border-danger border-opacity-25 fs-6 fw-semibold text-danger-emphasis">' +
-                '<i class="bi bi-chat-left-quote-fill me-2 text-danger"></i>Catatan Temuan Inspektor: ' +
-                '<span class="fw-normal text-dark bg-white p-2 rounded border d-block mt-1 shadow-sm">' + valOrDash(lastRejectNote) + '</span>' +
-                '</div></div></div>';
-
+            // ── Riwayat Approval ──────────────────────────────────────────
             var levelLabel = {
                 dept_manager: 'Dept Manager',
                 admin_ohs: 'Admin OHS',
@@ -334,12 +429,84 @@
                 approvalHtml = '<tr><td colspan="5" class="text-center text-muted py-3">Belum ada data approval.</td></tr>';
             }
 
+            var approvalCard =
+                '<div class="card border mb-0 shadow-sm rounded-3">' +
+                '  <div class="card-header bg-white py-2">' +
+                '    <i class="bi bi-check2-all text-primary me-2"></i><strong class="small">Riwayat Approval & Perbaikan</strong>' +
+                '  </div>' +
+                '  <div class="card-body p-0">' +
+                '    <div class="table-responsive">' +
+                '      <table class="table table-sm table-hover align-middle mb-0">' +
+                '        <thead class="table-light"><tr><th>Level</th><th>Approver</th><th>Status</th><th>Tanggal</th><th>Catatan</th></tr></thead>' +
+                '        <tbody>' + approvalHtml + '</tbody>' +
+                '      </table>' +
+                '    </div>' +
+                '  </div>' +
+                '</div>';
+
+            // ── Perbaikan Unit (jika ada data perbaikan) ───────────────────
+            var perbaikanSection = '';
+            if (perbaikanList && perbaikanList.length > 0) {
+                perbaikanSection = '<div class="mt-3">' + renderPerbaikan(perbaikanList, baseUrl) + '</div>';
+            }
+
             var html =
-                '<div class="mb-3">' + kendaraanHtml + '</div>' +
-                alertDitolak +
-                '<div class="card border mb-0"><div class="card-header bg-white py-2"><i class="bi bi-check2-all text-primary me-2"></i><strong class="small">Riwayat Approval & Perbaikan</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Level</th><th>Approver</th><th>Status</th><th>Tanggal</th><th>Catatan</th></tr></thead><tbody>' + approvalHtml + '</tbody></table></div></div></div>';
+                statusBanner +
+                kendaraanHtml +
+                ujiHtml +
+                approvalCard +
+                perbaikanSection;
 
             $('#modalDetailBody').html(html);
+        }
+
+        // ── Helper Render Riwayat Perbaikan & Bukti Foto ──────────────────
+        function renderPerbaikan(perbaikanArr, baseUrl) {
+            if (!perbaikanArr || perbaikanArr.length === 0) return '';
+            if (!baseUrl) baseUrl = '<?= base_url() ?>';
+
+            var rows = '';
+            $.each(perbaikanArr, function(i, pb) {
+                var statusMap = {
+                    menunggu: ['bg-secondary text-white', 'Menunggu'],
+                    siap_verifikasi: ['bg-info text-white', 'Siap Verifikasi'],
+                    selesai: ['bg-primary text-white', 'Selesai'],
+                    diverifikasi: ['bg-success text-white', 'Diverifikasi ✓'],
+                    ditolak_verifikasi: ['bg-warning text-dark', 'Ditolak Verifikasi'],
+                };
+                var sc = statusMap[pb.status] || ['bg-light text-dark border', pb.status];
+
+                var lampiranHtml = '';
+                if (pb.lampiran && pb.lampiran.length > 0) {
+                    var thumbs = '';
+                    $.each(pb.lampiran, function(j, l) {
+                        var ext = l.file_path.split('.').pop().toLowerCase();
+                        var imgExts = ['jpg', 'jpeg', 'png', 'webp'];
+                        if (imgExts.indexOf(ext) >= 0) {
+                            thumbs += '<div class="col-4 col-md-2"><a href="' + baseUrl + l.file_path + '" target="_blank"><img src="' + baseUrl + l.file_path + '" class="img-fluid rounded border w-100 shadow-sm" style="height:70px;object-fit:cover;"></a></div>';
+                        } else {
+                            var icon = ext === 'pdf' ? 'bi-file-earmark-pdf text-danger' : (ext === 'doc' || ext === 'docx' ? 'bi-file-earmark-word text-primary' : 'bi-file-earmark text-secondary');
+                            thumbs += '<div class="col-4 col-md-2"><a href="' + baseUrl + l.file_path + '" target="_blank" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light text-muted text-decoration-none shadow-sm" style="height:70px;"><i class="bi ' + icon + ' fs-3"></i><span style="font-size:9px;">Dokumen</span></a></div>';
+                        }
+                    });
+                    lampiranHtml = '<div class="mt-2 small fw-semibold text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Bukti Foto Perbaikan (' + pb.lampiran.length + ' file):</div><div class="row g-2">' + thumbs + '</div>';
+                }
+
+                rows +=
+                    '<div class="card border mb-2 shadow-sm rounded-3">' +
+                    '  <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">' +
+                    '    <span class="small fw-bold text-dark"><i class="bi bi-wrench me-1 text-primary"></i>Tindakan Perbaikan #' + (i + 1) + '</span>' +
+                    '    <span class="badge ' + sc[0] + '">' + sc[1] + '</span>' +
+                    '  </div>' +
+                    '  <div class="card-body py-2">' +
+                    '    <div class="small mb-1"><strong>Deskripsi:</strong> ' + (pb.tindakan || pb.keterangan || '—') + '</div>' +
+                    '    <div class="small text-muted mb-2"><i class="bi bi-clock me-1"></i>Tanggal Input: ' + (pb.created_at || '—') + '</div>' +
+                    '    ' + lampiranHtml +
+                    '  </div>' +
+                    '</div>';
+            });
+
+            return '<div class="card border mb-0 shadow-sm rounded-3"><div class="card-header bg-white py-2"><strong class="small text-primary"><i class="bi bi-tools me-2"></i>Data & Bukti Perbaikan Unit</strong></div><div class="card-body py-2">' + rows + '</div></div>';
         }
     });
 </script>
