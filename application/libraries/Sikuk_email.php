@@ -606,16 +606,7 @@ class Sikuk_email
      */
     public function notif_stiker_keluar($id_pengajuan)
     {
-        $p = $this->CI->db
-            ->select('pu.id_pengajuan, pu.tipe_pengajuan, pu.tipe_akses, pu.status, pu.tujuan,
-                      COALESCE(NULLIF(TRIM(pu.email_pemohon), ""), NULLIF(TRIM(u.email), "")) AS email_pemohon,
-                      COALESCE(NULLIF(TRIM(u.nama), ""), "Pemohon") AS nama_pemohon,
-                      (SELECT GROUP_CONCAT(r.nama_role SEPARATOR ", ") FROM user_roles ur JOIN roles r ON r.id_role = ur.id_role WHERE ur.id_user = u.id_user) AS role_pemohon,
-                      k.no_polisi, k.nomor_unit, k.perusahaan, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
-            ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')
-            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
-            ->where('pu.id_pengajuan', $id_pengajuan)
-            ->get()->row();
+        $p = $this->_get_pengajuan($id_pengajuan);
 
         if (!$p || empty($p->email_pemohon)) return false;
 
@@ -992,11 +983,11 @@ class Sikuk_email
      */
     private function _smtp_config()
     {
-        $host   = $this->CI->config->item('sikuk_smtp_host') ?: 'smtp.gmail.com';
-        $port   = (int) ($this->CI->config->item('sikuk_smtp_port') ?: 465);
-        $crypto = $this->CI->config->item('sikuk_smtp_crypto') ?: 'ssl';
-        $user   = $this->CI->config->item('sikuk_smtp_user') ?: 'alosjo123@gmail.com';
-        $pass   = $this->CI->config->item('sikuk_smtp_pass') ?: 'bubhmqwjuzrtvfop';
+        $host   = $this->CI->config->item('sikuk_smtp_host') ?: 'sandbox.smtp.mailtrap.io';
+        $port   = (int) ($this->CI->config->item('sikuk_smtp_port') ?: 2525);
+        $crypto = $this->CI->config->item('sikuk_smtp_crypto') ?: 'tls';
+        $user   = $this->CI->config->item('sikuk_smtp_user') ?: '0fa65495e8adf3';
+        $pass   = $this->CI->config->item('sikuk_smtp_pass') ?: '7fd7e3deb40950';
 
         // Bersihkan prefix ssl:// atau tls:// dari host agar CodeIgniter Email library tidak menghasilkan double prefix ssl://ssl://
         $host   = preg_replace('/^(ssl|tls):\/\//i', '', $host);
@@ -1033,8 +1024,8 @@ class Sikuk_email
 
         $this->_init_smtp();
 
-        $from_email = $this->CI->config->item('sikuk_smtp_user') ?: 'alosjo123@gmail.com';
-        $from_name  = $this->CI->config->item('sikuk_email_sender_name') ?: 'Sistem Uji Kelayakan Unit';
+        $from_email = $this->from_email ?: ($this->CI->config->item('sikuk_email_from') ?: 'notifications@tactic.id');
+        $from_name  = $this->from_name  ?: ($this->CI->config->item('sikuk_email_name') ?: 'TACTIC Commissioning System');
 
         $this->CI->email->from($from_email, $from_name);
         $this->CI->email->to($to);

@@ -59,13 +59,13 @@ class Kendaraan_model extends CI_Model
             ->join(
                 'pengajuan_uji pu_lulus',
                 "pu_lulus.id_kendaraan = k.id_kendaraan
-                 AND pu_lulus.status IN ('stiker_keluar','acc_ktt')",
+                 AND pu_lulus.status IN ('stiker_keluar','acc_ktt','dicabut_ktt','menunggu_ktt_cabut')",
                 'left'
             )
             ->where("EXISTS (
                 SELECT 1 FROM pengajuan_uji pu_filter
                 WHERE pu_filter.id_kendaraan = k.id_kendaraan
-                  AND pu_filter.status IN ('stiker_keluar','acc_ktt')
+                  AND pu_filter.status IN ('stiker_keluar','acc_ktt','dicabut_ktt','menunggu_ktt_cabut')
             )", null, false)
             ->group_by('k.id_kendaraan');
 
@@ -307,6 +307,8 @@ class Kendaraan_model extends CI_Model
                 sr.tanggal_release,
                 sr.tgl_expired,
                 sr.is_expired,
+                sr.dicabut,
+                sr.tgl_dicabut,
                 DATEDIFF(sr.tgl_expired, NOW()) AS sisa_hari
             FROM sticker_release sr
             INNER JOIN pengajuan_uji pu ON pu.id_pengajuan = sr.id_pengajuan
@@ -334,7 +336,7 @@ class Kendaraan_model extends CI_Model
             ->from('tipe_kendaraan t')
             ->join('kendaraan k',      'k.id_tipe_kendaraan = t.id_tipe_kendaraan', 'inner')
             ->join('pengajuan_uji pu', 'pu.id_kendaraan = k.id_kendaraan',          'inner')
-            ->where_in('pu.status', ['stiker_keluar', 'acc_ktt'])
+            ->where_in('pu.status', ['stiker_keluar', 'acc_ktt', 'dicabut_ktt', 'menunggu_ktt_cabut'])
             ->group_by('t.id_tipe_kendaraan')
             ->order_by('t.nama_tipe', 'ASC')
             ->get()->result();

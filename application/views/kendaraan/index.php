@@ -89,6 +89,7 @@
                                     <option value="expired">Expired</option>
                                     <option value="hampir">Akan Kadaluarsa (≤30 hari)</option>
                                     <option value="aktif">Aktif</option>
+                                    <option value="dicabut">Stiker Dicabut</option>
                                     <option value="belum">Belum Ada Stiker</option>
                                 </select>
                             </div>
@@ -178,7 +179,7 @@
 
 
 <!-- SheetJS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="<?= base_url('assets/vendor/xlsx/xlsx.full.min.js') ?>"></script>
 
 <style>
     @media print {
@@ -280,7 +281,7 @@
             pageLength: 25,
             lengthMenu: [10, 25, 50, 100, 200],
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                url: '<?= base_url("assets/vendor/datatables/id.json") ?>'
             }
         });
 
@@ -543,22 +544,33 @@
                 type: 'POST',
                 data: {
                     '<?= $this->security->get_csrf_token_name() ?>': getCsrf(),
-                    id: id
+                    id: id,
+                    id_kendaraan: id
                 },
                 dataType: 'json',
                 success: function(res) {
                     if (res.status !== 'success') {
-                        $('#modalDetailBody').html('<div class="alert alert-danger">' + res.message + '</div>');
+                        $('#modalDetailBody').html('<div class="alert alert-danger">' + (res.message || 'Kendaraan tidak ditemukan.') + '</div>');
                         return;
                     }
-                    var d = res.data;
+                    var d = (res.data && res.data.kendaraan) ? res.data.kendaraan : res.data;
+                    var stiker = (res.data && res.data.stiker) ? res.data.stiker : null;
                     var badgeUnit = d.is_unit_baru == 1 ?
                         '<span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Unit Baru</span>' :
                         '<span class="badge bg-secondary">Unit Lama</span>';
                     var badgeAkses = renderBadgeTipeAkses(d.tipe_akses);
+
+                    var stikerHtml = '<span class="badge bg-secondary">Belum Ada Stiker</span>';
+                    if (stiker && stiker.nomor_sticker) {
+                        var isExp = stiker.is_expired == 1;
+                        stikerHtml = '<span class="badge ' + (isExp ? 'bg-danger' : 'bg-success') + '">' +
+                            (isExp ? 'Expired (' : 'Aktif (') + stiker.nomor_sticker + ')</span>' +
+                            '<div class="small text-muted mt-1">Berlaku s/d: ' + (stiker.tgl_expired ? stiker.tgl_expired.substring(0, 10) : '—') + '</div>';
+                    }
+
                     $('#modalDetailBody').html(
                         '<table class="table table-sm table-borderless mb-0">' +
-                        '<tr><td class="text-muted fw-semibold" width="130">No. Polisi</td><td><span class="badge bg-dark font-monospace fs-6">' + d.no_polisi + '</span></td></tr>' +
+                        '<tr><td class="text-muted fw-semibold" width="140">No. Polisi</td><td><span class="badge bg-dark font-monospace fs-6">' + (d.no_polisi || '—') + '</span></td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Nomor Unit</td><td><strong>' + (d.nomor_unit || '—') + '</strong></td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Jenis</td><td>' + (d.jenis_kendaraan || '—') + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Merk</td><td>' + (d.merk || '—') + '</td></tr>' +
@@ -567,11 +579,12 @@
                         '<tr><td class="text-muted fw-semibold">Perusahaan</td><td>' + (d.perusahaan || '—') + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Tipe Unit</td><td>' + badgeUnit + '</td></tr>' +
                         '<tr><td class="text-muted fw-semibold">Tipe Akses</td><td>' + badgeAkses + '</td></tr>' +
+                        '<tr><td class="text-muted fw-semibold">Stiker Akses</td><td>' + stikerHtml + '</td></tr>' +
                         '</table>'
                     );
                 },
                 error: function() {
-                    $('#modalDetailBody').html('<div class="alert alert-danger">Gagal memuat.</div>');
+                    $('#modalDetailBody').html('<div class="alert alert-danger">Gagal memuat detail kendaraan.</div>');
                 }
             });
         }

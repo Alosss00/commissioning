@@ -40,11 +40,30 @@ class Pengajuan_model extends CI_Model
         $this->db->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left');
         $this->db->join('users u',            'u.id_user = pu.id_pemohon',                 'left');
 
-        // Filter spesifik jika ditentukan dalam parameter
-        if (!empty($filters['status_in']) && is_array($filters['status_in'])) {
-            $this->db->where_in('pu.status', $filters['status_in']);
-        } elseif (!empty($filters['status'])) {
-            $this->db->where('pu.status', $filters['status']);
+        // Filter status spesifik atau pembatasan tahapan approval
+        if (!empty($filters['status'])) {
+            if (!empty($filters['allowed_statuses']) && is_array($filters['allowed_statuses'])) {
+                if (in_array($filters['status'], $filters['allowed_statuses'], true)) {
+                    $this->db->where('pu.status', $filters['status']);
+                } else {
+                    $this->db->where('1 = 0', null, false);
+                }
+            } else {
+                $this->db->where('pu.status', $filters['status']);
+            }
+        } elseif (!empty($filters['status_in']) && is_array($filters['status_in'])) {
+            if (!empty($filters['allowed_statuses']) && is_array($filters['allowed_statuses'])) {
+                $intersect = array_intersect($filters['status_in'], $filters['allowed_statuses']);
+                if (!empty($intersect)) {
+                    $this->db->where_in('pu.status', array_values($intersect));
+                } else {
+                    $this->db->where('1 = 0', null, false);
+                }
+            } else {
+                $this->db->where_in('pu.status', $filters['status_in']);
+            }
+        } elseif (!empty($filters['allowed_statuses']) && is_array($filters['allowed_statuses'])) {
+            $this->db->where_in('pu.status', $filters['allowed_statuses']);
         }
         if (!empty($filters['jenis']))       $this->db->where('t.nama_tipe', $filters['jenis']);
         if (!empty($filters['tgl_dari']))    $this->db->where('DATE(pu.tanggal_pengajuan) >=', $filters['tgl_dari']);
@@ -111,7 +130,7 @@ class Pengajuan_model extends CI_Model
      */
     public function count_all($filters = [])
     {
-        $scope_keys = ['id_pemohon', 'departemen', 'scope_dept_pemohon', 'status', 'status_in', 'include_deleted'];
+        $scope_keys = ['id_pemohon', 'departemen', 'scope_dept_pemohon', 'status', 'status_in', 'allowed_statuses', 'include_deleted'];
         $scope_only = array_intersect_key($filters, array_flip($scope_keys));
         $this->_base_query($scope_only);
         return $this->db->count_all_results();
@@ -141,7 +160,26 @@ class Pengajuan_model extends CI_Model
     public function get_datatable($start, $length, $filters = [])
     {
         $this->_base_query($filters);
-        $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
+
+        $pending = $filters['pending_statuses'] ?? [];
+
+        if (!empty($pending) && is_array($pending)) {
+            $escaped = array_map(function($s) {
+                return "'" . $this->db->escape_str($s) . "'";
+            }, $pending);
+            $in_str = implode(',', $escaped);
+
+            // Prioritas 1: Pengajuan yang belum ditindaklanjuti (pending) diurutkan paling lama dahulu (ASC)
+            // Prioritas 2: Pengajuan yang sudah ditindaklanjuti / riwayat diurutkan paling baru dahulu (DESC)
+            $this->db->order_by("CASE WHEN pu.status IN ({$in_str}) THEN 1 ELSE 2 END", 'ASC', false);
+            $this->db->order_by("CASE WHEN pu.status IN ({$in_str}) THEN pu.tanggal_pengajuan END", 'ASC', false);
+            $this->db->order_by("pu.tanggal_pengajuan", 'DESC');
+            $this->db->order_by("pu.id_pengajuan", 'DESC');
+        } else {
+            $this->db->order_by('pu.tanggal_pengajuan', 'DESC');
+            $this->db->order_by('pu.id_pengajuan', 'DESC');
+        }
+
         $this->db->limit((int) $length, (int) $start);
         return $this->db->get()->result();
     }
@@ -353,7 +391,18 @@ class Pengajuan_model extends CI_Model
         $where_clauses = [];
 
         if (!empty($filters['status'])) {
-            $where_clauses[] = "pu.status = " . $this->db->escape($filters['status']);
+            if (!empty($filters['allowed_statuses']) && is_array($filters['allowed_statuses'])) {
+                if (in_array($filters['status'], $filters['allowed_statuses'], true)) {
+                    $where_clauses[] = "pu.status = " . $this->db->escape($filters['status']);
+                } else {
+                    $where_clauses[] = "1 = 0";
+                }
+            } else {
+                $where_clauses[] = "pu.status = " . $this->db->escape($filters['status']);
+            }
+        } elseif (!empty($filters['allowed_statuses']) && is_array($filters['allowed_statuses'])) {
+            $esc_allowed = array_map([$this->db, 'escape'], $filters['allowed_statuses']);
+            $where_clauses[] = "pu.status IN (" . implode(',', $esc_allowed) . ")";
         }
         if (!empty($filters['jenis'])) {
             $where_clauses[] = "t.nama_tipe = " . $this->db->escape($filters['jenis']);
@@ -457,7 +506,11 @@ class Pengajuan_model extends CI_Model
             ) pal_ohs ON pal_ohs.id_pengajuan = pu.id_pengajuan
             LEFT JOIN pengajuan_approval pa_ohs ON pa_ohs.id_approval = pal_ohs.max_id_app
             {$where_sql}
-            ORDER BY pu.tanggal_pengajuan DESC, pu.id_pengajuan DESC
+            ORDER BY " . (!empty($filters['pending_statuses']) && is_array($filters['pending_statuses']) ? "
+                CASE WHEN pu.status IN ('" . implode("','", array_map([$this->db, 'escape_str'], $filters['pending_statuses'])) . "') THEN 1 ELSE 2 END ASC,
+                CASE WHEN pu.status IN ('" . implode("','", array_map([$this->db, 'escape_str'], $filters['pending_statuses'])) . "') THEN pu.tanggal_pengajuan END ASC,
+                pu.tanggal_pengajuan DESC, pu.id_pengajuan DESC
+            " : "pu.tanggal_pengajuan DESC, pu.id_pengajuan DESC") . "
         ";
 
         return $this->db->query($sql)->result();

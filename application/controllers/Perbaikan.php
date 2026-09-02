@@ -37,7 +37,13 @@ class Perbaikan extends CI_Controller
      */
     public function index()
     {
-        $roles     = $this->_roles();
+        $roles = $this->_roles();
+        if (!$this->_has([1, 7], $roles)) {
+            $this->session->set_flashdata('error', 'Akses ditolak. Halaman Daftar Perbaikan Unit hanya untuk Admin Departemen.');
+            redirect('pengajuan');
+            return;
+        }
+
         $user_dept = trim((string) $this->session->userdata('departemen'));
         $id_user   = (int) $this->session->userdata('id_user');
 
@@ -87,6 +93,17 @@ class Perbaikan extends CI_Controller
         $search_val = is_array($search_post) ? ($search_post['value'] ?? '') : ($search_post ?? '');
 
         $roles     = $this->_roles();
+        if (!$this->_has([1, 7], $roles)) {
+            echo json_encode([
+                'draw'            => $draw,
+                'recordsTotal'    => 0,
+                'recordsFiltered' => 0,
+                'data'            => [],
+                'csrf_hash'       => $this->security->get_csrf_hash(),
+            ]);
+            return;
+        }
+
         $id_user   = (int) $this->session->userdata('id_user');
         $user_dept = trim((string) $this->session->userdata('departemen'));
 

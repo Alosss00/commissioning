@@ -133,12 +133,16 @@ class Pengajuan extends CI_Controller
             }
         }
 
-        $data['title']        = 'Daftar Pengajuan';
-        $data['user']         = $this->session->userdata();
-        $data['user_dept']    = $user_dept;
-        $data['is_site_wide'] = $this->_has_role([1, 3, 4, 5, 8], $roles);
-        $data['perusahaan']   = $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result();
-        $data['tipe_unit']    = $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result();
+        $stage_scope = $this->_get_role_stage_scope($roles);
+
+        $data['title']            = 'Daftar Pengajuan';
+        $data['user']             = $this->session->userdata();
+        $data['user_dept']        = $user_dept;
+        $data['is_site_wide']     = $this->_has_role([1, 2, 3, 4, 5, 8], $roles);
+        $data['allowed_statuses'] = $stage_scope['allowed_statuses'];
+        $data['pending_statuses'] = $stage_scope['pending_statuses'];
+        $data['perusahaan']       = $this->db->where('is_active', 1)->order_by('nama_perusahaan', 'ASC')->get('perusahaan')->result();
+        $data['tipe_unit']        = $this->db->where('is_active', 1)->order_by('nama_tipe', 'ASC')->get('tipe_kendaraan')->result();
         
         $this->load->view('templates/header',  $data);
         $this->load->view('templates/sidebar', $data);
@@ -1043,12 +1047,12 @@ class Pengajuan extends CI_Controller
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-release-stiker" data-id="' . $id . '" title="Terbitkan Stiker"><i class="bi bi-patch-check"></i></button>';
         }
 
-        if ($this->_has_role([1, 3], $roles) && $row->status === 'diterima_admin_ohs') {
+        if ($this->_has_role([1, 3], $roles) && in_array($row->status, ['lulus_inspeksi', 'diterima_admin_ohs'])) {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-approve" data-id="' . $id . '" data-level="ohs_supt" title="Setujui OHS Supt"><i class="bi bi-check-lg"></i></button>';
             $btn .= '<button class="btn btn-sm btn-danger  py-0 btn-reject"  data-id="' . $id . '" data-level="ohs_supt" title="Tolak"><i class="bi bi-x-lg"></i></button>';
         }
 
-        if ($this->_has_role([1, 2], $roles) && $row->status === 'diterima_ohs_supt') {
+        if ($this->_has_role([1, 2], $roles) && in_array($row->status, ['diterima_ohs_supt', 'menunggu_ktt_2'])) {
             $btn .= '<button class="btn btn-sm btn-success py-0 btn-approve" data-id="' . $id . '" data-level="ktt" title="ACC KTT"><i class="bi bi-check-lg"></i></button>';
             $btn .= '<button class="btn btn-sm btn-danger  py-0 btn-reject"  data-id="' . $id . '" data-level="ktt" title="Tolak"><i class="bi bi-x-lg"></i></button>';
         }
@@ -1295,7 +1299,7 @@ class Pengajuan extends CI_Controller
             }
         }
 
-        $is_site_wide = $this->_has_role([1, 3, 4, 5, 8], $roles);
+        $is_site_wide = $this->_has_role([1, 2, 3, 4, 5, 8], $roles);
 
         if (!$is_site_wide) {
             $filters['scope_dept_pemohon'] = [
@@ -1303,5 +1307,98 @@ class Pengajuan extends CI_Controller
                 'departemen' => $user_dept,
             ];
         }
+
+        // Terapkan batasan status approval dan prioritas pending berdasarkan role pengguna
+        $stage_scope = $this->_get_role_stage_scope($roles);
+        if (!empty($stage_scope['allowed_statuses'])) {
+            $filters['allowed_statuses'] = $stage_scope['allowed_statuses'];
+        }
+        if (!empty($stage_scope['pending_statuses'])) {
+            $filters['pending_statuses'] = $stage_scope['pending_statuses'];
+        }
+    }
+
+    /**
+     * Menentukan batasan status tahapan approval dan daftar status pending tindakan berdasarkan role pengguna.
+     * 
+     * @param array $roles Daftar role ID pengguna
+     * @return array ['allowed_statuses' => array|null, 'pending_statuses' => array]
+     */
+    private function _get_role_stage_scope($roles)
+    {
+        // Super Admin (Role 1): Akses seluruh status tanpa pembatasan tahap
+        if (in_array(1, $roles, true)) {
+            return [
+                'allowed_statuses' => null,
+                'pending_statuses' => [
+                    'pengajuan_baru', 'pengajuan_ulang', 'diterima_manager', 
+                    'dijadwalkan', 'inspeksi_ulang', 'siap_verifikasi', 
+                    'lulus_inspeksi', 'diterima_admin_ohs', 'diterima_ohs_supt', 
+                    'menunggu_ktt_2', 'acc_ktt'
+                ],
+            ];
+        }
+
+        $stage_map = [
+            // KTT: Hanya pengajuan yang telah mencapai tahap approval KTT dan riwayatnya
+            2 => [
+                'pending' => ['diterima_ohs_supt', 'menunggu_ktt_2'],
+                'history' => ['acc_ktt', 'ditolak_ktt', 'stiker_keluar', 'menunggu_ktt_cabut', 'dicabut_ktt'],
+            ],
+            // OHS Superintendent: Tahap kelulusan inspeksi ke atas
+            3 => [
+                'pending' => ['lulus_inspeksi', 'diterima_admin_ohs'],
+                'history' => ['diterima_ohs_supt', 'ditolak_ohs_supt', 'menunggu_ktt_2', 'acc_ktt', 'ditolak_ktt', 'stiker_keluar', 'menunggu_ktt_cabut', 'dicabut_ktt'],
+            ],
+            // Inspektor OHS & Mekanik: Tahap terjadwal inspeksi atau siap verifikasi
+            4 => [
+                'pending' => ['dijadwalkan', 'inspeksi_ulang', 'siap_verifikasi'],
+                'history' => ['selesai_inspeksi', 'lulus_inspeksi', 'tidak_lulus_inspeksi', 'diterima_admin_ohs', 'diterima_ohs_supt', 'ditolak_ohs_supt', 'menunggu_ktt_2', 'acc_ktt', 'ditolak_ktt', 'stiker_keluar', 'menunggu_ktt_cabut', 'dicabut_ktt'],
+            ],
+            // Admin OHS: Tahap diterima manager ke atas
+            5 => [
+                'pending' => ['diterima_manager', 'acc_ktt'],
+                'history' => ['ditolak_admin_ohs', 'dijadwalkan', 'inspeksi_ulang', 'siap_verifikasi', 'selesai_inspeksi', 'lulus_inspeksi', 'tidak_lulus_inspeksi', 'diterima_admin_ohs', 'diterima_ohs_supt', 'ditolak_ohs_supt', 'menunggu_ktt_2', 'ditolak_ktt', 'stiker_keluar', 'menunggu_ktt_cabut', 'dicabut_ktt'],
+            ],
+            // Dept Manager: Pengajuan dari departemennya
+            6 => [
+                'pending' => ['pengajuan_baru', 'pengajuan_ulang', 'ditolak_admin_ohs'],
+                'history' => ['diterima_manager', 'ditolak_manager', 'dijadwalkan', 'inspeksi_ulang', 'siap_verifikasi', 'selesai_inspeksi', 'lulus_inspeksi', 'tidak_lulus_inspeksi', 'diterima_admin_ohs', 'diterima_ohs_supt', 'ditolak_ohs_supt', 'menunggu_ktt_2', 'acc_ktt', 'ditolak_ktt', 'stiker_keluar', 'menunggu_ktt_cabut', 'dicabut_ktt'],
+            ],
+            // Admin Departemen / Pemohon: Pengajuan departemennya
+            7 => [
+                'pending' => ['tidak_lulus_inspeksi', 'ditolak_manager', 'ditolak_admin_ohs', 'ditolak_ohs_supt', 'ditolak_ktt'],
+                'history' => ['draft', 'pengajuan_baru', 'pengajuan_ulang', 'diterima_manager', 'dijadwalkan', 'inspeksi_ulang', 'siap_verifikasi', 'selesai_inspeksi', 'lulus_inspeksi', 'diterima_admin_ohs', 'diterima_ohs_supt', 'menunggu_ktt_2', 'acc_ktt', 'stiker_keluar', 'menunggu_ktt_cabut', 'dicabut_ktt'],
+            ],
+            // Planner
+            8 => [
+                'pending' => ['diterima_manager'],
+                'history' => ['dijadwalkan', 'inspeksi_ulang', 'selesai_inspeksi', 'lulus_inspeksi', 'tidak_lulus_inspeksi', 'diterima_admin_ohs', 'diterima_ohs_supt', 'menunggu_ktt_2', 'acc_ktt', 'stiker_keluar'],
+            ],
+        ];
+
+        $allowed = [];
+        $pending = [];
+
+        foreach ($roles as $r) {
+            $r = (int) $r;
+            if (isset($stage_map[$r])) {
+                $p = $stage_map[$r]['pending'];
+                $h = $stage_map[$r]['history'];
+                $pending = array_merge($pending, $p);
+                if ($h === null) {
+                    return [
+                        'allowed_statuses' => null,
+                        'pending_statuses' => array_values(array_unique($pending)),
+                    ];
+                }
+                $allowed = array_merge($allowed, $p, $h);
+            }
+        }
+
+        return [
+            'allowed_statuses' => !empty($allowed) ? array_values(array_unique($allowed)) : null,
+            'pending_statuses' => array_values(array_unique($pending)),
+        ];
     }
 }

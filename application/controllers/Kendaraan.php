@@ -106,15 +106,19 @@ class Kendaraan extends CI_Controller
         // Post-filter status stiker jika diset pada UI
         if (!empty($filter_stiker)) {
             $rows = array_filter($rows, function ($row) use ($stiker_map, $filter_stiker) {
-                $stiker = $stiker_map[$row->id_kendaraan] ?? null;
-                $sisa   = $stiker ? (int) $stiker->sisa_hari : null;
+                $stiker  = $stiker_map[$row->id_kendaraan] ?? null;
+                $sisa    = $stiker ? (int) $stiker->sisa_hari : null;
+                $dicabut = $stiker && !empty($stiker->dicabut) && (int)$stiker->dicabut === 1;
+
                 switch ($filter_stiker) {
+                    case 'dicabut':
+                        return $dicabut;
                     case 'expired':
-                        return $stiker && $sisa < 0;
+                        return $stiker && !$dicabut && $sisa < 0;
                     case 'hampir':
-                        return $stiker && $sisa >= 0 && $sisa <= 30;
+                        return $stiker && !$dicabut && $sisa >= 0 && $sisa <= 30;
                     case 'aktif':
-                        return $stiker && $sisa > 30;
+                        return $stiker && !$dicabut && $sisa > 30;
                     case 'tanpa_stiker':
                         return !$stiker;
                     default:
@@ -129,6 +133,7 @@ class Kendaraan extends CI_Controller
         $data = [];
         $roles = $this->_user_roles();
         $can_delete = $this->_has_role([1, 5], $roles);
+        $no = $start + 1;
 
         foreach ($rows as $r) {
             $stiker = $stiker_map[$r->id_kendaraan] ?? null;
@@ -183,11 +188,11 @@ class Kendaraan extends CI_Controller
     {
         if (!$this->input->is_ajax_request()) show_404();
 
-        $id        = (int) $this->input->post('id_kendaraan');
+        $id        = (int) ($this->input->post('id_kendaraan') ?: $this->input->post('id'));
         $kendaraan = $this->kendaraan_model->get_by_id($id);
 
         if (!$kendaraan) {
-            echo json_encode(['status' => 'error', 'message' => 'Kendaraan tidak ditemukan.']);
+            echo json_encode(['status' => 'error', 'message' => 'Kendaraan tidak ditemukan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
 
@@ -204,13 +209,14 @@ class Kendaraan extends CI_Controller
             ->order_by('pu.tanggal_pengajuan', 'DESC')
             ->get()->result();
 
+        $res_data = (array) $kendaraan;
+        $res_data['kendaraan'] = $kendaraan;
+        $res_data['stiker']    = $stiker;
+        $res_data['history']   = $pengajuan_history;
+
         echo json_encode([
-            'status' => 'success',
-            'data'   => [
-                'kendaraan' => $kendaraan,
-                'stiker'    => $stiker,
-                'history'   => $pengajuan_history,
-            ],
+            'status'    => 'success',
+            'data'      => $res_data,
             'csrf_hash' => $this->security->get_csrf_hash(),
         ]);
     }
@@ -254,6 +260,7 @@ class Kendaraan extends CI_Controller
         );
 
         $total        = count($rows);
+        $unit_baru    = 0;
         $stiker_aktif = 0;
         $stiker_hampir= 0;
         $stiker_exp   = 0;
@@ -262,6 +269,10 @@ class Kendaraan extends CI_Controller
         $per_jenis    = [];
 
         foreach ($rows as $r) {
+            if (!empty($r->is_unit_baru)) {
+                $unit_baru++;
+            }
+
             $stiker = $stiker_map[$r->id_kendaraan] ?? null;
             $jenis  = $r->jenis_kendaraan ?? 'Lainnya';
 
@@ -272,6 +283,8 @@ class Kendaraan extends CI_Controller
 
             if (!$stiker) {
                 $tanpa_stiker++;
+            } elseif (!empty($stiker->dicabut) && (int)$stiker->dicabut === 1) {
+                // Stiker dicabut tidak dihitung sebagai stiker aktif
             } else {
                 $sisa = (int) $stiker->sisa_hari;
                 if ($sisa < 0) {
@@ -299,13 +312,16 @@ class Kendaraan extends CI_Controller
         echo json_encode([
             'status' => 'success',
             'data'   => [
-                'total'         => $total,
-                'aktif'         => $stiker_aktif,
-                'hampir_exp'    => $stiker_hampir,
-                'expired'       => $stiker_exp,
-                'tanpa_stiker'  => $tanpa_stiker,
-                'akan_expired'  => $akan_exp_list,
-                'per_jenis'     => $per_jenis,
+                'total'          => $total,
+                'unit_baru'      => $unit_baru,
+                'aktif'          => $stiker_aktif,
+                'stiker_aktif'   => $stiker_aktif,
+                'hampir_exp'     => $stiker_hampir,
+                'expired'        => $stiker_exp,
+                'stiker_expired' => $stiker_exp,
+                'tanpa_stiker'   => $tanpa_stiker,
+                'akan_expired'   => $akan_exp_list,
+                'per_jenis'      => $per_jenis,
             ],
             'csrf_hash' => $this->security->get_csrf_hash(),
         ]);
@@ -336,6 +352,7 @@ class Kendaraan extends CI_Controller
                 END AS finding_status,
                 CASE
                     WHEN pu.status IN ('stiker_keluar','acc_ktt') THEN 'PASS'
+                    WHEN pu.status IN ('dicabut_ktt','menunggu_ktt_cabut') THEN 'REVOKED'
                     WHEN pu.status = 'tidak_lulus_inspeksi'       THEN 'FAIL'
                     ELSE UPPER(pu.status)
                 END AS status,
@@ -355,7 +372,7 @@ class Kendaraan extends CI_Controller
             FROM kendaraan k
             INNER JOIN tipe_kendaraan t ON t.id_tipe_kendaraan = k.id_tipe_kendaraan
             INNER JOIN pengajuan_uji pu ON pu.id_kendaraan = k.id_kendaraan
-                AND pu.status IN ('stiker_keluar','acc_ktt')
+                AND pu.status IN ('stiker_keluar','acc_ktt','dicabut_ktt','menunggu_ktt_cabut')
             LEFT JOIN (
                 SELECT id_pengajuan, MAX(id_sticker) AS max_id
                 FROM sticker_release GROUP BY id_pengajuan
@@ -513,9 +530,16 @@ class Kendaraan extends CI_Controller
         if (!$stiker) {
             return '<span class="badge bg-secondary">Belum Ada Stiker</span>';
         }
-        $sisa = (int) $stiker->sisa_hari;
         $no   = html_escape($stiker->nomor_sticker);
-        $exp  = date('d/m/Y', strtotime($stiker->tgl_expired));
+        $exp  = !empty($stiker->tgl_expired) ? date('d/m/Y', strtotime($stiker->tgl_expired)) : '-';
+
+        // Jika stiker dicabut
+        if (!empty($stiker->dicabut) && (int) $stiker->dicabut === 1) {
+            $tgl_cabut = !empty($stiker->tgl_dicabut) ? date('d/m/Y', strtotime($stiker->tgl_dicabut)) : '';
+            return '<span class="badge bg-danger text-white" title="Stiker telah dicabut ' . ($tgl_cabut ? 'pada ' . $tgl_cabut : '') . '"><i class="bi bi-slash-circle me-1"></i>Dicabut (' . $no . ')</span>';
+        }
+
+        $sisa = (int) $stiker->sisa_hari;
 
         if ($sisa < 0) {
             return '<span class="badge bg-danger" title="Expired pada ' . $exp . '"><i class="bi bi-x-circle me-1"></i>Expired (' . $no . ')</span>';

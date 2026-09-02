@@ -1,4 +1,4 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="<?= base_url('assets/vendor/xlsx/xlsx.full.min.js') ?>"></script>
 
 <main id="main" class="main">
 
@@ -44,25 +44,36 @@
                         <div class="row g-2 mb-3">
                             <div class="col-sm-6 col-md-3">
                                 <select class="form-select form-select-sm" id="filterStatus">
-                                    <option value="">— Semua Status Pengajuan —</option>
-                                    <option value="draft">Draft</option>
-                                    <option value="pengajuan_baru">Pengajuan Baru</option>
-                                    <option value="pengajuan_ulang">Pengajuan Ulang</option>
-                                    <option value="diterima_manager">Diterima Manager</option>
-                                    <option value="ditolak_manager">Ditolak Manager</option>
-                                    <option value="dijadwalkan">Dijadwalkan Inspeksi</option>
-                                    <option value="lulus_inspeksi">Lulus — Menunggu OHS Supt</option>
-                                    <option value="tidak_lulus_inspeksi">Tidak Lulus — Dikembalikan</option>
-                                    <option value="selesai_inspeksi">Selesai Inspeksi</option>
-                                    <option value="diterima_admin_ohs">Diterima Admin OHS</option>
-                                    <option value="ditolak_admin_ohs">Ditolak Admin OHS</option>
-                                    <option value="diterima_ohs_supt">Diterima OHS Superintendent</option>
-                                    <option value="ditolak_ohs_supt">Ditolak OHS Superintendent</option>
-                                    <option value="acc_ktt">Disetujui KTT</option>
-                                    <option value="ditolak_ktt">Ditolak KTT</option>
-                                    <option value="stiker_keluar">Stiker Sudah Keluar</option>
-                                    <option value="rejected">Ditolak</option>
-                                    <option value="trash" class="text-danger fw-bold">🗑 Data Terhapus (Sampah / Soft Delete)</option>
+                                    <option value="">— <?= !empty($allowed_statuses) ? 'Semua Status Tahap Ini' : 'Semua Status Pengajuan' ?> —</option>
+                                    <?php
+                                    $status_list = [
+                                        'draft'                => 'Draft',
+                                        'pengajuan_baru'       => 'Pengajuan Baru',
+                                        'pengajuan_ulang'      => 'Pengajuan Ulang',
+                                        'diterima_manager'     => 'Diterima Manager',
+                                        'ditolak_manager'      => 'Ditolak Manager',
+                                        'dijadwalkan'          => 'Dijadwalkan Inspeksi',
+                                        'inspeksi_ulang'       => 'Siap Inspeksi Ulang',
+                                        'selesai_inspeksi'     => 'Selesai Inspeksi',
+                                        'lulus_inspeksi'       => 'Lulus — Menunggu OHS Supt',
+                                        'tidak_lulus_inspeksi' => 'Tidak Lulus — Dikembalikan',
+                                        'diterima_admin_ohs'   => 'Diterima Admin OHS',
+                                        'ditolak_admin_ohs'    => 'Ditolak Admin OHS',
+                                        'diterima_ohs_supt'    => 'Diterima OHS Superintendent',
+                                        'ditolak_ohs_supt'     => 'Ditolak OHS Superintendent',
+                                        'acc_ktt'              => 'Disetujui KTT',
+                                        'ditolak_ktt'          => 'Ditolak KTT',
+                                        'stiker_keluar'        => 'Stiker Sudah Keluar',
+                                        'rejected'             => 'Ditolak',
+                                    ];
+                                    foreach ($status_list as $k => $lbl):
+                                        if (!empty($allowed_statuses) && !in_array($k, $allowed_statuses, true)) continue;
+                                    ?>
+                                        <option value="<?= $k ?>"><?= $lbl ?></option>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($allowed_statuses)): ?>
+                                        <option value="trash" class="text-danger fw-bold">🗑 Data Terhapus (Sampah / Soft Delete)</option>
+                                    <?php endif; ?>
                                 </select>
                             </div>
                             <div class="col-sm-6 col-md-3">
@@ -329,13 +340,11 @@
                     className: 'text-center text-nowrap'
                 },
             ],
-            order: [
-                [9, 'desc']
-            ],
+            order: [],
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100, 200],
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json'
+                url: '<?= base_url("assets/vendor/datatables/id.json") ?>'
             },
         });
 

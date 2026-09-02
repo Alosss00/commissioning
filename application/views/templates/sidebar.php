@@ -32,7 +32,7 @@ $isPlanner   = has_role(8, $_roles);
 // ================================================================
 // BADGE — hitung pengajuan pending per status
 // ================================================================
-function pending_badge($status_arr)
+function pending_count($status_arr)
 {
     static $cached_counts = null;
     $CI = &get_instance();
@@ -47,10 +47,11 @@ function pending_badge($status_arr)
         $db->select('pu.status, COUNT(*) as cnt');
         $db->from('pengajuan_uji pu');
 
-        if (!in_array(1, $roles, true) && !empty($departemen)) {
+        $is_site_wide = !empty(array_intersect([1, 2, 3, 4, 5, 8], $roles));
+        if (!$is_site_wide && !empty($departemen)) {
             $db->join('kendaraan k', 'k.id_kendaraan = pu.id_kendaraan', 'left');
             $db->where('k.perusahaan', $departemen);
-            if (in_array(7, $roles, true)) {
+            if (in_array(7, $roles, true) && !in_array(6, $roles, true)) {
                 $db->where('pu.id_pemohon', (int)$CI->session->userdata('id_user'));
             }
         }
@@ -69,6 +70,61 @@ function pending_badge($status_arr)
         $cnt += $cached_counts[$st] ?? 0;
     }
 
+    return $cnt;
+}
+
+function pending_badge($status_arr)
+{
+    $cnt = pending_count($status_arr);
+    return $cnt > 0
+        ? '<span class="badge bg-danger rounded-pill ms-auto" style="font-size:10px;">' . $cnt . '</span>'
+        : '';
+}
+
+function pencabutan_pending_count()
+{
+    static $cabut_cnt = null;
+    if ($cabut_cnt !== null) return $cabut_cnt;
+
+    $CI = &get_instance();
+    $roles_raw = $CI->session->userdata('roles');
+    $role_int  = (int) $CI->session->userdata('role');
+    $roles = is_array($roles_raw) ? array_map('intval', $roles_raw) : ($role_int > 0 ? [$role_int] : []);
+
+    $pending_statuses = [];
+    if (in_array(1, $roles, true)) {
+        // Super Admin melihat semua permohonan yang menunggu tindakan
+        $pending_statuses = ['menunggu_ohs_supt', 'menunggu_ktt_1', 'menunggu_ktt_2', 'siap_dicabut'];
+    } else {
+        if (in_array(3, $roles, true)) {
+            $pending_statuses[] = 'menunggu_ohs_supt';
+        }
+        if (in_array(2, $roles, true)) {
+            $pending_statuses[] = 'menunggu_ktt_1';
+            $pending_statuses[] = 'menunggu_ktt_2';
+        }
+        if (in_array(5, $roles, true)) {
+            $pending_statuses[] = 'siap_dicabut';
+        }
+    }
+
+    if (empty($pending_statuses)) {
+        $cabut_cnt = 0;
+        return 0;
+    }
+
+    $pending_statuses = array_values(array_unique($pending_statuses));
+
+    $CI->db->where_in('status_request', $pending_statuses);
+    $CI->db->where('status !=', 'dilaksanakan');
+    $cabut_cnt = (int) $CI->db->count_all_results('pencabutan_stiker');
+
+    return $cabut_cnt;
+}
+
+function pencabutan_badge()
+{
+    $cnt = pencabutan_pending_count();
     return $cnt > 0
         ? '<span class="badge bg-danger rounded-pill ms-auto" style="font-size:10px;">' . $cnt . '</span>'
         : '';
@@ -82,13 +138,13 @@ $current_uri = trim(uri_string(), '/');
 function is_active($menu)
 {
     $CI = &get_instance();
-    return $CI->uri->segment(1) === $menu ? 'active' : '';
+    return strtolower((string)$CI->uri->segment(1)) === strtolower((string)$menu) ? 'active' : '';
 }
 
 function is_active_exact($uri)
 {
     $CI = &get_instance();
-    return trim(uri_string(), '/') === trim($uri, '/') ? 'active' : '';
+    return strtolower(trim(uri_string(), '/')) === strtolower(trim((string)$uri, '/')) ? 'active' : '';
 }
 
 function is_active_custom($menu)
@@ -156,15 +212,35 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
             </a>
         </li>
 
-        <li class="nav-item">
-            <a class="nav-link <?= is_active_exact('perbaikan') ?>" href="<?= site_url('perbaikan') ?>">
-                <i class="bi bi-tools text-danger"></i><span>Daftar Perbaikan Unit</span>
-                <?= pending_badge(['tidak_lulus_inspeksi', 'siap_verifikasi']) ?>
-            </a>
-        </li>
+        <?php if ($isAdmin || $isAdminDept): ?>
+            <li class="nav-item">
+                <a class="nav-link <?= is_active_exact('perbaikan') ?>" href="<?= site_url('perbaikan') ?>">
+                    <i class="bi bi-tools text-danger"></i><span>Daftar Perbaikan Unit</span>
+                    <?= pending_badge(['tidak_lulus_inspeksi', 'siap_verifikasi']) ?>
+                </a>
+            </li>
+        <?php endif; ?>
 
         <!-- ================= APPROVAL ================= -->
         <?php if ($isAdmin || $isKTT || $isOHSSupt || $isAdminOHS || $isDeptMgr): ?>
+            <?php
+            // Hitung total notifikasi pending pada seluruh sub-menu approval yang berhak diakses user ini
+            $approval_statuses_for_user = [];
+            if ($isAdmin || $isDeptMgr) {
+                $approval_statuses_for_user = array_merge($approval_statuses_for_user, ['pengajuan_baru', 'pengajuan_ulang', 'ditolak_admin_ohs']);
+            }
+            if ($isAdmin || $isAdminOHS) {
+                $approval_statuses_for_user = array_merge($approval_statuses_for_user, ['diterima_manager', 'acc_ktt']);
+            }
+            if ($isAdmin || $isOHSSupt) {
+                $approval_statuses_for_user = array_merge($approval_statuses_for_user, ['lulus_inspeksi', 'diterima_admin_ohs']);
+            }
+            if ($isAdmin || $isKTT) {
+                $approval_statuses_for_user = array_merge($approval_statuses_for_user, ['diterima_ohs_supt', 'menunggu_ktt_2']);
+            }
+            $approval_statuses_for_user = array_unique($approval_statuses_for_user);
+            $approval_total_pending = (!empty($approval_statuses_for_user) ? pending_count($approval_statuses_for_user) : 0) + pencabutan_pending_count();
+            ?>
 
             <li class="nav-heading">Approval</li>
             <li class="nav-item">
@@ -174,7 +250,12 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                     href="#">
                     <i class="bi bi-check2-circle"></i>
                     <span>Approval</span>
-                    <i class="bi bi-chevron-down ms-auto"></i>
+                    <?php if ($approval_total_pending > 0): ?>
+                        <span class="badge bg-danger rounded-pill ms-auto me-2" style="font-size:10px; min-width:18px; height:18px; padding:2px 5px; line-height:14px; text-align:center;" title="<?= $approval_total_pending ?> pengajuan menunggu approval">
+                            <?= $approval_total_pending ?>
+                        </span>
+                    <?php endif; ?>
+                    <i class="bi bi-chevron-down <?= $approval_total_pending > 0 ? '' : 'ms-auto' ?>"></i>
                 </a>
 
                 <ul id="approval-nav"
@@ -236,6 +317,7 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                             <a href="<?= site_url('approval/pencabutan') ?>" class="<?= is_active_exact('approval/pencabutan') ?>">
                                 <i class="bi bi-circle"></i>
                                 <span>Pencabutan Stiker</span>
+                                <?= pencabutan_badge() ?>
                             </a>
                         </li>
                     <?php endif; ?>
@@ -297,7 +379,7 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?= is_active('TipeKendaraan') ?>" href="<?= site_url('tipekendaraan') ?>">
+                <a class="nav-link <?= is_active('tipekendaraan') ?>" href="<?= site_url('tipekendaraan') ?>">
                     <i class="bi bi-car-front-fill"></i><span>Tipe Kendaraan</span>
                 </a>
             </li>
