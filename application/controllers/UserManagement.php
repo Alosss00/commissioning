@@ -294,6 +294,17 @@ class UserManagement extends CI_Controller
             return;
         }
 
+        if (!empty($password)) {
+            if (strlen($password) < 8) {
+                echo json_encode(['status' => 'error', 'message' => 'Password minimal 8 karakter.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+                return;
+            }
+            if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/', $password)) {
+                echo json_encode(['status' => 'error', 'message' => 'Password harus mengandung minimal 1 huruf besar, 1 huruf kecil, dan 1 angka.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+                return;
+            }
+        }
+
         // Cek duplikasi username dan email
         if ($this->user_model->is_username_exists($username, $id ?: null)) {
             echo json_encode(['status' => 'error', 'message' => 'Username sudah digunakan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
@@ -322,7 +333,11 @@ class UserManagement extends CI_Controller
                 echo json_encode(['status' => 'error', 'message' => $this->upload->display_errors('', ''), 'csrf_hash' => $this->security->get_csrf_hash()]);
                 return;
             }
-            $foto = 'uploads/foto_user/' . $this->upload->data('file_name');
+            $upload_data = $this->upload->data();
+            if (function_exists('strip_image_exif')) {
+                strip_image_exif($upload_data['full_path']);
+            }
+            $foto = 'uploads/foto_user/' . $upload_data['file_name'];
         }
 
         // Menyusun payload data user

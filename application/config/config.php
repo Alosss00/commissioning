@@ -104,7 +104,7 @@ $config['charset'] = 'UTF-8';
 | setting this variable to TRUE (boolean).  See the user guide for details.
 |
 */
-$config['enable_hooks'] = FALSE;
+$config['enable_hooks'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -328,7 +328,13 @@ $config['cache_query_string'] = FALSE;
 | https://codeigniter.com/userguide3/libraries/encryption.html
 |
 */
-$config['encryption_key'] = 'random_string_panjang_super_aman';
+// Muat kunci enkripsi privat dari app_env.php (diabaikan oleh git)
+if (file_exists(APPPATH . 'config/app_env.php')) {
+    require_once APPPATH . 'config/app_env.php';
+}
+$config['encryption_key'] = defined('APP_ENCRYPTION_KEY') 
+    ? APP_ENCRYPTION_KEY 
+    : (getenv('APP_ENCRYPTION_KEY') ?: 'random_string_panjang_super_aman');
 
 /*
 |--------------------------------------------------------------------------

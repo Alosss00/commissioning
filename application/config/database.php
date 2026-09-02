@@ -73,12 +73,29 @@ defined('BASEPATH') or exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = TRUE;
 
+// Muat kredensial database privat dari database_env.php (diabaikan oleh git)
+$db_hostname = 'localhost';
+$db_username = 'root';
+$db_password = '';
+$db_database = 'uji_kelayakan';
+$db_port     = 3306;
+
+if (file_exists(APPPATH . 'config/database_env.php')) {
+    require_once APPPATH . 'config/database_env.php';
+    $db_hostname = $db_env_hostname ?? $db_hostname;
+    $db_username = $db_env_username ?? $db_username;
+    $db_password = $db_env_password ?? $db_password;
+    $db_database = $db_env_database ?? $db_database;
+    $db_port     = $db_env_port     ?? $db_port;
+}
+
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '',
-	'database' => 'uji_kelayakan',
+	'hostname' => getenv('DB_HOST') ?: $db_hostname,
+	'username' => getenv('DB_USER') ?: $db_username,
+	'password' => getenv('DB_PASS') !== false ? getenv('DB_PASS') : $db_password,
+	'database' => getenv('DB_NAME') ?: $db_database,
+	'port'     => getenv('DB_PORT') ?: $db_port,
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
 	'pconnect' => FALSE,
@@ -92,5 +109,5 @@ $db['default'] = array(
 	'compress' => FALSE,
 	'stricton' => FALSE,
 	'failover' => array(),
-	'save_queries' => TRUE
+	'save_queries' => (ENVIRONMENT !== 'production')
 );

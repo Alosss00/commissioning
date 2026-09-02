@@ -512,6 +512,9 @@ class Perbaikan extends CI_Controller
 
                         if ($this->upload->do_upload('upload_tmp')) {
                             $info = $this->upload->data();
+                            if (function_exists('strip_image_exif')) {
+                                strip_image_exif($info['full_path']);
+                            }
                             $this->db->insert('perbaikan_lampiran', [
                                 'id_perbaikan' => $id_perbaikan,
                                 'id_item'      => $item_id,
@@ -551,6 +554,9 @@ class Perbaikan extends CI_Controller
 
                 if ($this->upload->do_upload('upload_tmp')) {
                     $info = $this->upload->data();
+                    if (function_exists('strip_image_exif')) {
+                        strip_image_exif($info['full_path']);
+                    }
                     $this->db->insert('perbaikan_lampiran', [
                         'id_perbaikan' => $id_perbaikan,
                         'id_item'      => null,

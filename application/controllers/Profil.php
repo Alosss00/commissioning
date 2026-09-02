@@ -36,6 +36,8 @@ class Profil extends CI_Controller
      */
     public function index()
     {
+        $this->output->set_header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+
         $id_user = (int) $this->session->userdata('id_user');
         $user    = $this->user_model->get_by_id($id_user);
 
@@ -133,7 +135,12 @@ class Profil extends CI_Controller
             return;
         }
 
-        $file_path = 'uploads/foto_user/' . $this->upload->data('file_name');
+        $upload_data = $this->upload->data();
+        if (function_exists('strip_image_exif')) {
+            strip_image_exif($upload_data['full_path']);
+        }
+
+        $file_path = 'uploads/foto_user/' . $upload_data['file_name'];
         $this->user_model->update($id_user, ['foto' => $file_path]);
         $this->session->set_userdata('foto', $file_path);
 
@@ -164,8 +171,12 @@ class Profil extends CI_Controller
             echo json_encode(['status' => 'error', 'message' => 'Semua field password wajib diisi.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
-        if (strlen($baru) < 6) {
-            echo json_encode(['status' => 'error', 'message' => 'Password baru minimal 6 karakter.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+        if (strlen($baru) < 8) {
+            echo json_encode(['status' => 'error', 'message' => 'Password baru minimal 8 karakter.', 'csrf_hash' => $this->security->get_csrf_hash()]);
+            return;
+        }
+        if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/', $baru)) {
+            echo json_encode(['status' => 'error', 'message' => 'Password baru harus mengandung minimal 1 huruf besar, 1 huruf kecil, dan 1 angka.', 'csrf_hash' => $this->security->get_csrf_hash()]);
             return;
         }
         if ($baru !== $konfirm) {

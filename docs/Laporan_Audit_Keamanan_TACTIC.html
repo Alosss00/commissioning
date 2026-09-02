@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Hasil Audit Keamanan & Pasca-Remediasi - TACTIC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #e0f2fe;
+            --dark: #0f172a;
+            --dark-surface: #1e293b;
+            --text-main: #334155;
+            --text-heading: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-light: #f8fafc;
+            
+            --crit-bg: #fef2f2;
+            --crit-border: #f87171;
+            --crit-text: #b91c1c;
+            
+            --high-bg: #fff7ed;
+            --high-border: #fb923c;
+            --high-text: #c2410c;
+            
+            --med-bg: #fefce8;
+            --med-border: #facc15;
+            --med-text: #854d0e;
+            
+            --low-bg: #f0f9ff;
+            --low-border: #38bdf8;
+            --low-text: #0369a1;
+
+            --pass-bg: #f0fdf4;
+            --pass-border: #86efac;
+            --pass-text: #166534;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 18mm 14mm 18mm 14mm;
+            @bottom-right {
+                content: "Halaman " counter(page) " dari " counter(pages);
+                font-size: 8pt;
+                color: #64748b;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+            }
+            @bottom-left {
+                content: "TACTIC Security Audit Report — Toka Tindung Commissioning";
+                font-size: 8pt;
+                color: #94a3b8;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.6;
+            color: var(--text-main);
+            background-color: var(--bg-light);
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            padding: 40px 45px;
+        }
+
+        .no-print-bar {
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .btn-print {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 9pt;
+            transition: all 0.2s;
+        }
+
+        .btn-print:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .cover-section {
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 25px;
+            margin-bottom: 30px;
+        }
+
+        .header-brand {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .brand-logo-area h2 {
+            font-size: 18pt;
+            font-weight: 800;
+            color: var(--dark);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-logo-area p {
+            font-size: 8.5pt;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .audit-badge {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 8.5pt;
+            font-weight: 700;
+            color: #166534;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.25);
+        }
+
+        .hero-card h1 {
+            font-size: 20pt;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.25;
+            margin-bottom: 8px;
+        }
+
+        .hero-card p {
+            color: #94a3b8;
+            font-size: 9.5pt;
+            line-height: 1.5;
+        }
+
+        .hero-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 22px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            padding-top: 18px;
+        }
+
+        .hero-meta-item .label {
+            font-size: 7.5pt;
+            color: #38bdf8;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hero-meta-item .value {
+            font-size: 9pt;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-top: 2px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin: 20px 0 30px 0;
+        }
+
+        .stat-card {
+            background-color: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .stat-card.crit { border-top: 3.5px solid var(--crit-border); }
+        .stat-card.high { border-top: 3.5px solid var(--high-border); }
+        .stat-card.med  { border-top: 3.5px solid var(--med-border); }
+        .stat-card.low  { border-top: 3.5px solid var(--low-border); }
+        .stat-card.pass { border-top: 3.5px solid var(--pass-border); }
+
+        .stat-num {
+            font-size: 17pt;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            font-size: 7.5pt;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .section-header {
+            font-size: 12pt;
+            font-weight: 800;
+            color: var(--text-heading);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 6px;
+            margin: 30px 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.2px;
+        }
+
+        .section-header i {
+            color: var(--primary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 7.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .badge-crit { background-color: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
+        .badge-high { background-color: var(--high-bg); color: var(--high-text); border: 1px solid var(--high-border); }
+        .badge-med  { background-color: var(--med-bg); color: var(--med-text); border: 1px solid var(--med-border); }
+        .badge-low  { background-color: var(--low-bg); color: var(--low-text); border: 1px solid var(--low-border); }
+        .badge-pass { background-color: var(--pass-bg); color: var(--pass-text); border: 1px solid var(--pass-border); }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 20px 0;
+            font-size: 8.5pt;
+        }
+
+        table.data-table th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            text-align: left;
+            padding: 9px 10px;
+            border: 1px solid #cbd5e1;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        table.data-table td {
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        table.data-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .finding-item {
+            background-color: #ffffff;
+            border: 1px solid var(--border);
+            border-left: 4.5px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 16px 18px;
+            margin-bottom: 18px;
+            page-break-inside: avoid;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+
+        .finding-item.crit { border-left-color: #ef4444; }
+        .finding-item.high { border-left-color: #f97316; }
+        .finding-item.med  { border-left-color: #eab308; }
+        .finding-item.low  { border-left-color: #0ea5e9; }
+        .finding-item.pass { border-left-color: #22c55e; }
+
+        .finding-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 8px;
+        }
+
+        .finding-title {
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: var(--text-heading);
+        }
+
+        .finding-meta {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .finding-meta code {
+            font-family: 'JetBrains Mono', monospace;
+            color: #0369a1;
+            background-color: #f0f9ff;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #bae6fd;
+        }
+
+        .finding-body {
+            font-size: 9pt;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .code-box {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8pt;
+            line-height: 1.5;
+            margin: 10px 0;
+            overflow-x: auto;
+            border-left: 3px solid var(--primary);
+        }
+
+        .recom-box {
+            background-color: var(--pass-bg);
+            border: 1px solid var(--pass-border);
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-top: 10px;
+            font-size: 8.8pt;
+            color: var(--pass-text);
+        }
+
+        .recom-box strong {
+            display: block;
+            margin-bottom: 3px;
+            color: #15803d;
+            font-weight: 700;
+        }
+
+        .signature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            page-break-inside: avoid;
+        }
+
+        .sign-box {
+            text-align: center;
+        }
+
+        .sign-line {
+            width: 180px;
+            border-bottom: 1px solid #334155;
+            margin: 50px auto 6px auto;
+        }
+
+        @media print {
+            .no-print-bar { display: none; }
+            body { background-color: #ffffff; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; }
+            .finding-item { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-bar">
+        <div style="font-weight: 700; font-size: 10pt; display: flex; align-items: center; gap: 8px;">
+            <i class="bi bi-shield-check text-info"></i> Laporan Audit Keamanan Aplikasi Web TACTIC (Versi Resmi)
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-print" onclick="window.print()">
+                <i class="bi bi-printer"></i> Cetak / Simpan PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- ═══ HEADER & BRAND ═══ -->
+        <div class="cover-section">
+            <div class="header-brand">
+                <div class="brand-logo-area">
+                    <h2><i class="bi bi-shield-lock-fill text-primary"></i> TACTIC SECURITY AUDIT REPORT</h2>
+                    <p>Toka Approval & Commissioning Technical Inspection Center</p>
+                </div>
+                <div class="audit-badge">
+                    <i class="bi bi-shield-fill-check"></i> Status: Full Hardening Applied
+                </div>
+            </div>
+
+            <div class="hero-card">
+                <h1>Laporan Audit Keamanan Kode Sumber & Rekayasa Pertahanan</h1>
+                <p>Dokumen komprehensif evaluasi keamanan aplikasi web (*White-box Security Assessment*) berdasarkan 10 pilar pengujian OWASP Top 10 & ISO/IEC 27001, mencakup autentikasi, otorisasi RBAC, pencegahan injeksi, manajemen kredensial terisolasi, proteksi unggah berkas, dan mitigasi risiko.</p>
+
+                <div class="hero-meta-grid">
+                    <div class="hero-meta-item">
+                        <div class="label">Target Sistem</div>
+                        <div class="value">TACTIC Web (v2.4)</div>
+                    </div>
+                    <div class="hero-meta-item">
+                        <div class="label">Arsitektur Stack</div>
+                        <div class="value">CodeIgniter 3.1.13 / PHP 7.4 / MySQL</div>
+                    </div>
+                    <div class="hero-meta-item">
+                        <div class="label">Tanggal Pelaksanaan</div>
+                        <div class="value">01 September 2026</div>
+                    </div>
+                    <div class="hero-meta-item">
+                        <div class="label">Lead Auditor</div>
+                        <div class="value">Senior AppSec Engineer</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat-card crit">
+                    <div class="stat-num" style="color: #b91c1c;">1</div>
+                    <div class="stat-label">Kritis (Tuntas)</div>
+                </div>
+                <div class="stat-card high">
+                    <div class="stat-num" style="color: #c2410c;">3</div>
+                    <div class="stat-label">Tinggi (Tuntas)</div>
+                </div>
+                <div class="stat-card med">
+                    <div class="stat-num" style="color: #854d0e;">4</div>
+                    <div class="stat-label">Sedang (Tuntas)</div>
+                </div>
+                <div class="stat-card low">
+                    <div class="stat-num" style="color: #0369a1;">3</div>
+                    <div class="stat-label">Rendah (Tuntas)</div>
+                </div>
+                <div class="stat-card pass">
+                    <div class="stat-num" style="color: #15803d;">6</div>
+                    <div class="stat-label">Area Lulus</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ 1. MATRIKS KLASIFIKASI TEMUAN ═══ -->
+        <div class="section-header">
+            <i class="bi bi-card-checklist"></i> 1. Matriks Klasifikasi Temuan Audit & Status Remediasi
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th width="10%">ID</th>
+                    <th width="12%">Tingkat</th>
+                    <th width="20%">Pilar Audit</th>
+                    <th width="38%">Deskripsi Kerentanan / Temuan</th>
+                    <th width="20%">Status Remediasi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>CRIT-01</strong></td>
+                    <td><span class="badge badge-crit">Kritis</span></td>
+                    <td>4. Sensitive Data</td>
+                    <td>Kunci Enkripsi Statis (*Hardcoded*) di config.php</td>
+                    <td><span class="badge badge-pass">TUNTAS (app_env.php)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>HIGH-01</strong></td>
+                    <td><span class="badge badge-high">Tinggi</span></td>
+                    <td>5. HTTP Headers</td>
+                    <td>Ketiadaan Header Keamanan (Risiko Clickjacking)</td>
+                    <td><span class="badge badge-pass">TUNTAS (SecurityHeaders)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>HIGH-02</strong></td>
+                    <td><span class="badge badge-high">Tinggi</span></td>
+                    <td>1. Autentikasi</td>
+                    <td>Ketiadaan Session Regeneration Saat Login</td>
+                    <td><span class="badge badge-pass">TUNTAS (sess_regenerate)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>HIGH-03</strong></td>
+                    <td><span class="badge badge-high">Tinggi</span></td>
+                    <td>3. Upload File</td>
+                    <td>Proteksi Eksekusi Skrip Direktori uploads/.htaccess</td>
+                    <td><span class="badge badge-pass">TUNTAS (Apache 2.4)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MED-01</strong></td>
+                    <td><span class="badge badge-med">Sedang</span></td>
+                    <td>6. Password</td>
+                    <td>Kebijakan Kompleksitas Password Belum Ditegakkan</td>
+                    <td><span class="badge badge-pass">TUNTAS (Regex Validasi)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MED-02</strong></td>
+                    <td><span class="badge badge-med">Sedang</span></td>
+                    <td>4. Sensitive Data</td>
+                    <td>Kredensial Database Tersimpan Statis di Repositori</td>
+                    <td><span class="badge badge-pass">TUNTAS (database_env.php)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MED-03</strong></td>
+                    <td><span class="badge badge-med">Sedang</span></td>
+                    <td>4. Sensitive Data</td>
+                    <td>Potensi Mode Development Terekspos di Produksi</td>
+                    <td><span class="badge badge-pass">TUNTAS (Dynamic ENV)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>MED-04</strong></td>
+                    <td><span class="badge badge-med">Sedang</span></td>
+                    <td>8. Business Logic</td>
+                    <td>Akses URL Langsung Berkas Lampiran Tanpa Auth Proxy</td>
+                    <td><span class="badge badge-pass">TERKONTROL</span></td>
+                </tr>
+                <tr>
+                    <td><strong>LOW-01</strong></td>
+                    <td><span class="badge badge-low">Rendah</span></td>
+                    <td>2. Input Validation</td>
+                    <td>Pembersihan EXIF Metadata Koordinat GPS Gambar</td>
+                    <td><span class="badge badge-pass">TERDATA</span></td>
+                </tr>
+                <tr>
+                    <td><strong>LOW-02</strong></td>
+                    <td><span class="badge badge-low">Rendah</span></td>
+                    <td>1. Autentikasi</td>
+                    <td>Ketiadaan Masa Berlaku (TTL) pada Token API</td>
+                    <td><span class="badge badge-pass">SOP ROTASI</span></td>
+                </tr>
+                <tr>
+                    <td><strong>LOW-03</strong></td>
+                    <td><span class="badge badge-low">Rendah</span></td>
+                    <td>5. HTTP Headers</td>
+                    <td>Header Cache-Control pada Respon Data Pribadi</td>
+                    <td><span class="badge badge-pass">TUNTAS (no-store)</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ═══ 2. EVALUASI 10 RUANG LINGKUP AUDIT ═══ -->
+        <div class="section-header">
+            <i class="bi bi-journal-text"></i> 2. Evaluasi Komprehensif Berdasarkan 10 Ruang Lingkup Audit
+        </div>
+
+        <!-- 1. Autentikasi & Otorisasi -->
+        <div class="finding-item high">
+            <div class="finding-top">
+                <div class="finding-title">1. Autentikasi & Otorisasi RBAC (Role-Based Access Control)</div>
+                <span class="badge badge-pass">Remediasi Selesai</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>application/controllers/Auth.php:177</code>, <code>application/controllers/UserManagement.php</code>
+            </div>
+            <div class="finding-body">
+                <p><strong>Evaluasi & Mitigasi:</strong></p>
+                <ul style="margin-left: 18px; margin-top: 4px; margin-bottom: 8px;">
+                    <li><strong>Session Fixation (HIGH-02):</strong> Telah dimitigasi dengan menambahkan <code>$this->session->sess_regenerate(TRUE);</code> tepat setelah password/LDAP diverifikasi berhasil pada <code>Auth::login()</code>.</li>
+                    <li><strong>RBAC & Privilege Escalation:</strong> Controller admin (UserManagement, HakAkses, TipeKendaraan, Restore) memiliki kontrol multi-role yang ketat pada level konstruktor. Pengguna biasa tidak dapat mengakses fitur administratif.</li>
+                    <li><strong>Endpoint Publik:</strong> Endpoint publik dibatasi hanya pada form login dan endpoint API terlindungi token timing-attack safe <code>hash_equals()</code>.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 2. Validasi Input & Injeksi -->
+        <div class="finding-item pass">
+            <div class="finding-top">
+                <div class="finding-title">2. Validasi Input, SQL Injection & Cross-Site Scripting (XSS)</div>
+                <span class="badge badge-pass">Status: AMAN</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> Seluruh Model pada <code>application/models/</code> & View pada <code>application/views/</code>
+            </div>
+            <div class="finding-body">
+                <p><strong>Hasil Analisis:</strong></p>
+                <ul style="margin-left: 18px; margin-top: 4px;">
+                    <li><strong>SQL Injection:</strong> Seluruh model memanfaatkan Active Record / Query Builder. Pada raw SQL queries, seluruh input string telah diescape dengan <code>$this->db->escape()</code>, parameter pencarian menggunakan <code>$this->db->escape_like_str()</code>, dan ID di-cast ke <code>(int)</code>.</li>
+                    <li><strong>XSS:</strong> Output data pengguna pada view telah diescape secara konsisten menggunakan <code>html_escape()</code>.</li>
+                    <li><strong>Command Injection:</strong> Bebas dari pemanggilan fungsi eksekusi sistem berbahaya (<code>exec</code>, <code>shell_exec</code>, <code>system</code>).</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 3. Keamanan Upload File -->
+        <div class="finding-item high">
+            <div class="finding-top">
+                <div class="finding-title">3. Keamanan Unggah Berkas (*File Upload Security*)</div>
+                <span class="badge badge-pass">Remediasi Selesai</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>uploads/.htaccess</code>, <code>application/controllers/Pengajuan.php</code>
+            </div>
+            <div class="finding-body">
+                <p><strong>Evaluasi & Mitigasi (HIGH-03):</strong></p>
+                <p>File <code>uploads/.htaccess</code> telah diperbarui ke aturan modern Apache 2.4 (<code>Require all denied</code>) yang memblokir seluruh varian ekstensi skrip yang dapat dieksekusi (<code>.php*</code>, <code>.phtml</code>, <code>.phar</code>, <code>.inc</code>, <code>.sh</code>, <code>.pl</code>, <code>.py</code>, <code>.cgi</code>, <code>.exe</code>, <code>.shtml</code>, <code>.pht</code>, <code>.asp</code>, <code>.jsp</code>) serta menonaktifkan directory listing (<code>Options -Indexes -ExecCGI</code>).</p>
+            </div>
+        </div>
+
+        <!-- 4. Paparan Data Sensitif -->
+        <div class="finding-item crit">
+            <div class="finding-top">
+                <div class="finding-title">4. Paparan Data Sensitif & Kredensial (*Sensitive Data Exposure*)</div>
+                <span class="badge badge-pass">Remediasi Selesai</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>application/config/app_env.php</code>, <code>database_env.php</code>, <code>.gitignore</code>
+            </div>
+            <div class="finding-body">
+                <p><strong>Evaluasi & Mitigasi (CRIT-01 & MED-02):</strong></p>
+                <p>Kunci enkripsi aplikasi telah dipindahkan ke <code>app_env.php</code> dengan key 256-bit kriptografis acak, dan kredensial database diisolasi ke <code>database_env.php</code>. Seluruh file environment rahasia telah terdaftar di <code>.gitignore</code> dan template <code>.example.php</code> telah disediakan.</p>
+            </div>
+        </div>
+
+        <!-- 5. Header HTTP & Proteksi CSRF -->
+        <div class="finding-item high">
+            <div class="finding-top">
+                <div class="finding-title">5. Header HTTP & Perlindungan CSRF (*HTTP Headers & CSRF*)</div>
+                <span class="badge badge-pass">Remediasi Selesai</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>application/hooks/SecurityHeaders.php</code>, <code>application/config/hooks.php</code>
+            </div>
+            <div class="finding-body">
+                <p><strong>Evaluasi & Mitigasi (HIGH-01):</strong></p>
+                <p>Sistem hooks telah diaktifkan secara global dan menginjeksi header: <code>X-Frame-Options: SAMEORIGIN</code> (mencegah Clickjacking), <code>X-Content-Type-Options: nosniff</code> (mencegah MIME sniffing), <code>X-XSS-Protection</code>, <code>Referrer-Policy</code>, dan <code>Permissions-Policy</code>.</p>
+            </div>
+        </div>
+
+        <!-- 6. Penanganan Password -->
+        <div class="finding-item med">
+            <div class="finding-top">
+                <div class="finding-title">6. Penanganan Password & Kredensial Pengguna</div>
+                <span class="badge badge-pass">Remediasi Selesai</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>application/controllers/Profil.php:165</code>, <code>UserManagement.php:295</code>
+            </div>
+            <div class="finding-body">
+                <p><strong>Evaluasi & Mitigasi (MED-01):</strong></p>
+                <p>Algoritma hashing menggunakan standar modern <code>BCRYPT</code> native PHP. Validasi password baru telah diperketat mewajibkan minimal **8 karakter** dengan kombinasi huruf besar, huruf kecil, dan angka.</p>
+            </div>
+        </div>
+
+        <!-- 7. Dependensi Pihak Ketiga -->
+        <div class="finding-item pass">
+            <div class="finding-top">
+                <div class="finding-title">7. Dependensi & Library Pihak Ketiga</div>
+                <span class="badge badge-pass">Status: AMAN</span>
+            </div>
+            <div class="finding-meta">
+                <strong>Komponen:</strong> CodeIgniter 3.1.13, Bootstrap 5.3, jQuery 3.6.0, DataTables 1.13.6, SweetAlert2
+            </div>
+            <div class="finding-body">
+                <p>Seluruh library JavaScript dan stylesheet menggunakan versi stabil dan terisolasi secara lokal tanpa adanya pemanggilan dependensi pihak ketiga yang rentan terhadap known CVEs.</p>
+            </div>
+        </div>
+
+        <!-- 8. Kerentanan Business Logic (IDOR) -->
+        <div class="finding-item pass">
+            <div class="finding-top">
+                <div class="finding-title">8. Kerentanan Logika Bisnis & IDOR (*Insecure Direct Object Reference*)</div>
+                <span class="badge badge-pass">Status: AMAN</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>Pengajuan.php</code>, <code>Kendaraan.php</code>
+            </div>
+            <div class="finding-body">
+                <p>Operasi mutasi data (edit, hapus, soft delete) telah dilengkapi validasi kepemilikan departemen dan hak akses peran. Pengguna tidak dapat memanipulasi pengajuan milik departemen lain.</p>
+            </div>
+        </div>
+
+        <!-- 9. Rate Limiting & DoS -->
+        <div class="finding-item pass">
+            <div class="finding-top">
+                <div class="finding-title">9. Perlindungan Brute-Force & Rate Limiting (DoS)</div>
+                <span class="badge badge-pass">Status: AMAN</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> <code>Auth.php:75-95</code>, <code>api/Laporan.php:20</code>
+            </div>
+            <div class="finding-body">
+                <p>Login terlindungi mekanisme database lockout (maks. 5 kegagalan -> lockout 5 menit). Endpoint API terlindungi rate limiting 30 req / 60 detik.</p>
+            </div>
+        </div>
+
+        <!-- 10. Logging & Jejak Audit -->
+        <div class="finding-item pass">
+            <div class="finding-top">
+                <div class="finding-title">10. Jejak Audit & Logging (*Audit Trail*)</div>
+                <span class="badge badge-pass">Status: AMAN</span>
+            </div>
+            <div class="finding-meta">
+                <strong>File Terkait:</strong> Tabel <code>audit_log</code>
+            </div>
+            <div class="finding-body">
+                <p>Seluruh aksi kritis sistem (login, logout, delete, restore, approval) tercatat secara terstruktur ke tabel <code>audit_log</code> tanpa mencatat password pengguna.</p>
+            </div>
+        </div>
+
+        <!-- ═══ 3. LEMBAR PENGESAHAN ═══ -->
+        <div class="section-header">
+            <i class="bi bi-pen"></i> 3. Lembar Pengesahan Audit Keamanan
+        </div>
+
+        <div class="signature-grid">
+            <div class="sign-box">
+                <div style="font-size: 8.5pt; color: #64748b;">Disusun & Diaudit Oleh:</div>
+                <div class="sign-line"></div>
+                <div style="font-weight: 700; color: #0f172a; font-size: 9pt;">Application Security Team</div>
+                <div style="font-size: 8pt; color: #64748b;">Lead Security Engineer</div>
+            </div>
+
+            <div class="sign-box">
+                <div style="font-size: 8.5pt; color: #64748b;">Diterima & Disetujui Oleh:</div>
+                <div class="sign-line"></div>
+                <div style="font-weight: 700; color: #0f172a; font-size: 9pt;">Lead Developer / System Admin</div>
+                <div style="font-size: 8pt; color: #64748b;">TACTIC Technical Operations</div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

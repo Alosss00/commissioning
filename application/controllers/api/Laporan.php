@@ -129,6 +129,13 @@ class Laporan extends CI_Controller
             return false;
         }
 
+        // Validasi masa aktif / kedaluwarsa token jika dikonfigurasi
+        $expires = $this->config->item('laporan_api_expires');
+        if (!empty($expires) && strtotime($expires) < time()) {
+            log_message('error', '[API/Laporan] laporan_api_key telah kedaluwarsa sejak ' . $expires);
+            return false;
+        }
+
         return hash_equals($this->_api_key, $header_key);
     }
 

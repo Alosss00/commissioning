@@ -174,6 +174,10 @@ class Auth extends CI_Controller
         $this->Auth_model->reset_login_attempts($identity, $ip_address);
         $this->session->unset_userdata('login_attempt');
         $this->session->unset_userdata('last_attempt_time');
+
+        // Regenerasi Session ID untuk mencegah serangan Session Fixation (OWASP A07:2021)
+        $this->session->sess_regenerate(TRUE);
+
         $this->session->set_userdata([
             'id_user'     => (int) $user->id_user,
             'nama'        => $user->nama,

@@ -906,6 +906,9 @@ class Pengajuan extends CI_Controller
                 $errors[] = $this->upload->display_errors('', '');
             } else {
                 $info = $this->upload->data();
+                if (function_exists('strip_image_exif')) {
+                    strip_image_exif($info['full_path']);
+                }
                 $this->pengajuan_model->insert_lampiran([
                     'id_pengajuan'   => $id_pengajuan, 
                     'jenis_lampiran' => $jenis, 
@@ -944,6 +947,9 @@ class Pengajuan extends CI_Controller
         }
 
         $info = $this->upload->data();
+        if (function_exists('strip_image_exif')) {
+            strip_image_exif($info['full_path']);
+        }
         $this->pengajuan_model->insert_lampiran([
             'id_pengajuan'   => $id_pengajuan,
             'jenis_lampiran' => $jenis,

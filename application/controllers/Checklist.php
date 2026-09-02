@@ -905,6 +905,9 @@ class Checklist extends CI_Controller
             ]);
             if ($this->upload->do_upload('foto_mekanik')) {
                 $info    = $this->upload->data();
+                if (function_exists('strip_image_exif')) {
+                    strip_image_exif($info['full_path']);
+                }
                 $ket     = trim($this->input->post('ket_foto_mekanik') ?? '');
                 $batch[] = [
                     'id_uji'      => $id_uji,
@@ -940,6 +943,9 @@ class Checklist extends CI_Controller
 
                 if ($this->upload->do_upload('_foto_temuan_item_')) {
                     $info    = $this->upload->data();
+                    if (function_exists('strip_image_exif')) {
+                        strip_image_exif($info['full_path']);
+                    }
                     $ket     = isset($keterangan_arr[$idx]) ? trim($keterangan_arr[$idx]) : '';
                     $batch[] = [
                         'id_uji'      => $id_uji,

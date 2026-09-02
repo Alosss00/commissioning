@@ -526,4 +526,3 @@ class Kendaraan extends CI_Controller
         return '<span class="badge bg-success" title="Expired pada ' . $exp . '"><i class="bi bi-check-circle me-1"></i>Aktif (' . $no . ')</span>';
     }
 }
-}
