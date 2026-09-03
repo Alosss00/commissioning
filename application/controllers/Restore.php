@@ -55,8 +55,9 @@ class Restore extends CI_Controller
             'kendaraan'      => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('kendaraan'),
             'users'          => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('users'),
             'mekanik'        => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('mekanik_master'),
-            'tipe_kendaraan' => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('tipe_kendaraan'),
-            'checklist_item' => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('checklist_item'),
+            'tipe_kendaraan'     => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('tipe_kendaraan'),
+            'checklist_template' => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('checklist_template'),
+            'checklist_item'     => $isAdminDeptOnly ? 0 : $this->db->where('deleted_at IS NOT NULL')->count_all_results('checklist_item'),
         ];
 
         $data = [
@@ -223,7 +224,7 @@ class Restore extends CI_Controller
 
             case 'checklist_item':
                 $rows = $this->db
-                    ->select('ci.*, ct.nama AS nama_template, u_del.nama AS deleted_by_nama')
+                    ->select('ci.*, ct.nama_template, u_del.nama AS deleted_by_nama')
                     ->from('checklist_item ci')
                     ->join('checklist_template ct', 'ct.id_template = ci.id_template', 'left')
                     ->join('users u_del', 'u_del.id_user = ci.deleted_by', 'left')
@@ -242,6 +243,31 @@ class Restore extends CI_Controller
                         'deleted_at'  => date('d/m/Y H:i', strtotime($r->deleted_at)),
                         'deleted_by'  => html_escape($r->deleted_by_nama ?: 'System / Admin'),
                         'type'        => 'checklist_item',
+                    ];
+                }
+                break;
+
+            case 'checklist_template':
+                $rows = $this->db
+                    ->select('ct.*, t.nama_tipe, u_del.nama AS deleted_by_nama')
+                    ->from('checklist_template ct')
+                    ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = ct.id_tipe_kendaraan', 'left')
+                    ->join('users u_del', 'u_del.id_user = ct.deleted_by', 'left')
+                    ->where('ct.deleted_at IS NOT NULL')
+                    ->order_by('ct.deleted_at', 'DESC')
+                    ->get()->result();
+
+                foreach ($rows as $i => $r) {
+                    $data[] = [
+                        'no'          => $i + 1,
+                        'id'          => $r->id_template,
+                        'kode'        => html_escape($r->kode),
+                        'identitas'   => '<strong>' . html_escape($r->nama_template) . '</strong> (' . html_escape($r->kode) . ')',
+                        'keterangan'  => 'Tipe Kendaraan: ' . html_escape($r->nama_tipe ?: '—'),
+                        'status'      => '<span class="badge bg-danger">Terhapus</span>',
+                        'deleted_at'  => date('d/m/Y H:i', strtotime($r->deleted_at)),
+                        'deleted_by'  => html_escape($r->deleted_by_nama ?: 'System / Admin'),
+                        'type'        => 'checklist_template',
                     ];
                 }
                 break;

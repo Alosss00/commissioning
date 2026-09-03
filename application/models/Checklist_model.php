@@ -29,16 +29,24 @@ class Checklist_model extends CI_Model
      * 
      * @return array List object template checklist
      */
-    public function get_all_templates()
+    public function get_all_templates($include_deleted = false)
     {
-        return $this->db
+        $this->db
             ->select('ct.*, t.nama_tipe, t.kode_tipe,
                   t.doc_no, t.title_id, t.title_en,
                   t.doc_name_id, t.doc_name_en,
-                  t.tgl_terbit, t.tgl_review, t.no_revisi')
+                  t.tgl_terbit, t.tgl_review, t.no_revisi,
+                  u.nama as nama_deleter')
             ->from('checklist_template ct')
             ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = ct.id_tipe_kendaraan', 'left')
-            ->where('ct.is_active', 1)
+            ->join('users u', 'u.id_user = ct.deleted_by', 'left');
+
+        if (!$include_deleted) {
+            $this->db->where('ct.is_active', 1)->where('ct.deleted_at IS NULL');
+        }
+
+        return $this->db
+            ->order_by('ct.is_active', 'DESC')
             ->order_by('ct.kode', 'ASC')
             ->get()->result();
     }
@@ -63,6 +71,62 @@ class Checklist_model extends CI_Model
     }
 
     /**
+     * Soft delete template checklist (is_active = 0, deleted_at = now, deleted_by = user)
+     * 
+     * @param int $id_template ID Template
+     * @param int|null $id_user ID Pengguna yang menghapus
+     * @return bool
+     */
+    public function delete_template($id_template, $id_user = null)
+    {
+        $id_user = $id_user ?: (int) $this->session->userdata('id_user');
+        return $this->db
+            ->where('id_template', (int) $id_template)
+            ->update('checklist_template', [
+                'is_active'  => 0,
+                'deleted_at' => date('Y-m-d H:i:s'),
+                'deleted_by' => $id_user ?: null,
+            ]);
+    }
+
+    /**
+     * Memulihkan template checklist yang di-soft-delete
+     * 
+     * @param int $id_template ID Template
+     * @return bool
+     */
+    public function restore_template($id_template)
+    {
+        return $this->db
+            ->where('id_template', (int) $id_template)
+            ->update('checklist_template', [
+                'is_active'  => 1,
+                'deleted_at' => null,
+                'deleted_by' => null,
+            ]);
+    }
+
+    /**
+     * Mengambil daftar template checklist yang terhapus (soft delete)
+     * 
+     * @return array List object template terhapus
+     */
+    public function get_deleted_templates()
+    {
+        return $this->db
+            ->select('ct.*, t.nama_tipe, t.kode_tipe, u.nama as nama_deleter')
+            ->from('checklist_template ct')
+            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = ct.id_tipe_kendaraan', 'left')
+            ->join('users u', 'u.id_user = ct.deleted_by', 'left')
+            ->group_start()
+            ->where('ct.deleted_at IS NOT NULL')
+            ->or_where('ct.is_active', 0)
+            ->group_end()
+            ->order_by('ct.deleted_at', 'DESC')
+            ->get()->result();
+    }
+
+    /**
      * Mengambil template checklist berdasarkan nama tipe kendaraan.
      * 
      * @param string $nama_tipe Nama tipe kendaraan
@@ -76,6 +140,7 @@ class Checklist_model extends CI_Model
             ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = ct.id_tipe_kendaraan')
             ->where('t.nama_tipe', $nama_tipe)
             ->where('ct.is_active', 1)
+            ->where('ct.deleted_at IS NULL')
             ->get()->row();
     }
 
@@ -96,6 +161,7 @@ class Checklist_model extends CI_Model
             ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = ct.id_tipe_kendaraan')
             ->where('ct.id_tipe_kendaraan', (int) $id_tipe_kendaraan)
             ->where('ct.is_active', 1)
+            ->where('ct.deleted_at IS NULL')
             ->get()->row();
     }
 
@@ -111,7 +177,7 @@ class Checklist_model extends CI_Model
             ->from('tipe_kendaraan t')
             ->join(
                 'checklist_template ct',
-                'ct.id_tipe_kendaraan = t.id_tipe_kendaraan AND ct.is_active = 1',
+                'ct.id_tipe_kendaraan = t.id_tipe_kendaraan AND ct.is_active = 1 AND ct.deleted_at IS NULL',
                 'left'
             )
             ->where('t.is_active', 1)

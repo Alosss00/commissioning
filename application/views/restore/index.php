@@ -48,6 +48,12 @@
                 </div>
             </div>
             <div class="col-6 col-md-4 col-lg-2">
+                <div class="card border-0 shadow-sm bg-warning bg-opacity-10 text-center py-3 h-100">
+                    <div class="fs-2 fw-bold text-warning"><?= (int)($counts['checklist_template'] ?? 0) ?></div>
+                    <div class="text-muted small fw-semibold">Template Checklist</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-lg-2">
                 <div class="card border-0 shadow-sm bg-dark bg-opacity-10 text-center py-3 h-100">
                     <div class="fs-2 fw-bold text-dark"><?= (int)($counts['checklist_item'] ?? 0) ?></div>
                     <div class="text-muted small fw-semibold">Item Checklist</div>
@@ -96,6 +102,11 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="tab-template" data-bs-toggle="tab" data-bs-target="#pane-template" type="button" role="tab" data-type="checklist_template">
+                            <i class="bi bi-ui-checks-grid me-1"></i>Template Checklist
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link fw-semibold" id="tab-checklist" data-bs-toggle="tab" data-bs-target="#pane-checklist" type="button" role="tab" data-type="checklist_item">
                             <i class="bi bi-card-checklist me-1"></i>Item Checklist
                         </button>
@@ -137,12 +148,13 @@
     $(function() {
         var currentType = 'pengajuan';
         var restoreEndpoints = {
-            'pengajuan':      { url: '<?= site_url('pengajuan/restore') ?>',      field: 'id_pengajuan', label: 'pengajuan' },
-            'kendaraan':      { url: '<?= site_url('kendaraan/restore') ?>',      field: 'id_kendaraan', label: 'kendaraan' },
-            'users':          { url: '<?= site_url('usermanagement/restore') ?>', field: 'id_user',      label: 'user' },
-            'mekanik':        { url: '<?= site_url('mekanik/restore') ?>',        field: 'id',           label: 'mekanik' },
-            'tipe_kendaraan': { url: '<?= site_url('tipekendaraan/restore') ?>',  field: 'id',           label: 'tipe kendaraan' },
-            'checklist_item': { url: '<?= site_url('checklist/restore_item') ?>', field: 'id_item',      label: 'item checklist' },
+            'pengajuan':          { url: '<?= site_url('pengajuan/restore') ?>',          field: 'id_pengajuan', label: 'pengajuan' },
+            'kendaraan':          { url: '<?= site_url('kendaraan/restore') ?>',          field: 'id_kendaraan', label: 'kendaraan' },
+            'users':              { url: '<?= site_url('usermanagement/restore') ?>',     field: 'id_user',      label: 'user' },
+            'mekanik':            { url: '<?= site_url('mekanik/restore') ?>',            field: 'id',           label: 'mekanik' },
+            'tipe_kendaraan':     { url: '<?= site_url('tipekendaraan/restore') ?>',      field: 'id',           label: 'tipe kendaraan' },
+            'checklist_template': { url: '<?= site_url('checklist/restore_template') ?>', field: 'id_template', label: 'template checklist' },
+            'checklist_item':     { url: '<?= site_url('checklist/restore_item') ?>',     field: 'id_item',      label: 'item checklist' },
         };
 
         var table = $('#tabelRestore').DataTable({

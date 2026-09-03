@@ -880,6 +880,85 @@ class Checklist extends CI_Controller
         echo json_encode(['status' => 'success', 'message' => 'Item berhasil dipulihkan.', 'csrf_hash' => $this->security->get_csrf_hash()]);
     }
 
+    public function delete_template()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5], $roles)) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Akses ditolak.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
+        $id = (int) $this->input->post('id_template');
+        $template = $this->checklist_model->get_template($id);
+        if (!$template) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Template tidak ditemukan.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
+        $this->checklist_model->delete_template($id, $this->session->userdata('id_user'));
+
+        echo json_encode([
+            'status'    => 'success',
+            'message'   => 'Template checklist <strong>' . html_escape($template->nama_template) . '</strong> (' . html_escape($template->kode) . ') berhasil dihapus (soft delete).',
+            'redirect'  => site_url('checklist'),
+            'csrf_hash' => $this->security->get_csrf_hash()
+        ]);
+    }
+
+    public function restore_template()
+    {
+        if (!$this->input->is_ajax_request()) show_404();
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5], $roles)) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Akses ditolak.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
+        $id = (int) $this->input->post('id_template');
+        $template = $this->checklist_model->get_template($id);
+        if (!$template) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Template tidak ditemukan.',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
+        // Cek apakah tipe kendaraan sudah ada template aktif lainnya
+        $existing = $this->checklist_model->get_template_by_tipe_id($template->id_tipe_kendaraan);
+        if ($existing && $existing->id_template != $id) {
+            echo json_encode([
+                'status'    => 'error',
+                'message'   => 'Tipe kendaraan ini sudah memiliki template aktif lain (' . html_escape($existing->kode) . ').',
+                'csrf_hash' => $this->security->get_csrf_hash()
+            ]);
+            return;
+        }
+
+        $this->checklist_model->restore_template($id);
+
+        echo json_encode([
+            'status'    => 'success',
+            'message'   => 'Template checklist <strong>' . html_escape($template->nama_template) . '</strong> (' . html_escape($template->kode) . ') berhasil dipulihkan.',
+            'redirect'  => site_url('checklist'),
+            'csrf_hash' => $this->security->get_csrf_hash()
+        ]);
+    }
+
     // =========================================================
     // PRIVATE helpers
     // =========================================================

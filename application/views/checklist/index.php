@@ -34,10 +34,19 @@
                             </div>
                             <h6 class="fw-bold mb-1"><?= html_escape($tmpl->nama_tipe) ?></h6>
                             <p class="text-muted small mb-3"><?= html_escape($tmpl->nama_template) ?></p>
-                            <a href="<?= site_url('checklist/template/' . $tmpl->id_template) ?>"
-                                class="btn btn-sm btn-outline-primary w-100">
-                                <i class="bi bi-list-check me-1"></i>Lihat & Kelola Items
-                            </a>
+                            <div class="d-flex gap-2">
+                                <a href="<?= site_url('checklist/template/' . $tmpl->id_template) ?>"
+                                    class="btn btn-sm btn-outline-primary flex-grow-1">
+                                    <i class="bi bi-list-check me-1"></i>Lihat & Kelola Items
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-template"
+                                    data-id="<?= $tmpl->id_template ?>"
+                                    data-nama="<?= html_escape($tmpl->nama_template) ?>"
+                                    data-kode="<?= html_escape($tmpl->kode) ?>"
+                                    title="Hapus Template">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -189,5 +198,53 @@
                 toastr.error('Terjadi kesalahan server.');
             });
         });
+
+        // ── Hapus template ────────────────────────────────────────────────────────
+        $(document).on('click', '.btn-delete-template', function() {
+            var id = $(this).data('id');
+            var nama = $(this).data('nama');
+            var kode = $(this).data('kode');
+            var $col = $(this).closest('.col-xl-4, .col-md-6');
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Hapus Template?',
+                    html: 'Apakah Anda yakin ingin menghapus template <strong>' + kode + '</strong> - ' + nama + '?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="bi bi-trash me-1"></i>Ya, Hapus',
+                    cancelButtonText: 'Batal'
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        doDeleteTemplate(id, $col);
+                    }
+                });
+            } else {
+                if (confirm('Apakah Anda yakin ingin menghapus template ' + kode + ' - ' + nama + '?')) {
+                    doDeleteTemplate(id, $col);
+                }
+            }
+        });
+
+        function doDeleteTemplate(id, $col) {
+            var d = {};
+            d[window.csrfTokenName] = window.csrfTokenHash;
+            d.id_template = id;
+
+            $.post('<?= site_url('checklist/delete_template') ?>', d, function(res) {
+                if (res.status === 'success') {
+                    toastr.success(res.message);
+                    $col.fadeOut(400, function() {
+                        $(this).remove();
+                    });
+                } else {
+                    toastr.error(res.message);
+                }
+            }, 'json').fail(function() {
+                toastr.error('Terjadi kesalahan server.');
+            });
+        }
     });
 </script>

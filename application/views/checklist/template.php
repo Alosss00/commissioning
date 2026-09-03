@@ -23,9 +23,17 @@
                                 <span class="badge bg-secondary me-2"><?= html_escape($template->kode) ?></span>
                                 <strong><?= html_escape($template->nama_template) ?></strong>
                             </div>
-                            <button class="btn btn-sm btn-primary" id="btnTambahItem">
-                                <i class="bi bi-plus-circle me-1"></i>Tambah Item
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-danger" id="btnHapusTemplate"
+                                    data-id="<?= $template->id_template ?>"
+                                    data-nama="<?= html_escape($template->nama_template) ?>"
+                                    data-kode="<?= html_escape($template->kode) ?>">
+                                    <i class="bi bi-trash me-1"></i>Hapus Template
+                                </button>
+                                <button class="btn btn-sm btn-primary" id="btnTambahItem">
+                                    <i class="bi bi-plus-circle me-1"></i>Tambah Item
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -240,6 +248,49 @@
                         }
                     }
                 });
+            });
+        });
+
+        // ── Hapus Template ──────────────────────────────────────────
+        $('#btnHapusTemplate').on('click', function() {
+            var id = $(this).data('id');
+            var nama = $(this).data('nama');
+            var kode = $(this).data('kode');
+
+            Swal.fire({
+                title: 'Hapus Template?',
+                html: 'Apakah Anda yakin ingin menghapus template <strong>' + kode + '</strong> - ' + nama + ' beserta konfigurasinya?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="bi bi-trash me-1"></i>Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    var d = { id_template: id };
+                    d[csrf_name] = csrf_hash;
+
+                    $.ajax({
+                        url: '<?= site_url('checklist/delete_template') ?>',
+                        type: 'POST',
+                        data: d,
+                        dataType: 'json',
+                        success: function(res) {
+                            if (res.status === 'success') {
+                                toastr.success(res.message);
+                                setTimeout(function() {
+                                    window.location.href = res.redirect || '<?= site_url('checklist') ?>';
+                                }, 800);
+                            } else {
+                                toastr.error(res.message);
+                            }
+                        },
+                        error: function() {
+                            toastr.error('Terjadi kesalahan server.');
+                        }
+                    });
+                }
             });
         });
     });
