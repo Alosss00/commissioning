@@ -381,6 +381,49 @@ class Sikuk_email
         );
     }
 
+    /**
+     * Jadwal inspeksi dibuat → Notifikasi rincian jadwal lengkap ke Pemohon / Admin Dept
+     */
+    public function notif_dijadwalkan($id_pengajuan, $tanggal_uji, $lokasi = '', $nama_inspektor = '')
+    {
+        $p = $this->_get_pengajuan($id_pengajuan);
+        if (!$p || empty($p->email_pemohon)) return false;
+
+        $tgl_fmt       = date('d M Y H:i', strtotime($tanggal_uji));
+        $lokasi_str    = !empty($lokasi) ? $lokasi : 'Workshop Main';
+        $inspektor_str = !empty($nama_inspektor) ? $nama_inspektor : 'Tim Inspektor OHS';
+
+        return $this->_send(
+            $p->email_pemohon,
+            '[Jadwal Inspeksi] Jadwal Uji Kelayakan Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
+            $this->_wrap(
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Pengajuan commissioning untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> telah <strong>dijadwalkan untuk inspeksi fisik</strong>.',
+                '<table style="width:100%;border-collapse:collapse;margin:12px 0;">
+                    <tr>
+                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;width:140px;border:1px solid #e0e0e0;">Kendaraan</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . ' (' . htmlspecialchars($p->jenis_kendaraan ?? '-') . ')</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Waktu Inspeksi</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;font-weight:bold;color:#1a73e8;">' . $tgl_fmt . ' WITA</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Lokasi</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($lokasi_str) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Inspektor</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . htmlspecialchars($inspektor_str) . '</td>
+                    </tr>
+                 </table>',
+                '<strong>Catatan Penting:</strong> Mohon siapkan fisik kendaraan dalam kondisi bersih dan pastikan kelengkapan dokumen fisik dibawa saat pelaksanaan inspeksi berlangsung.',
+                $this->_info_unit($p),
+                $this->_btn_link('Lihat Detail Pengajuan', $this->base_url . '/pengajuan')
+            )
+        );
+    }
+
     // ============================================================
     // NOTIFIKASI — OHS SUPERINTENDENT
     // ============================================================
@@ -496,6 +539,72 @@ class Sikuk_email
             );
         }
         return true;
+    }
+
+    /**
+     * Hasil inspeksi TIDAK LULUS → Pemohon diminta melakukan perbaikan fisik
+     */
+    public function notif_tidak_lulus_inspeksi($id_pengajuan, $catatan = '')
+    {
+        $p = $this->_get_pengajuan($id_pengajuan);
+        if (!$p || empty($p->email_pemohon)) return false;
+
+        return $this->_send(
+            $p->email_pemohon,
+            '[Perbaikan Diperlukan] Hasil Inspeksi Belum Memenuhi Syarat — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
+            $this->_wrap(
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Hasil inspeksi fisik untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> menyatakan bahwa kendaraan <strong>BELUM MEMENUHI SYARAT (TIDAK LULUS)</strong>.',
+                $this->_catatan_box($catatan, 'Catatan Temuan Inspektor'),
+                'Mohon segera lakukan tindakan perbaikan fisik pada kendaraan dan unggah bukti foto perbaikan melalui menu <strong>Daftar Perbaikan Unit</strong>.',
+                $this->_info_unit($p),
+                $this->_btn_link('Input Perbaikan Unit', $this->base_url . '/perbaikan/form/' . $id_pengajuan)
+            )
+        );
+    }
+
+    /**
+     * Verifikasi fisik perbaikan DITERIMA oleh Inspektor → Pemohon diberitahu
+     */
+    public function notif_verifikasi_perbaikan_acc($id_pengajuan, $catatan = '')
+    {
+        $p = $this->_get_pengajuan($id_pengajuan);
+        if (!$p || empty($p->email_pemohon)) return false;
+
+        return $this->_send(
+            $p->email_pemohon,
+            '[Perbaikan Disetujui] Verifikasi Fisik Sesuai — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
+            $this->_wrap(
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Perbaikan fisik untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> telah diverifikasi secara fisik oleh <strong>Inspektor</strong> dan dinyatakan <strong>SESUAI / DITERIMA</strong>.',
+                $this->_catatan_box($catatan, 'Catatan Verifikasi Inspektor'),
+                'Saat ini unit berstatus <strong>Siap Pengujian Ulang</strong>. Tim Inspektor akan segera melakukan pengujian checklist kelayakan ulang.',
+                $this->_info_unit($p),
+                $this->_btn_link('Pantau Status Pengajuan', $this->base_url . '/pengajuan')
+            )
+        );
+    }
+
+    /**
+     * Verifikasi fisik perbaikan DITOLAK oleh Inspektor → Pemohon harus perbaiki ulang
+     */
+    public function notif_verifikasi_perbaikan_tolak($id_pengajuan, $catatan = '')
+    {
+        $p = $this->_get_pengajuan($id_pengajuan);
+        if (!$p || empty($p->email_pemohon)) return false;
+
+        return $this->_send(
+            $p->email_pemohon,
+            '[Perbaikan Ditolak] Verifikasi Fisik Belum Sesuai — Unit ' . (!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi),
+            $this->_wrap(
+                'Halo ' . htmlspecialchars($p->nama_pemohon) . ',',
+                'Perbaikan fisik untuk unit <strong>' . htmlspecialchars(!empty($p->nomor_unit) ? $p->nomor_unit : $p->no_polisi) . '</strong> dinyatakan <strong>BELUM SESUAI (DITOLAK)</strong> oleh Inspektor.',
+                $this->_catatan_box($catatan, 'Alasan Penolakan Inspektor'),
+                'Mohon lakukan perbaikan fisik ulang pada komponen terkait, lalu perbarui laporan bukti perbaikan Anda melalui sistem.',
+                $this->_info_unit($p),
+                $this->_btn_link('Perbaiki Ulang', $this->base_url . '/perbaikan/form/' . $id_pengajuan)
+            )
+        );
     }
 
     /**
@@ -635,9 +744,13 @@ class Sikuk_email
                         <td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:18px;font-weight:bold;color:#1a73e8;">' . htmlspecialchars($p->nomor_sticker ?? '-') . '</td>
                     </tr>
                     <tr>
-                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tanggal</td>
-                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . date('d M Y H:i', strtotime($p->tanggal_release ?? 'now')) . ' WIB</td>
+                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Tanggal Terbit</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;">' . date('d M Y H:i', strtotime($p->tanggal_release ?? 'now')) . ' WITA</td>
                     </tr>
+                    ' . (!empty($p->tgl_expired) ? '<tr>
+                        <td style="padding:6px 12px;background:#f8f9fa;font-weight:bold;border:1px solid #e0e0e0;">Masa Berlaku</td>
+                        <td style="padding:6px 12px;border:1px solid #e0e0e0;font-weight:bold;color:#2eca6a;">Sampai ' . date('d M Y', strtotime($p->tgl_expired)) . '</td>
+                    </tr>' : '') . '
                  </table>',
                 'Silakan menghubungi bagian <strong>Admin OHS</strong> untuk pengambilan stiker fisik.',
                 $this->_btn_link('Lihat Detail Pengajuan', $this->base_url . '/pengajuan')
@@ -941,12 +1054,16 @@ class Sikuk_email
                       COALESCE(NULLIF(TRIM(pu.email_pemohon), ""), NULLIF(TRIM(u.email), "")) AS email_pemohon,
                       COALESCE(NULLIF(TRIM(u.nama), ""), "Pemohon") AS nama_pemohon,
                       (SELECT GROUP_CONCAT(r.nama_role SEPARATOR ", ") FROM user_roles ur JOIN roles r ON r.id_role = ur.id_role WHERE ur.id_user = u.id_user) AS role_pemohon,
-                      k.no_polisi, k.nomor_unit, k.perusahaan, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun')
+                      k.no_polisi, k.nomor_unit, k.perusahaan, t.nama_tipe AS jenis_kendaraan, k.merk, k.tipe, k.tahun,
+                      sr.nomor_sticker, sr.tanggal_release, sr.tgl_expired')
             ->from('pengajuan_uji pu')
-            ->join('users u',          'u.id_user = pu.id_pemohon',                 'left')
-            ->join('kendaraan k',      'k.id_kendaraan = pu.id_kendaraan',          'left')
-            ->join('tipe_kendaraan t', 't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
+            ->join('users u',            'u.id_user = pu.id_pemohon',                 'left')
+            ->join('kendaraan k',        'k.id_kendaraan = pu.id_kendaraan',          'left')
+            ->join('tipe_kendaraan t',   't.id_tipe_kendaraan = k.id_tipe_kendaraan', 'left')
+            ->join('sticker_release sr', 'sr.id_pengajuan = pu.id_pengajuan',         'left')
             ->where('pu.id_pengajuan', $id_pengajuan)
+            ->order_by('sr.id_sticker', 'DESC')
+            ->limit(1)
             ->get()->row();
     }
 
@@ -984,7 +1101,7 @@ class Sikuk_email
     private function _smtp_config()
     {
         $host   = $this->CI->config->item('sikuk_smtp_host') ?: 'sandbox.smtp.mailtrap.io';
-        $port   = (int) ($this->CI->config->item('sikuk_smtp_port') ?: 2525);
+        $port   = (int) ($this->CI->config->item('sikuk_smtp_port') ?: 587);
         $crypto = $this->CI->config->item('sikuk_smtp_crypto') ?: 'tls';
         $user   = $this->CI->config->item('sikuk_smtp_user') ?: '0fa65495e8adf3';
         $pass   = $this->CI->config->item('sikuk_smtp_pass') ?: '7fd7e3deb40950';
@@ -1000,7 +1117,7 @@ class Sikuk_email
             'smtp_pass'        => $pass,
             'smtp_crypto'      => $crypto,
             'smtp_timeout'     => 60,
-            'smtp_keepalive'   => true,
+            'smtp_keepalive'   => false,
             'mailtype'         => 'html',
             'charset'          => 'utf-8',
             'newline'          => "\r\n",
@@ -1011,6 +1128,7 @@ class Sikuk_email
 
     /**
      * Eksekusi pengiriman email melalui CI Email Library
+     * Dilengkapi pembersihan state koneksi dan auto-retry untuk menangani rate-limit SMTP
      *
      * @param string|array $to
      * @param string $subject
@@ -1022,20 +1140,31 @@ class Sikuk_email
     {
         if (empty($to)) return false;
 
-        $this->_init_smtp();
-
         $from_email = $this->from_email ?: ($this->CI->config->item('sikuk_email_from') ?: 'notifications@tactic.id');
         $from_name  = $this->from_name  ?: ($this->CI->config->item('sikuk_email_name') ?: 'TACTIC Commissioning System');
 
-        $this->CI->email->from($from_email, $from_name);
-        $this->CI->email->to($to);
-        if (!empty($reply_to)) {
-            $this->CI->email->reply_to($reply_to);
-        }
-        $this->CI->email->subject($subject);
-        $this->CI->email->message($html_body);
+        $sent = false;
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $this->CI->email->clear(true);
+            $this->_init_smtp();
 
-        $sent = @$this->CI->email->send();
+            $this->CI->email->from($from_email, $from_name);
+            $this->CI->email->to($to);
+            if (!empty($reply_to)) {
+                $this->CI->email->reply_to($reply_to);
+            }
+            $this->CI->email->subject($subject);
+            $this->CI->email->message($html_body);
+
+            $sent = @$this->CI->email->send();
+            if ($sent) {
+                break;
+            }
+
+            // Jika terkena batas frekuensi kirim (rate-limit Mailtrap/SMTP), jeda 2 detik lalu ulangi
+            sleep(2);
+        }
+
         if (!$sent) {
             log_message('error', '[Sikuk_email] Gagal kirim email ke: ' . (is_array($to) ? implode(',', $to) : $to) . ' | Subjek: ' . $subject);
         }

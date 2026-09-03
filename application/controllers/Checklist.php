@@ -654,9 +654,10 @@ class Checklist extends CI_Controller
                 $this->load->library('sikuk_email');
                 if ($summary['lulus']) {
                     $this->sikuk_email->notif_selesai_inspeksi($id_pengajuan);
-                    $this->sikuk_email->notif_progress($id_pengajuan, 'Lulus Inspeksi — Menunggu Review Admin OHS');
+                    $this->sikuk_email->notif_progress($id_pengajuan, 'Lulus Inspeksi — Menunggu Review OHS Superintendent');
                 } else {
-                    $this->sikuk_email->notif_ditolak_admin_ohs_ke_manager($id_pengajuan, 'Hasil inspeksi kelayakan menyatakan unit TIDAK LULUS.');
+                    $detail_fail = 'Terdapat ' . ($summary['critical_no'] ?? 0) . ' item CRITICAL dan ' . ($summary['general_no'] ?? 0) . ' item GENERAL yang belum memenuhi standar kelayakan.';
+                    $this->sikuk_email->notif_tidak_lulus_inspeksi($id_pengajuan, $detail_fail);
                 }
             } catch (Throwable $e) {
                 log_message('error', '[Checklist Submit Email] Exception: ' . $e->getMessage());

@@ -801,6 +801,20 @@ class Perbaikan extends CI_Controller
             return;
         }
 
+        // Kirim notifikasi email ke Pemohon
+        if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            try {
+                $this->load->library('sikuk_email');
+                if ($aksi === 'acc') {
+                    $this->sikuk_email->notif_verifikasi_perbaikan_acc($id_pengajuan, $catatan);
+                } else {
+                    $this->sikuk_email->notif_verifikasi_perbaikan_tolak($id_pengajuan, $catatan);
+                }
+            } catch (Throwable $e) {
+                log_message('error', '[Perbaikan acc_verifikasi Email] Exception: ' . $e->getMessage());
+            }
+        }
+
         $no = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
 
         if ($aksi === 'acc') {

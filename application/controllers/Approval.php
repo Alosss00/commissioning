@@ -1046,7 +1046,7 @@ class Approval extends CI_Controller
                             $this->sikuk_email->notif_dikembalikan_ke_admin_ohs($id_pengajuan, 'KTT', $catatan);
                             break;
                         case 'verif_perbaikan':
-                            $this->sikuk_email->notif_ditolak_manager($id_pengajuan, $catatan);
+                            $this->sikuk_email->notif_verifikasi_perbaikan_tolak($id_pengajuan, $catatan);
                             break;
                     }
                 } elseif ($aksi === 'approve') {
@@ -1070,7 +1070,8 @@ class Approval extends CI_Controller
                             $this->sikuk_email->notif_stiker_keluar($id_pengajuan);
                             break;
                         case 'verif_perbaikan':
-                            $this->sikuk_email->notif_progress($id_pengajuan, 'Verifikasi Perbaikan Diterima — Siap Pengujian Ulang');
+                            $this->sikuk_email->notif_verifikasi_perbaikan_acc($id_pengajuan, $catatan);
+                            $this->sikuk_email->notif_siap_inspeksi_ulang($id_pengajuan);
                             break;
                     }
                 }

@@ -558,7 +558,7 @@ if (file_exists(APPPATH . 'config/email_env.php')) {
     $config['sikuk_email_from']   = 'notifications@tactic.id';
     $config['sikuk_email_name']   = 'TACTIC Commissioning System';
     $config['sikuk_smtp_host']     = 'sandbox.smtp.mailtrap.io';
-    $config['sikuk_smtp_port']     = 2525;
+    $config['sikuk_smtp_port']     = 587;
     $config['sikuk_smtp_crypto']   = 'tls';
     $config['sikuk_smtp_user']     = '0fa65495e8adf3';
     $config['sikuk_smtp_pass']     = '7fd7e3deb40950';

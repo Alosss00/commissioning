@@ -301,6 +301,19 @@ class Jadwal extends CI_Controller
         $this->db->trans_complete();
 
         if ($this->db->trans_status()) {
+            // Kirim notifikasi email ke Pemohon dan Inspektor
+            if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+                try {
+                    $this->load->library('sikuk_email');
+                    $ins = $this->db->select('nama')->where('id_user', $id_inspektor)->get('users')->row();
+                    $nama_inspektor = $ins ? $ins->nama : 'Tim Inspektor OHS';
+                    $this->sikuk_email->notif_dijadwalkan($id_pengajuan, $tanggal_uji, $lokasi, $nama_inspektor);
+                    $this->sikuk_email->notif_jadwal_mekanik($id_pengajuan, $id_inspektor, $tanggal_uji, $lokasi);
+                } catch (Throwable $e) {
+                    log_message('error', '[Jadwal Simpan Email] Exception: ' . $e->getMessage());
+                }
+            }
+
             if ($is_ajax) {
                 echo json_encode([
                     'status'   => 'success',

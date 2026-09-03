@@ -304,6 +304,7 @@ class Pengajuan extends CI_Controller
             $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
                 'id_kendaraan'      => $id_kendaraan,
                 'id_pemohon'        => $id_user,
+                'email_pemohon'     => $this->session->userdata('email') ?: null,
                 'tipe_pengajuan'    => $tipe_pengajuan,
                 'tipe_akses'        => $tipe_akses ?: null,
                 'tujuan'            => $tujuan ?: null,
@@ -399,6 +400,7 @@ class Pengajuan extends CI_Controller
         $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
             'id_kendaraan'      => $id_kendaraan,
             'id_pemohon'        => $id_user,
+            'email_pemohon'     => $this->session->userdata('email') ?: null,
             'tipe_pengajuan'    => 'baru',
             'tipe_akses'        => $tipe_akses ?: null,
             'tujuan'            => $tujuan ?: null,
