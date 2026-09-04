@@ -445,6 +445,15 @@
                     var isDraft = (a.status === 'draft');
                     var isSubmitted = (a.status === 'submitted' || (a.level_approval === 'draft' && a.status !== 'draft'));
                     
+                    var hasNextAction = false;
+                    for (var k = i + 1; k < approvalList.length; k++) {
+                        var ns = approvalList[k].status;
+                        if (ns === 'approved' || ns === 'setuju' || ns === 'submitted' || ns === 'revoked' || ns === 'rejected' || ns === 'tolak') {
+                            hasNextAction = true;
+                            break;
+                        }
+                    }
+
                     var ac = 'secondary';
                     var al = 'Pending';
                     var lvlName = levelLabel[a.level_approval] || a.level_approval;
@@ -454,8 +463,8 @@
                         al = 'Stiker Dicabut';
                         lvlName = 'Admin OHS (Pencabutan Stiker)';
                     } else if (isDraft) {
-                        ac = 'secondary';
-                        al = 'Draft';
+                        ac = hasNextAction ? 'success' : 'secondary';
+                        al = hasNextAction ? 'Diajukan' : 'Draft';
                         lvlName = 'Draft Pengajuan';
                     } else if (isSubmitted) {
                         ac = 'primary';
@@ -467,6 +476,14 @@
                     } else if (a.status === 'rejected' || a.status === 'tolak') {
                         ac = 'danger';
                         al = 'Ditolak';
+                    } else if (a.status === 'pending') {
+                        if (hasNextAction) {
+                            ac = 'success';
+                            al = 'Selesai';
+                        } else {
+                            ac = 'warning text-dark';
+                            al = 'Menunggu Approval';
+                        }
                     }
 
                     approvalHtml += '<tr><td><span class="badge bg-light text-dark border">' + lvlName + '</span></td><td>' + (a.nama_approver || '<em class="text-muted small">Belum ditentukan</em>') + '</td><td><span class="badge bg-' + ac + '">' + al + '</span></td><td class="text-muted small">' + (a.created_at ? a.created_at.substr(0, 16) : '—') + '</td><td class="text-muted small">' + valOrDash(a.catatan) + '</td></tr>';

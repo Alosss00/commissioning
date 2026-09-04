@@ -519,18 +519,28 @@
                                             'admin'             => 'Admin OHS',
                                             'ohs'               => 'OHS Superintendent',
                                         ];
-                                        foreach ($riwayat as $r):
+                                        $total_riwayat = count($riwayat);
+                                        foreach ($riwayat as $idx => $r):
                                             $is_pencabutan = ($r->status === 'revoked' || $r->status === 'dicabut' || in_array($r->level_approval, ['cabut_stiker', 'pencabutan_stiker']) || (isset($r->catatan) && strpos($r->catatan, '[EKSEKUSI PENCABUTAN STIKER]') !== false));
                                             $is_draft      = ($r->status === 'draft');
                                             $is_submitted  = ($r->status === 'submitted' || ($r->level_approval === 'draft' && $r->status !== 'draft'));
+
+                                            $has_next_action = false;
+                                            for ($k = $idx + 1; $k < $total_riwayat; $k++) {
+                                                $ns = $riwayat[$k]->status;
+                                                if (in_array($ns, ['approved', 'setuju', 'submitted', 'revoked', 'rejected', 'tolak'])) {
+                                                    $has_next_action = true;
+                                                    break;
+                                                }
+                                            }
 
                                             if ($is_pencabutan) {
                                                 $icon = 'bi-slash-circle-fill text-danger';
                                                 $status_badge = '<span class="text-danger fw-semibold">Stiker Dicabut</span>';
                                                 $level_title = 'Admin OHS (Pencabutan Stiker)';
                                             } elseif ($is_draft) {
-                                                $icon = 'bi-pencil-square text-secondary';
-                                                $status_badge = '<span class="text-secondary fw-semibold">Draft</span>';
+                                                $icon = $has_next_action ? 'bi-check-circle-fill text-success' : 'bi-pencil-square text-secondary';
+                                                $status_badge = $has_next_action ? '<span class="text-success fw-semibold">Diajukan</span>' : '<span class="text-secondary fw-semibold">Draft</span>';
                                                 $level_title = 'Draft Pengajuan';
                                             } elseif ($is_submitted) {
                                                 $icon = 'bi-send-check-fill text-primary';
@@ -543,6 +553,15 @@
                                             } elseif ($r->status === 'rejected' || $r->status === 'tolak') {
                                                 $icon = 'bi-x-circle-fill text-danger';
                                                 $status_badge = '<span class="text-danger fw-semibold">Ditolak</span>';
+                                                $level_title = $level_label_map[$r->level_approval] ?? $r->level_approval;
+                                            } elseif ($r->status === 'pending') {
+                                                if ($has_next_action) {
+                                                    $icon = 'bi-check-circle-fill text-success';
+                                                    $status_badge = '<span class="text-success fw-semibold">Selesai</span>';
+                                                } else {
+                                                    $icon = 'bi-clock-fill text-warning';
+                                                    $status_badge = '<span class="text-warning fw-semibold">Menunggu Approval</span>';
+                                                }
                                                 $level_title = $level_label_map[$r->level_approval] ?? $r->level_approval;
                                             } else {
                                                 $icon = 'bi-clock-fill text-secondary';
