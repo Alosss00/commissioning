@@ -33,7 +33,7 @@ class Jadwal extends CI_Controller
         }
 
         $roles = $this->_user_roles();
-        if (!$this->_has_role([1, 5, 8], $roles)) {
+        if (!$this->_has_role([1, 4, 5, 8], $roles)) {
             $this->session->set_flashdata('error', 'Anda tidak memiliki akses ke halaman ini.');
             redirect('dashboard');
         }
@@ -112,6 +112,13 @@ class Jadwal extends CI_Controller
      */
     public function create($id_pengajuan = null)
     {
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5, 8], $roles)) {
+            $this->session->set_flashdata('error', 'Inspektor hanya memiliki hak akses melihat jadwal (read-only).');
+            redirect('jadwal');
+            return;
+        }
+
         $id_pengajuan = (int) $id_pengajuan;
         $pengajuan    = $this->pengajuan_model->get_detail($id_pengajuan);
 
@@ -149,6 +156,13 @@ class Jadwal extends CI_Controller
      */
     public function edit($id_jadwal = null)
     {
+        $roles = $this->_user_roles();
+        if (!$this->_has_role([1, 5, 8], $roles)) {
+            $this->session->set_flashdata('error', 'Inspektor hanya memiliki hak akses melihat jadwal (read-only).');
+            redirect('jadwal');
+            return;
+        }
+
         $id_jadwal = (int) $id_jadwal;
         $existing  = $this->jadwal_model->get_by_id($id_jadwal);
 
@@ -193,7 +207,23 @@ class Jadwal extends CI_Controller
      */
     public function store()
     {
-        $is_ajax            = $this->input->is_ajax_request() || isset($_SERVER['HTTP_X_REQUESTED_WITH']);
+        $is_ajax = $this->input->is_ajax_request() || isset($_SERVER['HTTP_X_REQUESTED_WITH']);
+        $roles   = $this->_user_roles();
+
+        if (!$this->_has_role([1, 5, 8], $roles)) {
+            if ($is_ajax) {
+                echo json_encode([
+                    'status'   => 'error', 
+                    'message'  => 'Inspektor hanya memiliki hak akses melihat jadwal (read-only).',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
+                return;
+            }
+            $this->session->set_flashdata('error', 'Inspektor hanya memiliki hak akses melihat jadwal (read-only).');
+            redirect('jadwal');
+            return;
+        }
+
         $id_pengajuan       = (int) $this->input->post('id_pengajuan');
         $id_jadwal          = (int) $this->input->post('id_jadwal');
         $tanggal_uji        = trim((string) $this->input->post('tanggal_uji'));
@@ -391,16 +421,25 @@ class Jadwal extends CI_Controller
     /**
      * Endpoint AJAX Detail Jadwal.
      * 
+     * @param int|null $id ID Jadwal opsional
      * @return void Response JSON
      */
-    public function detail()
+    public function detail($id = null)
     {
-        $id = (int) ($this->input->get('id') ?: $this->input->post('id'));
+        $id = (int) ($id ?: $this->input->post('id_jadwal') ?: $this->input->get('id_jadwal') ?: $this->input->post('id') ?: $this->input->get('id'));
         $jadwal = $this->jadwal_model->get_by_id($id);
         if ($jadwal) {
-            echo json_encode(['status' => 'success', 'data' => $jadwal]);
+            echo json_encode([
+                'status'   => 'success', 
+                'data'     => $jadwal,
+                'csrfHash' => $this->security->get_csrf_hash()
+            ]);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Jadwal tidak ditemukan.']);
+            echo json_encode([
+                'status'   => 'error', 
+                'message'  => 'Jadwal tidak ditemukan.',
+                'csrfHash' => $this->security->get_csrf_hash()
+            ]);
         }
     }
 
@@ -408,16 +447,49 @@ class Jadwal extends CI_Controller
      * Endpoint Pembatalan Jadwal Inspeksi (Cancel).
      * 
      * @param int|null $id ID Jadwal
-     * @return void Redirect ke halaman jadwal
+     * @return void Redirect ke halaman jadwal atau JSON response
      */
     public function cancel($id = null)
     {
-        $id = (int) $id;
+        $is_ajax = $this->input->is_ajax_request() || isset($_SERVER['HTTP_X_REQUESTED_WITH']);
+        $roles   = $this->_user_roles();
+
+        if (!$this->_has_role([1, 5, 8], $roles)) {
+            if ($is_ajax) {
+                echo json_encode([
+                    'status'   => 'error',
+                    'message'  => 'Inspektor hanya memiliki hak akses melihat jadwal (read-only).',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
+                return;
+            }
+            $this->session->set_flashdata('error', 'Inspektor hanya memiliki hak akses melihat jadwal (read-only).');
+            redirect('jadwal');
+            return;
+        }
+
+        $id = (int) ($id ?: $this->input->post('id_jadwal') ?: $this->input->post('id') ?: $this->input->get('id_jadwal') ?: $this->input->get('id'));
         $ok = $this->jadwal_model->cancel($id);
 
         if ($ok) {
+            if ($is_ajax) {
+                echo json_encode([
+                    'status'   => 'success',
+                    'message'  => 'Jadwal inspeksi berhasil dibatalkan.',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
+                return;
+            }
             $this->session->set_flashdata('success', 'Jadwal inspeksi berhasil dibatalkan.');
         } else {
+            if ($is_ajax) {
+                echo json_encode([
+                    'status'   => 'error',
+                    'message'  => 'Gagal membatalkan jadwal.',
+                    'csrfHash' => $this->security->get_csrf_hash()
+                ]);
+                return;
+            }
             $this->session->set_flashdata('error', 'Gagal membatalkan jadwal.');
         }
         redirect('jadwal');

@@ -498,33 +498,65 @@
                                     <div class="timeline-approval">
                                         <?php
                                         $level_label_map = [
-                                            'dept_manager'    => 'Dept Manager',
-                                            'admin_ohs'       => 'Admin OHS (Verifikasi Dokumen)',
-                                            'admin_ohs_hasil' => 'Admin OHS (Review Hasil)',
-                                            'ohs_supt'        => 'OHS Superintendent',
-                                            'ktt'             => 'KTT',
-                                            'release_stiker'  => 'Penerbitan Stiker',
-                                            'inspeksi_verif'  => 'Inspektor (Verifikasi Perbaikan)',
-                                            'manager'         => 'Manager',
-                                            'admin'           => 'Admin OHS',
-                                            'ohs'             => 'OHS Superintendent',
+                                            'draft'             => 'Pengajuan Baru',
+                                            'dept_manager'      => 'Dept Manager',
+                                            'dept_manage'       => 'Dept Manager',
+                                            'admin_ohs'         => 'Admin OHS',
+                                            'admin_ohs_hasil'   => 'Admin OHS (Review Hasil)',
+                                            'ohs_supt'          => 'OHS Superintendent',
+                                            'ktt'               => 'KTT',
+                                            'release_stiker'    => 'Penerbitan Stiker',
+                                            'release_sti'       => 'Penerbitan Stiker',
+                                            'perbaikan_unit'    => 'Perbaikan Unit',
+                                            'perbaikan_u'       => 'Perbaikan Unit',
+                                            'verif_perbaikan'   => 'Verifikasi Perbaikan',
+                                            'verif_perba'       => 'Verifikasi Perbaikan',
+                                            'inspeksi_verif'    => 'Inspektor (Verifikasi Perbaikan)',
+                                            'inspeksi_ve'       => 'Inspektor (Verifikasi Perbaikan)',
+                                            'cabut_stiker'      => 'Admin OHS (Pencabutan Stiker)',
+                                            'pencabutan_stiker' => 'Admin OHS (Pencabutan Stiker)',
+                                            'manager'           => 'Manager',
+                                            'admin'             => 'Admin OHS',
+                                            'ohs'               => 'OHS Superintendent',
                                         ];
                                         foreach ($riwayat as $r):
-                                            $icon = $r->status === 'approved'
-                                                ? 'bi-check-circle-fill text-success'
-                                                : ($r->status === 'rejected' ? 'bi-x-circle-fill text-danger' : 'bi-clock-fill text-warning');
+                                            $is_pencabutan = ($r->status === 'revoked' || $r->status === 'dicabut' || in_array($r->level_approval, ['cabut_stiker', 'pencabutan_stiker']) || (isset($r->catatan) && strpos($r->catatan, '[EKSEKUSI PENCABUTAN STIKER]') !== false));
+                                            $is_draft      = ($r->status === 'draft');
+                                            $is_submitted  = ($r->status === 'submitted' || ($r->level_approval === 'draft' && $r->status !== 'draft'));
+
+                                            if ($is_pencabutan) {
+                                                $icon = 'bi-slash-circle-fill text-danger';
+                                                $status_badge = '<span class="text-danger fw-semibold">Stiker Dicabut</span>';
+                                                $level_title = 'Admin OHS (Pencabutan Stiker)';
+                                            } elseif ($is_draft) {
+                                                $icon = 'bi-pencil-square text-secondary';
+                                                $status_badge = '<span class="text-secondary fw-semibold">Draft</span>';
+                                                $level_title = 'Draft Pengajuan';
+                                            } elseif ($is_submitted) {
+                                                $icon = 'bi-send-check-fill text-primary';
+                                                $status_badge = '<span class="text-primary fw-semibold">Diajukan</span>';
+                                                $level_title = 'Pengajuan Baru';
+                                            } elseif ($r->status === 'approved' || $r->status === 'setuju') {
+                                                $icon = 'bi-check-circle-fill text-success';
+                                                $status_badge = '<span class="text-success fw-semibold">Disetujui</span>';
+                                                $level_title = $level_label_map[$r->level_approval] ?? $r->level_approval;
+                                            } elseif ($r->status === 'rejected' || $r->status === 'tolak') {
+                                                $icon = 'bi-x-circle-fill text-danger';
+                                                $status_badge = '<span class="text-danger fw-semibold">Ditolak</span>';
+                                                $level_title = $level_label_map[$r->level_approval] ?? $r->level_approval;
+                                            } else {
+                                                $icon = 'bi-clock-fill text-secondary';
+                                                $status_badge = '<span class="text-secondary fw-semibold">Pending</span>';
+                                                $level_title = $level_label_map[$r->level_approval] ?? $r->level_approval;
+                                            }
                                         ?>
                                             <div class="d-flex gap-3 mb-3">
                                                 <div class="pt-1"><i class="bi <?= $icon ?> fs-5"></i></div>
                                                 <div class="flex-grow-1">
                                                     <div class="fw-semibold small">
-                                                        <?= $level_label_map[$r->level_approval] ?? $r->level_approval ?>
+                                                        <?= $level_title ?>
                                                         —
-                                                        <?php
-                                                        if ($r->status === 'approved')      echo '<span class="text-success">Disetujui</span>';
-                                                        elseif ($r->status === 'rejected')  echo '<span class="text-danger">Ditolak</span>';
-                                                        else                                 echo '<span class="text-warning">Menunggu</span>';
-                                                        ?>
+                                                        <?= $status_badge ?>
                                                     </div>
                                                     <?php if ($r->nama_approver): ?>
                                                         <small class="text-muted">oleh <?= html_escape($r->nama_approver) ?></small>

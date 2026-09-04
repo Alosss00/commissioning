@@ -18,9 +18,9 @@
                         <!-- Toolbar -->
                         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
                             <div class="d-flex gap-2 align-items-center">
-                                <div class="input-group input-group-sm" style="width:220px;">
+                                <div class="input-group input-group-sm" style="width:230px;">
                                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control" id="searchUser" placeholder="Cari nama/username/email...">
+                                    <input type="text" class="form-control" id="searchUser" placeholder="Cari nama/username/dept...">
                                 </div>
                                 <select class="form-select form-select-sm" id="filterStatus" style="width:130px;">
                                     <option value="">Semua Status</option>
@@ -41,7 +41,7 @@
                                         <th style="width:50px;"></th>
                                         <th>Nama / Username</th>
                                         <th>Email</th>
-                                        <th>Jabatan</th>
+                                        <th>Departemen / Perusahaan</th>
                                         <th>Role</th>
                                         <th>Status</th>
                                         <th class="text-center">Aksi</th>
@@ -240,7 +240,7 @@
                             '<td class="text-center">' + r.foto + '</td>' +
                             '<td>' + r.nama + '</td>' +
                             '<td class="small">' + r.email + '</td>' +
-                            '<td class="small">' + r.jabatan + '</td>' +
+                            '<td class="small">' + (r.departemen || '-') + '</td>' +
                             '<td>' + r.roles + '</td>' +
                             '<td>' + r.status + '</td>' +
                             '<td class="text-center">' + r.aksi + '</td>' +

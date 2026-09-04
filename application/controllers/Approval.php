@@ -960,8 +960,8 @@ class Approval extends CI_Controller
         $this->db->insert('pengajuan_approval', [
             'id_pengajuan'   => $c->id_pengajuan,
             'id_approver'    => $id_admin_ohs,
-            'level_approval' => 'admin_ohs',
-            'status'         => 'rejected',
+            'level_approval' => 'cabut_stiker',
+            'status'         => 'revoked',
             'catatan'        => '[EKSEKUSI PENCABUTAN STIKER] ' . $c->alasan,
             'created_at'     => date('Y-m-d H:i:s'),
         ]);

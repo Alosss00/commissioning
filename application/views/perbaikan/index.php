@@ -412,18 +412,64 @@
 
             // ── Riwayat Approval ──────────────────────────────────────────
             var levelLabel = {
+                draft: 'Pengajuan Baru',
                 dept_manager: 'Dept Manager',
+                dept_manage: 'Dept Manager',
                 admin_ohs: 'Admin OHS',
+                admin_ohs_hasil: 'Admin OHS (Review Hasil)',
+                admin_ohs_h: 'Admin OHS (Review Hasil)',
                 ohs_supt: 'OHS Superintendent',
+                ohs: 'OHS Superintendent',
                 ktt: 'KTT',
+                release_stiker: 'Release Stiker',
+                release_sti: 'Release Stiker',
                 perbaikan_unit: 'Perbaikan Unit',
+                perbaikan_u: 'Perbaikan Unit',
+                verif_perbaikan: 'Verifikasi Perbaikan',
+                verif_perba: 'Verifikasi Perbaikan',
+                inspeksi_verif: 'Verifikasi Perbaikan',
+                inspeksi_ve: 'Verifikasi Perbaikan',
+                cabut_stiker: 'Admin OHS (Pencabutan Stiker)',
+                pencabutan_stiker: 'Admin OHS (Pencabutan Stiker)',
+                resubmit_admin_dept: 'Resubmit Admin Dept',
+                resubmit_ad: 'Resubmit Admin Dept',
+                edit_admin_dept: 'Edit Admin Dept',
+                edit_admin_: 'Edit Admin Dept',
+                manager: 'Dept Manager',
+                admin: 'Admin OHS'
             };
             var approvalHtml = '';
             if (approvalList && approvalList.length > 0) {
                 $.each(approvalList, function(i, a) {
-                    var ac = a.status === 'approved' ? 'success' : (a.status === 'rejected' ? 'danger' : 'secondary');
-                    var al = a.status === 'approved' ? 'Disetujui' : (a.status === 'rejected' ? 'Ditolak' : 'Pending');
-                    approvalHtml += '<tr><td><span class="badge bg-light text-dark border">' + (levelLabel[a.level_approval] || a.level_approval) + '</span></td><td>' + (a.nama_approver || '<em class="text-muted small">Belum ditentukan</em>') + '</td><td><span class="badge bg-' + ac + '">' + al + '</span></td><td class="text-muted small">' + (a.created_at ? a.created_at.substr(0, 16) : '—') + '</td><td class="text-muted small">' + valOrDash(a.catatan) + '</td></tr>';
+                    var isPencabutan = (a.status === 'revoked' || a.status === 'dicabut' || a.level_approval === 'cabut_stiker' || a.level_approval === 'pencabutan_stiker' || (a.catatan && a.catatan.indexOf('[EKSEKUSI PENCABUTAN STIKER]') !== -1));
+                    var isDraft = (a.status === 'draft');
+                    var isSubmitted = (a.status === 'submitted' || (a.level_approval === 'draft' && a.status !== 'draft'));
+                    
+                    var ac = 'secondary';
+                    var al = 'Pending';
+                    var lvlName = levelLabel[a.level_approval] || a.level_approval;
+
+                    if (isPencabutan) {
+                        ac = 'danger';
+                        al = 'Stiker Dicabut';
+                        lvlName = 'Admin OHS (Pencabutan Stiker)';
+                    } else if (isDraft) {
+                        ac = 'secondary';
+                        al = 'Draft';
+                        lvlName = 'Draft Pengajuan';
+                    } else if (isSubmitted) {
+                        ac = 'primary';
+                        al = 'Diajukan';
+                        lvlName = 'Pengajuan Baru';
+                    } else if (a.status === 'approved' || a.status === 'setuju') {
+                        ac = 'success';
+                        al = 'Disetujui';
+                    } else if (a.status === 'rejected' || a.status === 'tolak') {
+                        ac = 'danger';
+                        al = 'Ditolak';
+                    }
+
+                    approvalHtml += '<tr><td><span class="badge bg-light text-dark border">' + lvlName + '</span></td><td>' + (a.nama_approver || '<em class="text-muted small">Belum ditentukan</em>') + '</td><td><span class="badge bg-' + ac + '">' + al + '</span></td><td class="text-muted small">' + (a.created_at ? a.created_at.substr(0, 16) : '—') + '</td><td class="text-muted small">' + valOrDash(a.catatan) + '</td></tr>';
                 });
             } else {
                 approvalHtml = '<tr><td colspan="5" class="text-center text-muted py-3">Belum ada data approval.</td></tr>';

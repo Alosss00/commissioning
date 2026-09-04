@@ -279,6 +279,7 @@ class Pengajuan extends CI_Controller
         }
 
         $mode_unit = $this->input->post('mode_unit');
+        $is_draft  = (int) $this->input->post('is_draft');
 
         if ($mode_unit === 'lama') {
             // Mode Unit Lama (Recommissioning)
@@ -288,7 +289,7 @@ class Pengajuan extends CI_Controller
             $tipe_pengajuan = trim($this->input->post('tipe_pengajuan_lama') ?: 'recommissioning');
 
             if (!$id_kendaraan) {
-                echo json_encode($response('error', 'Pilih kendaraan yang akan diajukan ulang.'));
+                echo json_encode($response('error', 'Pilih kendaraan yang akan diajukan.'));
                 return;
             }
 
@@ -297,6 +298,12 @@ class Pengajuan extends CI_Controller
                 echo json_encode($response('error', 'Data kendaraan tidak ditemukan.'));
                 return;
             }
+
+            $status_pengajuan = ($is_draft === 1) ? 'draft' : 'pengajuan_baru';
+            $log_status       = ($is_draft === 1) ? 'draft' : 'submitted';
+            $log_catatan      = ($is_draft === 1)
+                ? 'Draft pengajuan uji kelayakan unit lama (' . ($k->no_polisi ?: 'N/A') . ') disimpan oleh Admin Dept'
+                : 'Pengajuan uji kelayakan unit lama (' . $k->no_polisi . ') disubmit oleh Admin Dept';
 
             $this->db->trans_start();
 
@@ -308,7 +315,7 @@ class Pengajuan extends CI_Controller
                 'tipe_pengajuan'    => $tipe_pengajuan,
                 'tipe_akses'        => $tipe_akses ?: null,
                 'tujuan'            => $tujuan ?: null,
-                'status'            => 'pengajuan_baru',
+                'status'            => $status_pengajuan,
                 'tanggal_pengajuan' => date('Y-m-d H:i:s'),
             ]);
 
@@ -317,8 +324,8 @@ class Pengajuan extends CI_Controller
                 'id_pengajuan'   => $id_pengajuan,
                 'id_approver'    => $id_user,
                 'level_approval' => 'draft',
-                'status'         => 'submitted',
-                'catatan'        => 'Pengajuan uji kelayakan unit lama (' . $k->no_polisi . ') disubmit oleh Admin Dept',
+                'status'         => $log_status,
+                'catatan'        => $log_catatan,
                 'created_at'     => date('Y-m-d H:i:s'),
             ]);
 
@@ -337,7 +344,7 @@ class Pengajuan extends CI_Controller
             $this->db->trans_complete();
 
             if ($this->db->trans_status()) {
-                if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+                if ($is_draft !== 1 && file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
                     try {
                         $this->load->library('sikuk_email');
                         $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
@@ -345,7 +352,9 @@ class Pengajuan extends CI_Controller
                         log_message('error', '[Pengajuan Store] Exception email: ' . $e->getMessage());
                     }
                 }
-                $msg = 'Pengajuan uji kelayakan unit lama berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
+                $msg = ($is_draft === 1)
+                    ? 'Draft pengajuan unit lama berhasil disimpan (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').'
+                    : 'Pengajuan uji kelayakan unit lama berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
                 if (!empty($upload_errs)) {
                     $msg .= ' Namun ada catatan upload: ' . implode(', ', $upload_errs);
                 }
@@ -369,9 +378,20 @@ class Pengajuan extends CI_Controller
         $tujuan        = trim((string) $this->input->post('tujuan'));
         $is_unit_baru  = (int) $this->input->post('is_unit_baru');
 
-        if (!$nomor_unit || !$id_tipe || !$merk || !$perusahaan) {
-            echo json_encode($response('error', 'Nomor Unit, Tipe Kendaraan, Merk, dan Perusahaan wajib diisi.'));
-            return;
+        if ($is_draft === 1) {
+            // Relaksasi validasi untuk draft: minimal ada nomor_unit atau id_tipe atau merk
+            if (!$nomor_unit && !$id_tipe && !$merk) {
+                echo json_encode($response('error', 'Setidaknya isi Nomor Unit, Tipe Unit, atau Merk untuk menyimpan draft.'));
+                return;
+            }
+            if (!$nomor_unit) {
+                $nomor_unit = 'DRAFT-' . strtoupper(substr(uniqid(), -6));
+            }
+        } else {
+            if (!$nomor_unit || !$id_tipe || !$merk || !$perusahaan) {
+                echo json_encode($response('error', 'Nomor Unit, Tipe Kendaraan, Merk, dan Perusahaan wajib diisi.'));
+                return;
+            }
         }
 
         // Cek duplikasi nomor unit
@@ -387,14 +407,20 @@ class Pengajuan extends CI_Controller
             'no_polisi'         => $no_polisi ?: $nomor_unit,
             'nomor_unit'        => $nomor_unit,
             'model_unit'        => $model_unit ?: null,
-            'id_tipe_kendaraan' => $id_tipe,
-            'merk'              => $merk,
+            'id_tipe_kendaraan' => $id_tipe ?: 1,
+            'merk'              => $merk ?: 'Draft',
             'tipe'              => $tipe ?: null,
             'tahun'             => $tahun ?: null,
-            'perusahaan'        => $perusahaan,
+            'perusahaan'        => $perusahaan ?: ($this->session->userdata('departemen') ?: 'MSM/TTN'),
             'is_unit_baru'      => $is_unit_baru,
             'created_at'        => date('Y-m-d H:i:s'),
         ]);
+
+        $status_pengajuan = ($is_draft === 1) ? 'draft' : 'pengajuan_baru';
+        $log_status       = ($is_draft === 1) ? 'draft' : 'submitted';
+        $log_catatan      = ($is_draft === 1)
+            ? 'Draft pengajuan baru (' . $nomor_unit . ') disimpan oleh Admin Dept'
+            : 'Pengajuan baru disubmit oleh Admin Dept';
 
         // Insert record pengajuan_uji
         $id_pengajuan = $this->pengajuan_model->insert_pengajuan([
@@ -404,7 +430,7 @@ class Pengajuan extends CI_Controller
             'tipe_pengajuan'    => 'baru',
             'tipe_akses'        => $tipe_akses ?: null,
             'tujuan'            => $tujuan ?: null,
-            'status'            => 'pengajuan_baru',
+            'status'            => $status_pengajuan,
             'tanggal_pengajuan' => date('Y-m-d H:i:s'),
         ]);
 
@@ -413,8 +439,8 @@ class Pengajuan extends CI_Controller
             'id_pengajuan'   => $id_pengajuan,
             'id_approver'    => $id_user,
             'level_approval' => 'draft',
-            'status'         => 'submitted',
-            'catatan'        => 'Pengajuan baru disubmit oleh Admin Dept',
+            'status'         => $log_status,
+            'catatan'        => $log_catatan,
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
@@ -425,7 +451,7 @@ class Pengajuan extends CI_Controller
         $this->db->trans_complete();
 
         if ($this->db->trans_status()) {
-            if (file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+            if ($is_draft !== 1 && file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
                 try {
                     $this->load->library('sikuk_email');
                     $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
@@ -433,7 +459,9 @@ class Pengajuan extends CI_Controller
                     log_message('error', '[Pengajuan Store] Exception email: ' . $e->getMessage());
                 }
             }
-            $msg = 'Pengajuan uji kelayakan unit baru berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
+            $msg = ($is_draft === 1)
+                ? 'Draft pengajuan unit baru berhasil disimpan (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').'
+                : 'Pengajuan uji kelayakan unit baru berhasil dibuat (No. Pengajuan #' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT) . ').';
             if (!empty($upload_errors)) {
                 $msg .= ' Catatan upload: ' . implode(', ', $upload_errors);
             }
@@ -724,6 +752,13 @@ class Pengajuan extends CI_Controller
             return;
         }
 
+        $is_draft = (int) $this->input->post('is_draft');
+        $new_status = ($is_draft === 1 && $pengajuan->status === 'draft') ? 'draft' : 'pengajuan_baru';
+        $log_status = ($new_status === 'draft') ? 'draft' : 'submitted';
+        $log_catatan = ($new_status === 'draft')
+            ? 'Draft pengajuan diperbarui oleh Admin Dept'
+            : (($pengajuan->status === 'draft') ? 'Pengajuan disubmit oleh Admin Dept' : 'Pengajuan diperbarui & dikirim ulang oleh Admin Dept');
+
         $this->db->trans_start();
 
         // 1. Update data master kendaraan
@@ -740,11 +775,11 @@ class Pengajuan extends CI_Controller
             'updated_at'        => date('Y-m-d H:i:s'),
         ]);
 
-        // 2. Update data pengajuan_uji & ubah status ke pengajuan_baru (agar masuk ke queue manager lagi)
+        // 2. Update data pengajuan_uji
         $this->db->where('id_pengajuan', $id_pengajuan)->update('pengajuan_uji', [
             'tipe_akses'        => $tipe_akses ?: null,
             'tujuan'            => $tujuan ?: null,
-            'status'            => 'pengajuan_baru',
+            'status'            => $new_status,
             'tanggal_pengajuan' => date('Y-m-d H:i:s'),
         ]);
 
@@ -753,8 +788,8 @@ class Pengajuan extends CI_Controller
             'id_pengajuan'   => $id_pengajuan,
             'id_approver'    => $id_user,
             'level_approval' => 'edit_resubmit',
-            'status'         => 'submitted',
-            'catatan'        => 'Pengajuan diperbarui & dikirim ulang oleh Admin Dept',
+            'status'         => $log_status,
+            'catatan'        => $log_catatan,
             'created_at'     => date('Y-m-d H:i:s'),
         ]);
 
@@ -774,12 +809,22 @@ class Pengajuan extends CI_Controller
         $this->db->trans_complete();
 
         if ($this->db->trans_status()) {
+            if ($new_status === 'pengajuan_baru' && file_exists(APPPATH . 'libraries/Sikuk_email.php')) {
+                try {
+                    $this->load->library('sikuk_email');
+                    $this->sikuk_email->notif_pengajuan_dibuat($id_pengajuan);
+                } catch (Throwable $e) {
+                    log_message('error', '[Pengajuan Update] Exception email: ' . $e->getMessage());
+                }
+            }
             $no  = '#PU-' . str_pad($id_pengajuan, 4, '0', STR_PAD_LEFT);
-            $msg = 'Pengajuan <strong>' . $no . '</strong> berhasil diperbarui dan dikirim ulang ke <strong>Dept Manager</strong>.';
+            $msg = ($new_status === 'draft')
+                ? 'Draft pengajuan <strong>' . $no . '</strong> berhasil diperbarui.'
+                : 'Pengajuan <strong>' . $no . '</strong> berhasil disubmit dan dikirim ke <strong>Dept Manager</strong>.';
             if (!empty($upload_errs)) {
                 $msg .= ' Catatan upload: ' . implode(', ', $upload_errs);
             }
-            echo json_encode($response('success', $msg));
+            echo json_encode($response('success', $msg, ['redirect' => site_url('pengajuan')]));
         } else {
             echo json_encode($response('error', 'Gagal memperbarui pengajuan. Silakan coba lagi.'));
         }

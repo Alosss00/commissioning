@@ -1,3 +1,14 @@
+<?php
+$_roles_raw = $this->session->userdata('roles');
+$_role_int  = (int)$this->session->userdata('role');
+$_roles     = is_array($_roles_raw) ? array_map('intval', $_roles_raw) : [$_role_int];
+
+$isAdmin    = in_array(1, $_roles);
+$isAdminOHS = in_array(5, $_roles);
+$isPlanner  = in_array(8, $_roles);
+$canManage  = $isAdmin || $isAdminOHS || $isPlanner;
+?>
+
 <main id="main" class="main">
 
     <div class="pagetitle">
@@ -15,10 +26,10 @@
         <!-- STAT CARDS -->
         <div class="row g-3 mb-3">
             <?php
-            $total     = count($jadwals);
-            $scheduled = count(array_filter($jadwals, fn($j) => $j->status === 'scheduled'));
-            $done      = count(array_filter($jadwals, fn($j) => $j->status === 'done'));
-            $cancelled = count(array_filter($jadwals, fn($j) => $j->status === 'cancelled'));
+            $total        = count($jadwals);
+            $scheduled    = count(array_filter($jadwals, fn($j) => $j->status === 'scheduled'));
+            $done         = count(array_filter($jadwals, fn($j) => $j->status === 'done'));
+            $cancelled    = count(array_filter($jadwals, fn($j) => $j->status === 'cancelled'));
             $perlu_jadwal = count($menunggu_jadwal);
             ?>
             <div class="col-sm-3">
@@ -40,7 +51,7 @@
                 </div>
             </div>
             <div class="col-sm-3">
-                <?php if ($perlu_jadwal > 0): ?>
+                <?php if ($canManage && $perlu_jadwal > 0): ?>
                     <a href="#antriJadwal" class="text-decoration-none">
                         <div class="card border-0 bg-warning bg-opacity-25 text-center py-3">
                             <div class="fs-2 fw-bold text-warning"><?= $perlu_jadwal ?></div>
@@ -49,15 +60,15 @@
                     </a>
                 <?php else: ?>
                     <div class="card border-0 bg-secondary bg-opacity-10 text-center py-3">
-                        <div class="fs-2 fw-bold text-secondary">0</div>
+                        <div class="fs-2 fw-bold text-secondary"><?= $perlu_jadwal ?></div>
                         <div class="text-muted small">Perlu Dijadwalkan</div>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
 
-        <!-- ANTRIAN PERLU DIJADWALKAN -->
-        <?php if ($perlu_jadwal > 0): ?>
+        <!-- ANTRIAN PERLU DIJADWALKAN (KHUSUS ADMIN OHS / PLANNER) -->
+        <?php if ($canManage && $perlu_jadwal > 0): ?>
             <div class="card mb-3 border-warning border-2" id="antriJadwal">
                 <div class="card-body pt-3 pb-2">
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -175,7 +186,7 @@
                                                 <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
-                                        <?php if ($j->status === 'scheduled'): ?>
+                                        <?php if ($canManage && $j->status === 'scheduled'): ?>
                                             <div class="d-flex gap-1 mt-2">
                                                 <a href="<?= site_url('jadwal/edit/' . $j->id_jadwal) ?>"
                                                     class="btn btn-outline-secondary py-0 px-2" style="font-size:11px;">
@@ -216,12 +227,14 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
-                <a href="#" class="btn btn-outline-secondary btn-sm" id="btnEditJadwal">
-                    <i class="bi bi-pencil me-1"></i>Edit
-                </a>
-                <button type="button" class="btn btn-danger btn-sm" id="btnCancelJadwal">
-                    <i class="bi bi-x-circle me-1"></i>Batalkan
-                </button>
+                <?php if ($canManage): ?>
+                    <a href="#" class="btn btn-outline-secondary btn-sm" id="btnEditJadwal">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" id="btnCancelJadwal">
+                        <i class="bi bi-x-circle me-1"></i>Batalkan
+                    </button>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -236,6 +249,7 @@
 
         var modalDetail = new bootstrap.Modal(document.getElementById('modalDetailJadwal'));
         var activeJadwalId = null;
+        var canManage = <?= json_encode($canManage) ?>;
 
         // ── FullCalendar ───────────────────────────────────────────────────────
         var calendar = new FullCalendar.Calendar(document.getElementById('kalender'), {
@@ -272,14 +286,25 @@
         function bukaDetailJadwal(id) {
             activeJadwalId = id;
             $('#detailJadwalBody').html('<div class="text-center py-3"><span class="spinner-border text-primary"></span></div>');
-            $('#btnEditJadwal').attr('href', '<?= site_url('jadwal/edit') ?>/' + id);
+            if (canManage) {
+                $('#btnEditJadwal').attr('href', '<?= site_url('jadwal/edit') ?>/' + id);
+                $('#btnEditJadwal, #btnCancelJadwal').hide();
+            }
             modalDetail.show();
 
-            var post = {};
+            var post = {
+                id: id,
+                id_jadwal: id
+            };
             post[window.csrfTokenName] = window.csrfTokenHash;
-            post.id_jadwal = id;
             $.post('<?= site_url('jadwal/detail') ?>', post, function(res) {
-                if (!res.status || !res.data) return;
+                if (!res || res.status !== 'success' || !res.data) {
+                    $('#detailJadwalBody').html('<div class="alert alert-danger py-2 mb-0">' + ((res && res.message) ? res.message : 'Gagal memuat detail jadwal.') + '</div>');
+                    if (canManage) {
+                        $('#btnEditJadwal, #btnCancelJadwal').hide();
+                    }
+                    return;
+                }
                 var d = res.data;
 
                 // Badge status jadwal
@@ -287,20 +312,36 @@
                     scheduled: '<span class="badge bg-primary">Terjadwal</span>',
                     done: '<span class="badge bg-success">Selesai</span>',
                     cancelled: '<span class="badge bg-danger">Dibatalkan</span>',
-                } [d.status] || '<span class="badge bg-secondary">' + d.status + '</span>';
+                }[d.status] || '<span class="badge bg-secondary">' + d.status + '</span>';
 
                 // Badge status pengajuan (bahasa Indonesia)
                 var statusPengajuanLabel = {
+                    draft: '<span class="badge bg-secondary">Draft</span>',
+                    pengajuan_baru: '<span class="badge bg-primary">Pengajuan Baru</span>',
+                    diterima_manager: '<span class="badge bg-info text-dark">Diterima Manager</span>',
                     dijadwalkan: '<span class="badge bg-primary">Dijadwalkan Inspeksi</span>',
+                    inspeksi_ulang: '<span class="badge bg-warning text-dark">Siap Inspeksi Ulang</span>',
                     selesai_inspeksi: '<span class="badge bg-warning text-dark">Selesai Inspeksi</span>',
+                    lulus_inspeksi: '<span class="badge bg-success">Lulus Inspeksi</span>',
+                    tidak_lulus_inspeksi: '<span class="badge bg-danger">Tidak Lulus Inspeksi</span>',
                     diterima_admin_ohs: '<span class="badge bg-info text-dark">Diterima Admin OHS</span>',
-                } [d.status_pengajuan] || '<span class="badge bg-secondary">' + (d.status_pengajuan || '') + '</span>';
+                    diterima_ohs_supt: '<span class="badge bg-info text-dark">Diterima OHS Supt</span>',
+                    acc_ktt: '<span class="badge bg-success">Disetujui KTT</span>',
+                    stiker_keluar: '<span class="badge bg-success">Stiker Terbit</span>',
+                    dicabut_ktt: '<span class="badge bg-danger">Stiker Dicabut</span>',
+                }[d.status_pengajuan] || '<span class="badge bg-secondary">' + (d.status_pengajuan || '—') + '</span>';
+
+                var tipeAksesBadge = '';
+                if (d.tipe_akses) {
+                    var abClass = (d.tipe_akses === 'Full Akses' || d.tipe_akses === 'Mining') ? 'bg-danger' : 'bg-success';
+                    tipeAksesBadge = ' <span class="badge ' + abClass + ' ms-1" style="font-size:10px;">' + d.tipe_akses + '</span>';
+                }
 
                 var html = '<div class="row g-2">' +
-                    '<div class="col-6"><small class="text-muted d-block">No. Polisi</small><strong class="text-primary">' + d.no_polisi + '</strong></div>' +
-                    '<div class="col-6"><small class="text-muted d-block">Jenis Kendaraan</small><strong>' + d.jenis_kendaraan + '</strong></div>' +
-                    '<div class="col-6"><small class="text-muted d-block">Merk / Tipe</small><strong>' + d.merk + ' ' + d.tipe_kendaraan + '</strong></div>' +
-                    '<div class="col-6"><small class="text-muted d-block">Pemohon</small><strong>' + d.nama_pemohon + '</strong></div>' +
+                    '<div class="col-6"><small class="text-muted d-block">No. Polisi</small><strong class="text-primary">' + (d.no_polisi || '—') + '</strong>' + tipeAksesBadge + '</div>' +
+                    '<div class="col-6"><small class="text-muted d-block">Jenis Kendaraan</small><strong>' + (d.jenis_kendaraan || '—') + '</strong></div>' +
+                    '<div class="col-6"><small class="text-muted d-block">Merk / Model</small><strong>' + (d.merk || '—') + (d.tipe_kendaraan ? ' ' + d.tipe_kendaraan : '') + '</strong></div>' +
+                    '<div class="col-6"><small class="text-muted d-block">Pemohon</small><strong>' + (d.nama_pemohon || '—') + '</strong></div>' +
                     '<div class="col-12"><hr class="my-2"></div>' +
                     '<div class="col-6"><small class="text-muted d-block">Tanggal & Jam</small><strong>' + formatTgl(d.tanggal_uji) + '</strong></div>' +
                     '<div class="col-6"><small class="text-muted d-block">Lokasi</small><strong>' + (d.lokasi || '—') + '</strong></div>' +
@@ -315,12 +356,19 @@
 
                 $('#detailJadwalBody').html(html);
 
-                if (d.status !== 'scheduled') {
-                    $('#btnEditJadwal, #btnCancelJadwal').hide();
-                } else {
-                    $('#btnEditJadwal, #btnCancelJadwal').show();
+                if (canManage) {
+                    if (d.status === 'scheduled') {
+                        $('#btnEditJadwal, #btnCancelJadwal').show();
+                    } else {
+                        $('#btnEditJadwal, #btnCancelJadwal').hide();
+                    }
                 }
-            }, 'json');
+            }, 'json').fail(function() {
+                $('#detailJadwalBody').html('<div class="alert alert-danger py-2 mb-0">Gagal terhubung ke server saat memuat detail jadwal.</div>');
+                if (canManage) {
+                    $('#btnEditJadwal, #btnCancelJadwal').hide();
+                }
+            });
         }
 
         // ── Cancel dari modal ──────────────────────────────────────────────────
@@ -346,9 +394,11 @@
                 cancelButtonText: 'Tidak',
             }).then(function(r) {
                 if (!r.isConfirmed) return;
-                var post = {};
+                var post = {
+                    id: id,
+                    id_jadwal: id
+                };
                 post[window.csrfTokenName] = window.csrfTokenHash;
-                post.id_jadwal = id;
                 $.post('<?= site_url('jadwal/cancel') ?>', post, function(res) {
                     if (res.status === 'success') {
                         toastr.success(res.message);

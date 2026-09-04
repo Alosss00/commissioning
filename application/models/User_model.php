@@ -36,13 +36,14 @@ class User_model extends CI_Model
         $this->db->join('roles r',       'r.id_role  = ur.id_role', 'left');
         $this->db->group_by('u.id_user');
 
-        // Filter pencarian berdasarkan nama, username, atau email
+        // Filter pencarian berdasarkan nama, username, email, atau departemen
         if (!empty($filters['search'])) {
             $kw = $filters['search'];
             $this->db->group_start();
             $this->db->like('u.nama', $kw);
             $this->db->or_like('u.username', $kw);
             $this->db->or_like('u.email', $kw);
+            $this->db->or_like('u.departemen', $kw);
             $this->db->group_end();
         }
 

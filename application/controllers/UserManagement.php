@@ -194,13 +194,14 @@ class UserManagement extends CI_Controller
               </div>';
 
             $rows[] = [
-                'foto'     => $foto,
-                'nama'     => '<strong>' . html_escape($u->nama) . '</strong><br><small class="text-muted">@' . html_escape($u->username) . '</small>',
-                'email'    => html_escape($u->email),
-                'jabatan'  => html_escape($u->jabatan ?? '-'),
-                'roles'    => $roles_html ?: '<span class="text-muted small">—</span>',
-                'status'   => $status,
-                'aksi'     => $aksi,
+                'foto'        => $foto,
+                'nama'        => '<strong>' . html_escape($u->nama) . '</strong><br><small class="text-muted">@' . html_escape($u->username) . '</small>',
+                'email'       => html_escape($u->email),
+                'departemen'  => html_escape($u->departemen ?? '-'),
+                'jabatan'     => html_escape($u->jabatan ?? '-'),
+                'roles'       => $roles_html ?: '<span class="text-muted small">—</span>',
+                'status'      => $status,
+                'aksi'        => $aksi,
             ];
         }
 

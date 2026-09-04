@@ -625,12 +625,15 @@
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                             <small class="text-muted">
                                                 <i class="bi bi-info-circle me-1 text-primary"></i>
-                                                Setelah disubmit, pengajuan diteruskan ke <strong>Manager</strong> untuk review.
+                                                Pilih <strong>Submit Pengajuan</strong> untuk langsung meneruskan ke Manager, atau <strong>Simpan Draft</strong> untuk menyimpan sementara.
                                             </small>
                                             <div class="d-flex gap-2">
                                                 <a href="<?= site_url('pengajuan') ?>" class="btn btn-outline-secondary">
                                                     <i class="bi bi-arrow-left me-1"></i>Kembali
                                                 </a>
+                                                <button type="button" class="btn btn-outline-primary btn-draft-pengajuan">
+                                                    <i class="bi bi-save me-1"></i>Simpan Draft
+                                                </button>
                                                 <button type="button" class="btn btn-primary btn-submit-pengajuan">
                                                     <i class="bi bi-send me-1"></i>Submit Pengajuan
                                                 </button>
@@ -1107,7 +1110,6 @@
             $wrap.find('.thumb-maintenance-img').attr('src', '');
         });
 
-        // ── VALIDASI & SUBMIT ─────────────────────────────────────────────────
         // ── N/A checkbox handler — text fields (nomor unit, model, mesin, polisi) ─
         $(document).on('change', '.inp-na-check', function() {
             var target = $(this).data('target');
@@ -1167,9 +1169,8 @@
             }
         });
 
-        // ── VALIDASI & SUBMIT ─────────────────────────────────────────────────
-        $(document).on('click', '.btn-submit-pengajuan', function() {
-            var $tab = $(this).closest('.tab-pane');
+        // ── VALIDASI & SUBMIT / DRAFT ─────────────────────────────────────────
+        function handlePengajuanSubmit($tab, isDraft) {
             var s = suffixOfTab($tab);
             var modeUnit = tabState[s];
             var tipaAkses = $tab.find('.inp-tipe-akses').val();
@@ -1178,106 +1179,126 @@
             $tab.find('[class*="err-"]').text('');
             $tab.find('.foto-box').removeClass('has-error');
 
-            if (!$tab.find('.tipe-pengajuan-radio:checked').val()) {
-                $tab.find('.err-tipe-pengajuan').text('Pilih tipe commissioning terlebih dahulu.');
-                errors = true;
-            }
-
-            if (modeUnit === 'baru') {
-                if (!$('#jenis_kendaraan_' + s).val()) {
-                    $tab.find('.err-jenis').text('Tipe unit wajib dipilih.');
-                    errors = true;
-                }
-                if (!$('#perusahaan_' + s).val()) {
-                    $tab.find('.err-perusahaan').text('Perusahaan wajib dipilih.');
-                    errors = true;
-                }
-                if (!$tab.find('.inp-merk').val().trim()) {
-                    $tab.find('.err-merk').text('Merk unit wajib diisi.');
-                    errors = true;
-                }
-                if (!$tab.find('.inp-nomor-unit').val().trim()) {
-                    $tab.find('.err-nomor-unit').text('Nomor unit wajib diisi.');
+            if (!isDraft) {
+                // Strict validation for full submission
+                if (!$tab.find('.tipe-pengajuan-radio:checked').val()) {
+                    $tab.find('.err-tipe-pengajuan').text('Pilih tipe commissioning terlebih dahulu.');
                     errors = true;
                 }
 
-                if (!$tab.find('.inp-tahun').val().trim()) {
-                    $tab.find('.err-tahun').text('Tahun wajib diisi.');
-                    errors = true;
-                }
-
-                // Nomor Polisi — wajib KECUALI jika N/A dicentang
-                var naPol = $('#na_no_polisi_' + s).prop('checked');
-                if (!naPol && !$tab.find('.inp-no-polisi').val().trim()) {
-                    $tab.find('.err-no-polisi').text('Nomor polisi wajib diisi atau centang N/A.');
-                    errors = true;
-                }
-
-
-                // Sertifikasi Alat Berat — wajib KECUALI N/A jika tipe unit = Alat Berat
-                var isAlatBerat = $tab.find('.select2-jenis option:selected').data('is-alat-berat');
-                if (isAlatBerat == 1 || isAlatBerat == '1') {
-                    var naSert = $('#na_sertifikasi_' + s).prop('checked');
-                    if (!naSert && !document.getElementById('lampiran_sertifikasi_' + s).files.length) {
-                        $tab.find('.err-sertifikasi').text('Upload sertifikasi Alat Berat wajib diisi atau centang N/A.');
+                if (modeUnit === 'baru') {
+                    if (!$('#jenis_kendaraan_' + s).val()) {
+                        $tab.find('.err-jenis').text('Tipe unit wajib dipilih.');
                         errors = true;
                     }
-                }
-
-                // STNK — wajib KECUALI N/A
-                var naStnk = $('#na_stnk_' + s).prop('checked');
-                if (!naStnk && !document.getElementById('lampiran_stnk_' + s).files.length) {
-                    $tab.find('.err-stnk').text('Foto STNK wajib diupload atau centang N/A.');
-                    errors = true;
-                }
-
-                // Foto 4 sisi — wajib KECUALI masing-masing N/A
-                ['unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'].forEach(function(fkey) {
-                    var naFoto = $('#na_' + fkey + '_' + s).prop('checked');
-                    if (!naFoto && !document.getElementById('lampiran_' + fkey + '_' + s).files.length) {
-                        $('#fbox_' + fkey + '_' + s).find('.err-foto-' + fkey)
-                            .text('Upload foto atau centang N/A.')
-                            .closest('.foto-box').addClass('has-error');
+                    if (!$('#perusahaan_' + s).val()) {
+                        $tab.find('.err-perusahaan').text('Perusahaan wajib dipilih.');
                         errors = true;
                     }
-                });
+                    if (!$tab.find('.inp-merk').val().trim()) {
+                        $tab.find('.err-merk').text('Merk unit wajib diisi.');
+                        errors = true;
+                    }
+                    if (!$tab.find('.inp-nomor-unit').val().trim()) {
+                        $tab.find('.err-nomor-unit').text('Nomor unit wajib diisi.');
+                        errors = true;
+                    }
 
-                // Validasi maintenance record
-                var maintenanceLuar = $('input[name="pernah_maintenance_luar_' + s + '"]:checked').val();
-                if (maintenanceLuar === '1' && !document.getElementById('lampiran_maintenance_record_' + s).files.length) {
-                    $tab.find('.err-maintenance').text('Dokumen Maintenance Record wajib diupload.');
+                    if (!$tab.find('.inp-tahun').val().trim()) {
+                        $tab.find('.err-tahun').text('Tahun wajib diisi.');
+                        errors = true;
+                    }
+
+                    // Nomor Polisi — wajib KECUALI jika N/A dicentang
+                    var naPol = $('#na_no_polisi_' + s).prop('checked');
+                    if (!naPol && !$tab.find('.inp-no-polisi').val().trim()) {
+                        $tab.find('.err-no-polisi').text('Nomor polisi wajib diisi atau centang N/A.');
+                        errors = true;
+                    }
+
+                    // Sertifikasi Alat Berat — wajib KECUALI N/A jika tipe unit = Alat Berat
+                    var isAlatBerat = $tab.find('.select2-jenis option:selected').data('is-alat-berat');
+                    if (isAlatBerat == 1 || isAlatBerat == '1') {
+                        var naSert = $('#na_sertifikasi_' + s).prop('checked');
+                        if (!naSert && !document.getElementById('lampiran_sertifikasi_' + s).files.length) {
+                            $tab.find('.err-sertifikasi').text('Upload sertifikasi Alat Berat wajib diisi atau centang N/A.');
+                            errors = true;
+                        }
+                    }
+
+                    // STNK — wajib KECUALI N/A
+                    var naStnk = $('#na_stnk_' + s).prop('checked');
+                    if (!naStnk && !document.getElementById('lampiran_stnk_' + s).files.length) {
+                        $tab.find('.err-stnk').text('Foto STNK wajib diupload atau centang N/A.');
+                        errors = true;
+                    }
+
+                    // Foto 4 sisi — wajib KECUALI masing-masing N/A
+                    ['unit_depan', 'unit_belakang', 'unit_kiri', 'unit_kanan'].forEach(function(fkey) {
+                        var naFoto = $('#na_' + fkey + '_' + s).prop('checked');
+                        if (!naFoto && !document.getElementById('lampiran_' + fkey + '_' + s).files.length) {
+                            $('#fbox_' + fkey + '_' + s).find('.err-foto-' + fkey)
+                                .text('Upload foto atau centang N/A.')
+                                .closest('.foto-box').addClass('has-error');
+                            errors = true;
+                        }
+                    });
+
+                    // Validasi maintenance record
+                    var maintenanceLuar = $('input[name="pernah_maintenance_luar_' + s + '"]:checked').val();
+                    if (maintenanceLuar === '1' && !document.getElementById('lampiran_maintenance_record_' + s).files.length) {
+                        $tab.find('.err-maintenance').text('Dokumen Maintenance Record wajib diupload.');
+                        errors = true;
+                    }
+
+                } else if (modeUnit === 'lama') {
+                    if (!$('#id_kendaraan_' + s).val()) {
+                        $tab.find('.err-id-kendaraan').text('Pilih kendaraan terlebih dahulu.');
+                        errors = true;
+                    }
+                } else {
+                    $tab.find('.err-tipe-pengajuan').text('Pilih tipe commissioning terlebih dahulu.');
                     errors = true;
                 }
 
-            } else if (modeUnit === 'lama') {
-                if (!$('#id_kendaraan_' + s).val()) {
-                    $tab.find('.err-id-kendaraan').text('Pilih kendaraan terlebih dahulu.');
+                if (!$tab.find('.inp-tujuan').val().trim()) {
+                    $tab.find('.err-tujuan').text('Tujuan penggunaan wajib diisi.');
                     errors = true;
+                }
+                var valEmailPemohon = ($('#email_pemohon_' + s).val() || $tab.find('.inp-email-pemohon').val() || '').trim();
+                if (!valEmailPemohon) {
+                    $tab.find('.err-email-pemohon').text('Email pemohon wajib diisi.');
+                    errors = true;
+                }
+
+                if (errors) {
+                    toastr.warning('Lengkapi semua field yang wajib diisi sebelum melakukan submit.');
+                    var firstErr = $tab.find('[class*="err-"]').filter(function() {
+                        return $(this).text().trim() !== '';
+                    }).first();
+                    if (firstErr.length) $('html,body').animate({
+                        scrollTop: firstErr.offset().top - 130
+                    }, 300);
+                    return;
                 }
             } else {
-                $tab.find('.err-tipe-pengajuan').text('Pilih tipe commissioning terlebih dahulu.');
-                errors = true;
-            }
-
-            if (!$tab.find('.inp-tujuan').val().trim()) {
-                $tab.find('.err-tujuan').text('Tujuan penggunaan wajib diisi.');
-                errors = true;
-            }
-            var valEmailPemohon = ($('#email_pemohon_' + s).val() || $tab.find('.inp-email-pemohon').val() || '').trim();
-            if (!valEmailPemohon) {
-                $tab.find('.err-email-pemohon').text('Email pemohon wajib diisi.');
-                errors = true;
-            }
-
-            if (errors) {
-                toastr.warning('Lengkapi semua field yang wajib diisi.');
-                var firstErr = $tab.find('[class*="err-"]').filter(function() {
-                    return $(this).text().trim() !== '';
-                }).first();
-                if (firstErr.length) $('html,body').animate({
-                    scrollTop: firstErr.offset().top - 130
-                }, 300);
-                return;
+                // Relaxed validation for draft
+                if (modeUnit === 'lama') {
+                    if (!$('#id_kendaraan_' + s).val()) {
+                        $tab.find('.err-id-kendaraan').text('Pilih kendaraan untuk menyimpan draft.');
+                        errors = true;
+                    }
+                } else {
+                    var hasIdent = ($tab.find('.inp-nomor-unit').val().trim() || $('#jenis_kendaraan_' + s).val() || $tab.find('.inp-merk').val().trim() || $tab.find('.inp-no-polisi').val().trim());
+                    if (!hasIdent) {
+                        $tab.find('.err-nomor-unit').text('Setidaknya isi Nomor Unit, Tipe Unit, atau Merk untuk menyimpan draft.');
+                        errors = true;
+                    }
+                }
+                if (errors) {
+                    toastr.warning('Masukkan setidaknya data unit / kendaraan untuk menyimpan draft.');
+                    return;
+                }
             }
 
             var aksesLabelMap = {
@@ -1285,9 +1306,19 @@
                 'non_mining': 'Non Mining (Area Non-Tambang)',
                 'underground': 'Underground (Area Bawah Tanah)',
             };
-            var aksesLabel = aksesLabelMap[tipaAkses] || tipaAkses;
+            var aksesLabel = aksesLabelMap[tipaAkses] || tipaAkses || '-';
+            var valEmailPemohon = ($('#email_pemohon_' + s).val() || $tab.find('.inp-email-pemohon').val() || '').trim();
 
-            Swal.fire({
+            var swalConfig = isDraft ? {
+                title: 'Simpan sebagai Draft?',
+                html: 'Pengajuan akan disimpan sebagai <strong>Draft</strong> dan belum diteruskan ke antrean review Manager.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="bi bi-save me-1"></i>Ya, Simpan Draft',
+                cancelButtonText: 'Batal',
+            } : {
                 title: 'Submit Pengajuan?',
                 html: 'Tipe Akses: <strong>' + aksesLabel + '</strong><br>Pengajuan akan diteruskan ke <strong>Manager Dept</strong> untuk review.',
                 icon: 'question',
@@ -1296,21 +1327,32 @@
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: '<i class="bi bi-send me-1"></i>Ya, Submit',
                 cancelButtonText: 'Batal',
-            }).then(function(r) {
+            };
+
+            Swal.fire(swalConfig).then(function(r) {
                 if (!r.isConfirmed) return;
 
                 NProgress.start();
-                var $btn = $tab.find('.btn-submit-pengajuan');
-                $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...');
+                var $btnSubmit = $tab.find('.btn-submit-pengajuan');
+                var $btnDraft = $tab.find('.btn-draft-pengajuan');
+                $btnSubmit.prop('disabled', true);
+                $btnDraft.prop('disabled', true);
+
+                if (isDraft) {
+                    $btnDraft.html('<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...');
+                } else {
+                    $btnSubmit.html('<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan...');
+                }
 
                 var maintenanceLuar = $('input[name="pernah_maintenance_luar_' + s + '"]:checked').val() || '0';
 
                 var fd = new FormData();
                 fd.append(csrfName, csrfHash);
-                fd.append('mode_unit', modeUnit);
-                fd.append('tipe_pengajuan', $tab.find('.tipe-pengajuan-radio:checked').val());
-                fd.append('tipe_akses', tipaAkses);
-                fd.append('tujuan', $tab.find('.inp-tujuan').val());
+                fd.append('is_draft', isDraft ? '1' : '0');
+                fd.append('mode_unit', modeUnit || 'baru');
+                fd.append('tipe_pengajuan', $tab.find('.tipe-pengajuan-radio:checked').val() || (modeUnit === 'lama' ? 'recommissioning' : 'baru'));
+                fd.append('tipe_akses', tipaAkses || 'mining');
+                fd.append('tujuan', $tab.find('.inp-tujuan').val() || '');
                 fd.append('email_pemohon', valEmailPemohon);
                 fd.append('pernah_maintenance_luar', maintenanceLuar);
 
@@ -1325,16 +1367,16 @@
                         fd.append('is_na_foto_' + fk, $('#na_' + fk + '_' + s).prop('checked') ? '1' : '0');
                     });
 
-                    fd.append('id_tipe_kendaraan', $('#jenis_kendaraan_' + s).val());
+                    fd.append('id_tipe_kendaraan', $('#jenis_kendaraan_' + s).val() || '0');
                     fd.append('nomor_unit', $tab.find('.inp-nomor-unit').val().trim());
-                    fd.append('merk', $tab.find('.inp-merk').val());
-                    fd.append('model_unit', $('#na_model_unit_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-model-unit').val());
-                    fd.append('no_polisi', $('#na_no_polisi_' + s).prop('checked') ? 'N/A' : $tab.find('.inp-no-polisi').val().toUpperCase());
-                    fd.append('perusahaan', $('#perusahaan_' + s).val());
-                    fd.append('tahun', $tab.find('.inp-tahun').val());
+                    fd.append('merk', $tab.find('.inp-merk').val() || '');
+                    fd.append('model_unit', $('#na_model_unit_' + s).prop('checked') ? 'N/A' : ($tab.find('.inp-model-unit').val() || ''));
+                    fd.append('no_polisi', $('#na_no_polisi_' + s).prop('checked') ? 'N/A' : ($tab.find('.inp-no-polisi').val().toUpperCase() || ''));
+                    fd.append('perusahaan', $('#perusahaan_' + s).val() || '');
+                    fd.append('tahun', $tab.find('.inp-tahun').val() || '');
 
                 } else {
-                    fd.append('id_kendaraan', $('#id_kendaraan_' + s).val());
+                    fd.append('id_kendaraan', $('#id_kendaraan_' + s).val() || '0');
                 }
 
                 // File upload — lampiran Sertifikasi, STNK & foto 4 sisi & maintenance record (Unit Baru & Unit Lama)
@@ -1363,7 +1405,8 @@
                     dataType: 'json',
                     success: function(res) {
                         NProgress.done();
-                        $btn.prop('disabled', false).html('<i class="bi bi-send me-1"></i>Submit Pengajuan');
+                        $btnSubmit.prop('disabled', false).html('<i class="bi bi-send me-1"></i>Submit Pengajuan');
+                        $btnDraft.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Simpan Draft');
                         if (res.status === 'success') {
                             Swal.fire({
                                     title: 'Berhasil!',
@@ -1385,13 +1428,23 @@
                     },
                     error: function() {
                         NProgress.done();
-                        $btn.prop('disabled', false).html('<i class="bi bi-send me-1"></i>Submit Pengajuan');
+                        $btnSubmit.prop('disabled', false).html('<i class="bi bi-send me-1"></i>Submit Pengajuan');
+                        $btnDraft.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Simpan Draft');
                         toastr.error('Terjadi kesalahan server.');
                     }
                 });
             });
+        }
+
+        $(document).on('click', '.btn-submit-pengajuan', function() {
+            var $tab = $(this).closest('.tab-pane');
+            handlePengajuanSubmit($tab, false);
         });
 
+        $(document).on('click', '.btn-draft-pengajuan', function() {
+            var $tab = $(this).closest('.tab-pane');
+            handlePengajuanSubmit($tab, true);
+        });
 
     });
 </script>

@@ -331,7 +331,7 @@ $approval_open = strpos($current_uri, 'approval') === 0 ? '' : 'collapsed';
 
             <li class="nav-heading">Uji Kelayakan</li>
 
-            <?php if ($isAdmin || $isAdminOHS || $isPlanner): ?>
+            <?php if ($isAdmin || $isAdminOHS || $isPlanner || $isInspektor): ?>
                 <li class="nav-item">
                     <a class="nav-link <?= is_active('jadwal') ?>" href="<?= site_url('jadwal') ?>">
                         <i class="bi bi-calendar-check"></i>
